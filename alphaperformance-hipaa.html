@@ -438,6 +438,16 @@
   .pos-field{margin-bottom:14px}
   .pos-field label{display:block;font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
   #posClient,#posProd,#posTreat,#posDose,#posDiscount,#posPay{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--card);outline:none;font-size:15px}
+  #posDiscountAmt{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--card);outline:none;font-size:15px;text-align:right;font-variant-numeric:tabular-nums}
+  #posDiscountAmt:focus{border-color:var(--red)}
+  .pos-editprod{margin-top:6px;border:1px solid var(--line);border-radius:10px;background:var(--canvas);max-height:260px;overflow:auto;padding:6px}
+  .pe-hint{font-size:12px;color:var(--muted);padding:6px 8px 8px}
+  .pe-row{display:flex;align-items:center;gap:6px;padding:6px 6px;border-top:1px solid var(--line)}
+  .pe-row:first-of-type{border-top:none}
+  .pe-name{flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pe-price,.pe-cost{width:74px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);outline:none;font-size:14px;text-align:right;font-variant-numeric:tabular-nums}
+  .pe-price:focus,.pe-cost:focus{border-color:var(--red)}
+  .pe-lbl{font-size:10px;color:var(--muted);width:74px;text-align:right}
   .pos-newprod-toggle{align-self:flex-start;font-size:13px;font-weight:600;color:var(--emerald);padding:2px 0}
   .pos-newprod{display:flex;flex-direction:column;gap:8px;padding:12px;background:var(--canvas);border:1px solid var(--line);border-radius:11px}
   .pos-newprod input{padding:10px 11px;border:1px solid var(--line);border-radius:9px;outline:none;font-size:14px;background:var(--card)}
@@ -586,6 +596,9 @@
   .treat-badge{background:#ECE9FB;color:#5344b0}
   .disc-badge{background:var(--amber-soft);color:#946400}
   .due-badge{background:var(--red-soft);color:#a5352f}
+  .inactive-badge{background:#E5E7EB;color:#4B5563}
+  .member.is-inactive{opacity:.62}
+  .member.is-inactive .pulse{filter:grayscale(1)}
   .chip.chip-due{border-color:#f0c9c6;color:#a5352f}
   .chip.chip-due.on{background:var(--red);border-color:var(--red);color:#fff}
   .followup-alert{width:100%;display:flex;align-items:center;gap:12px;background:var(--amber-soft);border:1px solid #efd99a;border-radius:13px;padding:13px 15px;margin-bottom:16px;text-align:left;transition:.15s;box-shadow:var(--shadow)}
@@ -984,6 +997,7 @@
         <div class="tool-right">
           <select class="sortsel" id="pSortSel" aria-label="Sort patients">
             <option value="recent">Recently added</option>
+            <option value="lastvisit">Last visit</option>
             <option value="name">Name A–Z</option>
             <option value="consult">Consult date</option>
             <option value="treatment">Treatment</option>
@@ -1027,6 +1041,7 @@
           <span>to</span><input type="number" id="demoTo" min="0" max="120" inputmode="numeric">
           <select id="demoSex"><option value="">All sexes</option><option value="Male">Male</option><option value="Female">Female</option></select>
           <select id="demoTreat"><option value="">Any treatment</option></select>
+          <select id="demoLoc"><option value="">All locations</option></select>
         </div>
         <div id="demoRangeResult" class="demo-range-res"></div>
         <div class="rep-grid" style="margin-top:13px">
@@ -1042,7 +1057,15 @@
           <div id="repDemoAge"></div>
         </div>
       </div>
+      <div style="margin-top:6px"><div class="demo-cap">By location <span class="demo-cap-note">· all clients</span></div><div id="repDemoLoc"></div></div>
     </div>
+    <div class="rep-card"><h3 class="rep-h">Referrals <span class="rep-sub" id="repRefSummary"></span></h3>
+      <div class="rep-grid">
+        <div><div class="demo-cap">How they heard about us</div><div id="repRefSource"></div></div>
+        <div><div class="demo-cap">Top referrers &amp; sources <span class="demo-cap-note">· named</span></div><div id="repRefBy"></div></div>
+      </div>
+    </div>
+    <div class="rep-card"><h3 class="rep-h">Why clients go inactive <span class="rep-sub" id="repInactiveSummary"></span></h3><div id="repInactive"></div></div>
     <div class="rep-grid">
       <div class="rep-card"><h3 class="rep-h">Revenue by tier</h3><div id="repTier"></div></div>
       <div class="rep-card"><h3 class="rep-h">Discounts in use</h3><div id="repDiscounts"></div></div>
@@ -1085,6 +1108,7 @@
           <button type="button" class="pos-quick" id="posAddDues"></button>
         </div>
         <button type="button" class="pos-newprod-toggle" id="posNewToggle">+ New product</button>
+        <button type="button" class="pos-newprod-toggle" id="posEditToggle">Manage prices</button>
         <div class="pos-newprod" id="posNewForm" style="display:none">
           <input type="text" id="posNewName" placeholder="Product name" autocomplete="off">
           <div class="pos-add-row">
@@ -1093,6 +1117,7 @@
             <button type="button" class="vc-add" id="posNewSave">Save</button>
           </div>
         </div>
+        <div class="pos-editprod" id="posEditForm" style="display:none"></div>
         <div class="pos-add-row">
           <input type="text" id="posCustomName" placeholder="One-off item" autocomplete="off">
           <div class="pw"><input type="number" id="posCustomPrice" placeholder="Price" min="0"></div>
@@ -1103,7 +1128,8 @@
       <div id="posCart" class="pos-cart"></div>
 
       <div class="pos-foot">
-        <div class="pos-line"><span>Discount</span><select id="posDiscount"></select></div>
+        <div class="pos-line"><span>Discount %</span><select id="posDiscount"></select></div>
+        <div class="pos-line"><span>$ off</span><input type="number" id="posDiscountAmt" min="0" step="0.01" placeholder="0.00" inputmode="decimal"></div>
         <div class="pos-line"><span>Payment</span>
           <select id="posPay"><option>Cash</option><option>Card</option><option>Zelle</option><option>Check</option><option>Other</option></select>
         </div>
@@ -1313,6 +1339,41 @@
       <label for="pDiscount">Discount <span class="opt">· applies to membership</span></label>
       <select id="pDiscount"></select>
     </div>
+    <div class="field">
+      <label for="pLocation">Preferred location</label>
+      <select id="pLocation"></select>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="pRefSource">Referral source</label>
+        <select id="pRefSource">
+          <option value="">—</option>
+          <option>Existing patient</option>
+          <option>Influencer</option>
+          <option>Instagram</option>
+          <option>Website</option>
+          <option>Sign</option>
+          <option>Friend / family</option>
+          <option>Google / web search</option>
+          <option>Social media</option>
+          <option>Provider / doctor</option>
+          <option>Event / community</option>
+          <option>Advertising</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <div id="pRefByWrap">
+          <label for="pRefBy">Referred by <span class="opt">· patient or name</span></label>
+          <input id="pRefBy" list="pRefByList" placeholder="Start typing a client name" autocomplete="off">
+          <datalist id="pRefByList"></datalist>
+        </div>
+        <div id="pRefDetailWrap" style="display:none">
+          <label for="pRefDetail" id="pRefDetailLbl">Detail</label>
+          <input id="pRefDetail" autocomplete="off" placeholder="">
+        </div>
+      </div>
+    </div>
     <div class="stage-track" id="pStageTrack"></div>
     <div class="field">
       <label for="pConsult">First consult <span class="opt">· intake date</span></label>
@@ -1353,6 +1414,38 @@
         </div>
       </div>
       <div id="pVisitList"></div>
+    </div>
+
+    <div class="memb-section">
+      <div class="memb-toggle">
+        <div>
+          <div class="memb-toggle-title">Active patient</div>
+          <div class="memb-toggle-sub" id="pActiveSub">On. Turn off to mark inactive and record why.</div>
+        </div>
+        <button type="button" class="switch on" id="pActiveSwitch" role="switch" aria-checked="true"><span></span></button>
+      </div>
+      <div id="pInactiveFields" style="display:none">
+        <div class="field">
+          <label for="pInactiveReason">Reason inactive</label>
+          <select id="pInactiveReason">
+            <option value="">—</option>
+            <option>Stopped treatment</option>
+            <option>Too expensive</option>
+            <option>Went to a new provider</option>
+            <option>Moved away</option>
+            <option>Lost contact / no response</option>
+            <option>Side effects / health reasons</option>
+            <option>Goals met / completed</option>
+            <option>Unhappy with results</option>
+            <option>Deceased</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="field" id="pInactiveDetailWrap" style="display:none">
+          <label for="pInactiveDetail">Details</label>
+          <input id="pInactiveDetail" autocomplete="off" placeholder="Add a short note">
+        </div>
+      </div>
     </div>
 
     <div class="memb-section">
@@ -1487,6 +1580,12 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
       Add discount level
     </button>
+    <div class="settings-label">Locations</div>
+    <div id="locationList"></div>
+    <button class="add-tier" id="addLocationBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Add location
+    </button>
     <div class="settings-label">Accounting passcode</div>
     <p style="font-size:13px;color:var(--muted);margin:0 0 12px;line-height:1.45">Require a passcode to open the Accounting section (Expenses, General Ledger, Chart of Accounts, Reports). The rest of the app — Clients, Memberships, Register — stays open. <span id="booksLockState" style="font-weight:600"></span></p>
     <div class="pos-add-row" style="margin-bottom:8px">
@@ -1592,6 +1691,7 @@ window.startClinicApp = function(){
   var treatments = load("alphaperf_treatments", DEFAULT_TREATMENTS);
   var visitTypes = load("alphaperf_visittypes", DEFAULT_VISIT_TYPES);
   var discounts = load("alphaperf_discounts", DEFAULT_DISCOUNTS);
+  var locations = load("alphaperf_locations", null); if(!Array.isArray(locations)||!locations.length) locations=["Bohemia","Setauket"];
   var treatmentPricing = load("alphaperf_pricing", {});
   var SB_URL_DEFAULT = "";
   var SB_KEY_DEFAULT = "";
@@ -1724,6 +1824,7 @@ window.startClinicApp = function(){
   function saveTreatments(){ store.set("alphaperf_treatments", JSON.stringify(treatments)); schedulePush(); }
   function saveVisitTypes(){ store.set("alphaperf_visittypes", JSON.stringify(visitTypes)); schedulePush(); }
   function saveDiscounts(){ store.set("alphaperf_discounts", JSON.stringify(discounts)); schedulePush(); }
+  function saveLocations(){ store.set("alphaperf_locations", JSON.stringify(locations)); schedulePush(); }
   function saveTreatmentPricing(){ store.set("alphaperf_pricing", JSON.stringify(treatmentPricing)); schedulePush(); }
   function saveSettings(){ store.set("alphaperf_settings", JSON.stringify(settings)); schedulePush(); }
   function persistLocalRaw(){
@@ -2090,7 +2191,7 @@ window.startClinicApp = function(){
     return { range:range, ML:ML, activeMembers:activeMembers, mrrNet:mrrNet, mrrGross:mrrGross, newClients:newClients, visitsInPeriod:visitsInPeriod };
   }
 
-  var demoCfg = load("alphaperf_democfg", {from:18, to:65, sex:"", treat:"", breaks:[18,30,40,50,60,70]});
+  var demoCfg = load("alphaperf_democfg", {from:18, to:65, sex:"", treat:"", loc:"", breaks:[18,30,40,50,60,70]});
   if(!Array.isArray(demoCfg.breaks)||!demoCfg.breaks.length) demoCfg.breaks=[18,30,40,50,60,70];
   function saveDemoCfg(){ store.set("alphaperf_democfg", JSON.stringify(demoCfg)); }
   function clientAge(p){ if(!p||!p.dob) return null; var d=parseISO(p.dob); if(!d||isNaN(d.getTime())) return null; var t=new Date(); var a=t.getFullYear()-d.getFullYear(); var mo=t.getMonth()-d.getMonth(); if(mo<0||(mo===0&&t.getDate()<d.getDate())) a--; return (a>=0&&a<130)?a:null; }
@@ -2112,25 +2213,26 @@ window.startClinicApp = function(){
   }
   // Multi-filter cohort: age range + sex + treatment
   function cohortFilter(){
-    var lo=demoCfg.from, hi=demoCfg.to, sex=demoCfg.sex, treat=demoCfg.treat;
+    var lo=demoCfg.from, hi=demoCfg.to, sex=demoCfg.sex, treat=demoCfg.treat, loc=demoCfg.loc;
     var fullAge=(lo<=0 && hi>=120);
     return patients.filter(function(p){
       if(sex && p.sex!==sex) return false;
       if(treat && (p.treatments||[]).indexOf(treat)<0) return false;
+      if(loc && (p.location||"")!==loc) return false;
       var a=clientAge(p);
       if(a==null) return fullAge;      // no DOB: only included when no age constraint
       return a>=lo && a<=hi;
     });
   }
   function updateDemoRange(){
-    var fEl=$("demoFrom"), tEl=$("demoTo"), sEl=$("demoSex"), trEl=$("demoTreat"); if(!fEl||!tEl) return;
+    var fEl=$("demoFrom"), tEl=$("demoTo"), sEl=$("demoSex"), trEl=$("demoTreat"), lcEl=$("demoLoc"); if(!fEl||!tEl) return;
     var lo=parseInt(fEl.value,10), hi=parseInt(tEl.value,10);
     if(isNaN(lo)) lo=0; if(isNaN(hi)) hi=120; lo=Math.max(0,Math.min(120,lo)); hi=Math.max(0,Math.min(120,hi));
     if(lo>hi){ var tmp=lo; lo=hi; hi=tmp; }
-    demoCfg.from=lo; demoCfg.to=hi; demoCfg.sex=sEl?sEl.value:""; demoCfg.treat=trEl?trEl.value:""; saveDemoCfg();
+    demoCfg.from=lo; demoCfg.to=hi; demoCfg.sex=sEl?sEl.value:""; demoCfg.treat=trEl?trEl.value:""; demoCfg.loc=lcEl?lcEl.value:""; saveDemoCfg();
     var coh=cohortFilter();
     var male=0, female=0; coh.forEach(function(p){ if(p.sex==="Male")male++; else if(p.sex==="Female")female++; });
-    var bits=[]; bits.push("aged "+lo+"\u2013"+hi); if(demoCfg.sex) bits.push(demoCfg.sex.toLowerCase()); if(demoCfg.treat) bits.push("on "+demoCfg.treat);
+    var bits=[]; bits.push("aged "+lo+"\u2013"+hi); if(demoCfg.sex) bits.push(demoCfg.sex.toLowerCase()); if(demoCfg.treat) bits.push("on "+demoCfg.treat); if(demoCfg.loc) bits.push("at "+demoCfg.loc);
     $("demoRangeResult").innerHTML='<b>'+coh.length+'</b> matching client'+(coh.length===1?"":"s")+' <span class="demo-res-sub">'+esc(bits.join(" \u00b7 "))+' \u00b7 '+male+' male, '+female+' female</span>';
     // Most popular treatments in the cohort
     var pop={}; coh.forEach(function(p){ (p.treatments||[]).forEach(function(t){ pop[t]=(pop[t]||0)+1; }); });
@@ -2219,13 +2321,55 @@ window.startClinicApp = function(){
       $("demoBreaks").value=demoCfg.breaks.join(", ");
       $("demoBreaks").oninput=function(){ var arr=(this.value||"").split(/[^0-9]+/).map(function(x){return parseInt(x,10);}).filter(function(n){return !isNaN(n)&&n>0&&n<130;}); demoCfg.breaks=arr.length?arr:[18,30,40,50,60,70]; saveDemoCfg(); renderAgeBuckets(); };
       renderAgeBuckets();
-      // custom multi-filter: age + sex + treatment
+      // By location (all clients)
+      (function(){
+        var lc={}, none=0;
+        patients.forEach(function(p){ if(p.location){ lc[p.location]=(lc[p.location]||0)+1; } else none++; });
+        var rows=locations.map(function(l){ return {label:l, value:lc[l]||0, color:"#0EA5E9"}; }).filter(function(r){return r.value>0;});
+        Object.keys(lc).forEach(function(l){ if(locations.indexOf(l)<0) rows.push({label:l, value:lc[l], color:"#0EA5E9"}); });
+        rows.sort(function(a,b){return b.value-a.value;});
+        if(none) rows.push({label:"No location set", value:none, color:"#C4CBD4"});
+        $("repDemoLoc").innerHTML = rows.length ? hbars(rows,"clients") : '<div class="rep-empty">No locations recorded yet.</div>';
+      })();
+      // custom multi-filter: age + sex + treatment + location
       $("demoTreat").innerHTML='<option value="">Any treatment</option>'+treatments.map(function(t){ return '<option value="'+esc(t)+'">'+esc(t)+'</option>'; }).join("");
-      $("demoFrom").value=demoCfg.from; $("demoTo").value=demoCfg.to; $("demoSex").value=demoCfg.sex||""; $("demoTreat").value=demoCfg.treat||"";
+      $("demoLoc").innerHTML='<option value="">All locations</option>'+locations.map(function(l){ return '<option value="'+esc(l)+'">'+esc(l)+'</option>'; }).join("");
+      $("demoFrom").value=demoCfg.from; $("demoTo").value=demoCfg.to; $("demoSex").value=demoCfg.sex||""; $("demoTreat").value=demoCfg.treat||""; $("demoLoc").value=demoCfg.loc||"";
       $("demoFrom").oninput=updateDemoRange; $("demoTo").oninput=updateDemoRange;
       $("demoFrom").onchange=updateDemoRange; $("demoTo").onchange=updateDemoRange;
-      $("demoSex").onchange=updateDemoRange; $("demoTreat").onchange=updateDemoRange;
+      $("demoSex").onchange=updateDemoRange; $("demoTreat").onchange=updateDemoRange; $("demoLoc").onchange=updateDemoRange;
       updateDemoRange();
+    })();
+
+    // Referrals: how they heard about us + top referring clients
+    (function(){
+      var srcCount={}, byCount={}, withSrc=0, withRef=0;
+      var nameById={}; patients.forEach(function(p){ nameById[p.id]=p.name; });
+      patients.forEach(function(p){
+        if(p.refSource){ srcCount[p.refSource]=(srcCount[p.refSource]||0)+1; withSrc++; }
+        var key="";
+        if(p.refByName) key=p.refByName;
+        else if(p.refBy && nameById[p.refBy]) key=nameById[p.refBy];
+        else if(p.refDetail) key=p.refDetail+" \u00b7 "+(p.refSource||"referral");
+        if(key){ byCount[key]=(byCount[key]||0)+1; withRef++; }
+      });
+      var PALETTE=["#DC2626","#2563EB","#0D9488","#B45309","#7C3AED","#DB2777","#0E9F6E","#6B7280","#0EA5E9","#65A30D"];
+      var srcRows=Object.keys(srcCount).map(function(s,i){ return {label:s, value:srcCount[s], color:PALETTE[i%PALETTE.length]}; }).sort(function(a,b){return b.value-a.value;});
+      $("repRefSource").innerHTML = srcRows.length ? hbars(srcRows,"clients") : '<div class="rep-empty">No referral sources recorded yet.</div>';
+      var byRows=Object.keys(byCount).map(function(n){ return {label:n, value:byCount[n], color:"#DC2626"}; }).sort(function(a,b){return b.value-a.value;}).slice(0,15);
+      $("repRefBy").innerHTML = byRows.length ? hbars(byRows,"clients") : '<div class="rep-empty">No named referrers/sources yet.</div>';
+      $("repRefSummary").textContent = withSrc+" with a source \u00b7 "+withRef+" with a named referrer/source";
+    })();
+
+    // Why clients go inactive
+    (function(){
+      var reasons={}, n=0;
+      patients.forEach(function(p){ if(p.active===false){ n++; var r=p.inactiveReason||"No reason given"; reasons[r]=(reasons[r]||0)+1; } });
+      var PAL=["#DC2626","#B45309","#7C3AED","#2563EB","#0D9488","#DB2777","#6B7280","#0EA5E9","#65A30D","#9333EA"];
+      var rows=Object.keys(reasons).map(function(r,i){ return {label:r, value:reasons[r], color:PAL[i%PAL.length]}; }).sort(function(a,b){return b.value-a.value;});
+      $("repInactive").innerHTML = rows.length ? hbars(rows,"clients") : '<div class="rep-empty">No inactive clients \u2014 great retention.</div>';
+      var tot=patients.length, act=tot-n;
+      $("repInactiveSummary").textContent = n+" inactive \u00b7 "+act+" active"+(tot?" \u00b7 "+Math.round(act/tot*100)+"% retained":"");
     })();
 
     // Revenue by tier
@@ -2826,6 +2970,7 @@ window.startClinicApp = function(){
     $("posProd").innerHTML=opts;
     $("posDiscount").innerHTML='<option value="">No discount</option>'+discounts.map(function(d){return '<option value="'+esc(d.name)+'">'+esc(d.name)+' ('+d.percent+'%)</option>';}).join("");
     $("posNewForm").style.display="none";
+    if($("posEditForm")) $("posEditForm").style.display="none";
     setPosClient(posClientId);
   }
   function setRegEntity(k){
@@ -2916,6 +3061,25 @@ window.startClinicApp = function(){
     fillPosSelects();
     toast("Product added to "+entityName(regEntity));
   }
+  function renderPosEdit(){
+    ensureRegProducts();
+    var list=curProducts().slice().sort(function(a,b){return (a.name||"").localeCompare(b.name||"");});
+    var el=$("posEditForm");
+    if(!list.length){ el.innerHTML='<div class="pe-hint">No products in '+entityName(regEntity)+' yet.</div>'; return; }
+    el.innerHTML='<div class="pe-hint">Editing prices for <b>'+esc(entityName(regEntity))+'</b>. Left = price, right = cost.</div>'+
+      '<div class="pe-row"><span class="pe-name"></span><span class="pe-lbl">Price</span><span class="pe-lbl">Cost</span><span style="width:28px"></span></div>'+
+      list.map(function(p){
+        return '<div class="pe-row"><span class="pe-name" title="'+esc(p.name)+'">'+esc(p.name)+'</span>'+
+          '<input type="number" class="pe-price" data-peid="'+p.id+'" value="'+(p.price||0)+'" min="0" step="0.01" inputmode="decimal">'+
+          '<input type="number" class="pe-cost" data-ceid="'+p.id+'" value="'+(p.cost||0)+'" min="0" step="0.01" inputmode="decimal">'+
+          '<button class="cart-del" data-pedel="'+p.id+'" aria-label="Remove"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>';
+      }).join("");
+    function prodById(id){ return curProducts().filter(function(x){return x.id===id;})[0]; }
+    Array.prototype.forEach.call(el.querySelectorAll("[data-peid]"),function(inp){ inp.onchange=function(){ var p=prodById(inp.getAttribute("data-peid")); if(p){ p.price=Math.max(0,parseFloat(inp.value)||0); inp.value=p.price; saveRegProducts(); fillPosSelects(); } }; });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-ceid]"),function(inp){ inp.onchange=function(){ var p=prodById(inp.getAttribute("data-ceid")); if(p){ p.cost=Math.max(0,parseFloat(inp.value)||0); inp.value=p.cost; saveRegProducts(); } }; });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-pedel]"),function(b){ b.onclick=function(){ var id=b.getAttribute("data-pedel"); var p=prodById(id); if(!p) return;
+      askConfirm({title:"Remove product?",message:"Remove \u201c"+p.name+"\u201d from the "+entityName(regEntity)+" catalog?",okLabel:"Remove",onConfirm:function(){ regProducts[regEntity]=curProducts().filter(function(x){return x.id!==id;}); saveRegProducts(); renderPosEdit(); fillPosSelects(); toast("Removed"); }}); }; });
+  }
   function addCustomToCart(){
     var nm=($("posCustomName").value||"").trim(); var px=Math.max(0,parseFloat($("posCustomPrice").value)||0);
     if(!nm){ $("posCustomName").focus(); return; }
@@ -2943,10 +3107,13 @@ window.startClinicApp = function(){
     }
     var sub=posCart.reduce(function(s,l){return s+l.retail*l.qty;},0);
     var cost=posCart.reduce(function(s,l){return s+l.cost*l.qty;},0);
-    var pct=discountByName($("posDiscount").value); var disc=sub*pct/100; var total=sub-disc;
+    var pct=discountByName($("posDiscount").value); var disc=sub*pct/100;
+    var damt=Math.max(0, parseFloat($("posDiscountAmt").value)||0); damt=Math.min(damt, Math.max(0, sub-disc));
+    var total=sub-disc-damt;
     $("posTotals").innerHTML=
       '<div class="pos-tot-row"><span>Subtotal</span><span>$'+money(sub)+'</span></div>'+
       (pct?'<div class="pos-tot-row"><span>Discount ('+pct+'%)</span><span>−$'+money(disc)+'</span></div>':'')+
+      (damt?'<div class="pos-tot-row"><span>Discount ($ off)</span><span>−$'+money(damt)+'</span></div>':'')+
       '<div class="pos-tot-row"><span>Cost / profit</span><span>$'+money(cost)+' / $'+money(total-cost)+'</span></div>'+
       '<div class="pos-tot-row grand"><span>Total</span><span>$'+money(total)+'</span></div>';
   }
@@ -2955,13 +3122,15 @@ window.startClinicApp = function(){
     var p=findPatient(posClientId);
     var sub=posCart.reduce(function(s,l){return s+l.retail*l.qty;},0);
     var cost=posCart.reduce(function(s,l){return s+l.cost*l.qty;},0);
-    var dn=$("posDiscount").value, pct=discountByName(dn); var total=sub-sub*pct/100;
+    var dn=$("posDiscount").value, pct=discountByName(dn); var pdisc=sub*pct/100;
+    var damt=Math.max(0, parseFloat($("posDiscountAmt").value)||0); damt=Math.min(damt, Math.max(0, sub-pdisc));
+    var total=sub-pdisc-damt;
     txns.push({ id:txId(), date:todayISO(), type:"sale", clientId:p?p.id:"", clientName:p?p.name:"Walk-in",
-      items:posCart.slice(), subtotal:sub, discountName:dn, discountPct:pct, total:total, cost:cost, profit:total-cost,
+      items:posCart.slice(), subtotal:sub, discountName:dn, discountPct:pct, discountAmt:damt, total:total, cost:cost, profit:total-cost,
       payment:$("posPay").value, source:"pos", entity:regEntity });
     saveTxns();
     if(window.__hipAudit) window.__hipAudit("sale", p?p.id:"walk-in");
-    posCart=[]; $("posDiscount").value=""; setPosClient(""); renderCart();
+    posCart=[]; $("posDiscount").value=""; $("posDiscountAmt").value=""; setPosClient(""); renderCart();
     toast("Sale recorded · $"+money(total));
   }
 
@@ -3340,12 +3509,14 @@ window.startClinicApp = function(){
       else if(e.key==="Escape"){ $("posClientDrop").style.display="none"; }
     });
     $("posAddProd").onclick=addProdToCart;
-    $("posNewToggle").onclick=function(){ var f=$("posNewForm"); f.style.display=(f.style.display==="none"?"block":"none"); };
+    $("posNewToggle").onclick=function(){ var f=$("posNewForm"); f.style.display=(f.style.display==="none"?"block":"none"); $("posEditForm").style.display="none"; };
     $("posNewSave").onclick=saveNewProduct;
+    $("posEditToggle").onclick=function(){ var f=$("posEditForm"); var show=f.style.display==="none"; f.style.display=show?"block":"none"; $("posNewForm").style.display="none"; if(show) renderPosEdit(); };
     $("posAddCustom").onclick=addCustomToCart;
     $("posAddDues").onclick=addDuesToCart;
     Array.prototype.forEach.call(document.querySelectorAll("#regEntityBar .ent-btn"),function(b){ b.onclick=function(){ setRegEntity(b.getAttribute("data-regentity")); }; });
     $("posDiscount").onchange=renderCart;
+    $("posDiscountAmt").oninput=renderCart;
     $("posComplete").onclick=completeSale;
     $("posImportBtn").onclick=importVisits;
     $("posExportBtn").onclick=exportTxns;
@@ -3410,8 +3581,13 @@ window.startClinicApp = function(){
   function findPatient(id){ for(var i=0;i<patients.length;i++) if(patients[i].id===id) return patients[i]; return null; }
 
   function pCounts(){
-    var c={all:patients.length, lead:0, consult:0, bloodwork:0, treatment:0, due:0};
-    patients.forEach(function(p){ c[pStage(p)]++; if(isDue(p)) c.due++; });
+    var c={all:patients.length, lead:0, consult:0, bloodwork:0, treatment:0, due:0, notx:0, inactive:0};
+    patients.forEach(function(p){
+      if(p.active===false){ c.inactive++; return; }
+      c[pStage(p)]++;
+      if(isDue(p)) c.due++;
+      if(!(p.treatments&&p.treatments.length)) c.notx++;
+    });
     return c;
   }
   function renderPatientStats(){
@@ -3449,7 +3625,7 @@ window.startClinicApp = function(){
   function renderPatientChips(){
     var c=pCounts();
     var defs=[["all","All",c.all],["due","Follow-up",c.due],["lead","New lead",c.lead],["consult","Consult",c.consult],
-      ["bloodwork","Blood work",c.bloodwork],["treatment","On treatment",c.treatment]];
+      ["bloodwork","Blood work",c.bloodwork],["treatment","On treatment",c.treatment],["notx","Not on treatment",c.notx],["inactive","Inactive",c.inactive]];
     $("pChips").innerHTML=defs.map(function(d){
       return '<button class="chip'+(pFilter===d[0]?" on":"")+(d[0]==="due"&&d[2]>0?" chip-due":"")+'" data-pfilter="'+d[0]+'">'+d[1]+
         ' <span class="cnt">'+d[2]+'</span></button>';
@@ -3462,14 +3638,19 @@ window.startClinicApp = function(){
     var q=pQuery.trim().toLowerCase();
     var arr=patients.filter(function(p){
       if(q){ var hay=(p.name+" "+(p.email||"")+" "+(p.phone||"")).toLowerCase(); if(hay.indexOf(q)<0) return false; }
+      var inactive = p.active===false;
+      if(pFilter==="inactive") return inactive;
       if(pFilter==="all") return true;
+      if(inactive) return false;
       if(pFilter==="due") return isDue(p);
+      if(pFilter==="notx") return !(p.treatments&&p.treatments.length);
       return pStage(p)===pFilter;
     });
     arr.sort(function(a,b){
       if(pSortBy==="name") return a.name.localeCompare(b.name);
       if(pSortBy==="treatment") return ((a.treatments&&a.treatments[0])||"~").localeCompare((b.treatments&&b.treatments[0])||"~") || a.name.localeCompare(b.name);
       if(pSortBy==="consult") return (b.consultDate||"").localeCompare(a.consultDate||"");
+      if(pSortBy==="lastvisit"){ var la=lastSeenDate(a)||"", lb=lastSeenDate(b)||""; return lb.localeCompare(la) || a.name.localeCompare(b.name); }
       return (b.createdAt||"").localeCompare(a.createdAt||""); // recent
     });
     return arr;
@@ -3503,11 +3684,14 @@ window.startClinicApp = function(){
       var discB = p.discount ? '<span class="badge disc-badge">'+esc(p.discount)+'</span>' : '';
       var dsn = daysSinceSeen(p);
       var dueB = isDue(p) ? '<span class="badge due-badge">'+dsn+'d no visit</span>' : '';
-      return '<article class="member" data-pid="'+p.id+'">'+
+      var inact = p.active===false;
+      var inactB = inact ? '<span class="badge inactive-badge">Inactive'+(p.inactiveReason?' · '+esc(p.inactiveReason):'')+'</span>' : '';
+      return '<article class="member'+(inact?' is-inactive':'')+'" data-pid="'+p.id+'">'+
         '<div class="pulse '+st+'"></div>'+
         '<div class="m-body">'+
           '<div class="m-top">'+
             '<span class="m-name">'+esc(p.name)+'</span>'+
+            inactB+
             discB+
             memberB+
             '<span class="badge status-badge sb-'+st+'"><span class="d"></span>'+PSTAGES[st]+'</span>'+
@@ -3776,6 +3960,30 @@ window.startClinicApp = function(){
       return '<div class="'+(done[s[0]]?"st done":"st")+'">'+s[1]+'</div>';
     }).join("");
   }
+  var REF_DETAIL={
+    "Influencer":{label:"Influencer name", ph:"Who is the influencer?"},
+    "Instagram":{label:"Instagram account", ph:"@handle or account"},
+    "Website":{label:"Which website", ph:"e.g. our site, a directory"},
+    "Sign":{label:"Sign location", ph:"Where is the sign?"}
+  };
+  function syncRefFields(){
+    var src=$("pRefSource").value, cfg=REF_DETAIL[src], isPatient=(src==="Existing patient");
+    $("pRefByWrap").style.display = isPatient ? "" : "none";
+    $("pRefDetailWrap").style.display = cfg ? "" : "none";
+    if(cfg){ $("pRefDetailLbl").textContent=cfg.label; $("pRefDetail").placeholder=cfg.ph; }
+  }
+  function fillLocationSelect(val){
+    var el=$("pLocation"); if(!el) return;
+    el.innerHTML='<option value="">—</option>'+locations.map(function(l){ return '<option'+(l===val?' selected':'')+'>'+esc(l)+'</option>'; }).join("");
+    el.value=val||"";
+  }
+  function fillRefByList(excludeId){
+    var el=$("pRefByList"); if(!el) return;
+    var seen={};
+    el.innerHTML=patients.filter(function(p){ return p.id!==excludeId && p.name && !seen[p.name] && (seen[p.name]=1); })
+      .sort(function(a,b){return (a.name||"").localeCompare(b.name||"");})
+      .map(function(p){ return '<option value="'+esc(p.name)+'"></option>'; }).join("");
+  }
   function openAddClient(withMemb){
     pEditingId=null;
     $("pPanelTitle").textContent = withMemb ? "Enroll a member" : "Add client";
@@ -3784,6 +3992,8 @@ window.startClinicApp = function(){
     $("pName").value=""; $("pPhone").value=""; $("pEmail").value="";
     $("pConsult").value=""; $("pNotes").value="";
     $("pSex").value=""; $("pDob").value="";
+    $("pRefSource").value=""; $("pRefBy").value=""; $("pRefDetail").value=""; fillRefByList(null); $("pRefSource").onchange=syncRefFields; syncRefFields();
+    fillLocationSelect("");
     formTreatments=[]; formDoses={}; renderTreatChips(); $("pTreatAddRow").style.display="none";
     formVisits=[]; renderVisits();
     $("pvDate").value=todayISO(); fillVisitTypeSelect("Blood work"); $("pvTypeAddRow").style.display="none"; $("pvNote").value="";
@@ -3791,6 +4001,7 @@ window.startClinicApp = function(){
     fillMembTierSelect(tiers[0]&&tiers[0].name); setMembCycle("monthly");
     $("pmStart").value=todayISO(); $("pmStatus").value="active";
     setMembOn(!!withMemb);
+    setActiveOn(true); $("pInactiveReason").value=""; $("pInactiveDetail").value=""; syncInactiveDetail();
     renderStageTrack();
     $("pPurchasesField").style.display="none";
     openPPanel();
@@ -3807,6 +4018,8 @@ window.startClinicApp = function(){
     $("pName").value=p.name; $("pPhone").value=p.phone||""; $("pEmail").value=p.email||"";
     $("pConsult").value=p.consultDate||""; $("pNotes").value=p.notes||"";
     $("pSex").value=p.sex||""; $("pDob").value=p.dob||"";
+    $("pRefSource").value=p.refSource||""; $("pRefBy").value=p.refByName||""; $("pRefDetail").value=p.refDetail||""; fillRefByList(id); $("pRefSource").onchange=syncRefFields; syncRefFields();
+    fillLocationSelect(p.location||"");
     formTreatments = Array.isArray(p.treatments)? p.treatments.slice() : [];
     formDoses = p.doses ? clone(p.doses) : {};
     renderTreatChips(); $("pTreatAddRow").style.display="none";
@@ -3819,6 +4032,7 @@ window.startClinicApp = function(){
     $("pmStart").value = p.startDate || todayISO();
     $("pmStatus").value = p.status || "active";
     setMembOn(!!p.isMember);
+    setActiveOn(p.active!==false); $("pInactiveReason").value=p.inactiveReason||""; $("pInactiveDetail").value=p.inactiveDetail||""; syncInactiveDetail();
     renderStageTrack();
     renderClientPurchases(id);
     openPPanel();
@@ -3849,9 +4063,18 @@ window.startClinicApp = function(){
     settings.lastDiscount=disc; store.set("alphaperf_settings", JSON.stringify(settings));
     var doses={};
     formTreatments.forEach(function(t){ if(TREATMENT_DOSES[t] && formDoses[t]) doses[t]=formDoses[t]; });
+    var refSrc=$("pRefSource").value||"";
+    var refByName=(refSrc==="Existing patient") ? ($("pRefBy").value||"").trim() : "";
+    var refMatch = refByName ? patients.filter(function(x){ return x.name && x.name.toLowerCase()===refByName.toLowerCase() && x.id!==pEditingId; })[0] : null;
+    var refDetail = REF_DETAIL[refSrc] ? ($("pRefDetail").value||"").trim() : "";
+    var isActive=activeOn();
+    var inactiveReason = isActive ? "" : ($("pInactiveReason").value||"");
+    var inactiveDetail = (!isActive && inactiveReason==="Other") ? ($("pInactiveDetail").value||"").trim() : "";
     var data={
       name:name, phone:$("pPhone").value.trim(), email:$("pEmail").value.trim(),
-      consultDate:$("pConsult").value||"", sex:$("pSex").value||"", dob:$("pDob").value||"", visitLog: formVisits.slice(),
+      consultDate:$("pConsult").value||"", sex:$("pSex").value||"", dob:$("pDob").value||"", location:$("pLocation").value||"", visitLog: formVisits.slice(),
+      refSource:refSrc, refByName:refByName, refBy: refMatch?refMatch.id:"", refDetail:refDetail,
+      active:isActive, inactiveReason:inactiveReason, inactiveDetail:inactiveDetail,
       treatments: formTreatments.slice(), doses:doses, discount:disc, notes:$("pNotes").value.trim(),
       isMember:isMem
     };
@@ -3956,6 +4179,15 @@ window.startClinicApp = function(){
     renderStageTrack();
   }
   function membOn(){ return $("pMembSwitch").classList.contains("on"); }
+  function setActiveOn(on){
+    $("pActiveSwitch").classList.toggle("on", on);
+    $("pActiveSwitch").setAttribute("aria-checked", on?"true":"false");
+    $("pInactiveFields").style.display = on ? "none" : "block";
+    $("pActiveSub").textContent = on ? "On. Turn off to mark inactive and record why." : "Inactive. Choose a reason below.";
+    syncInactiveDetail();
+  }
+  function activeOn(){ return $("pActiveSwitch").classList.contains("on"); }
+  function syncInactiveDetail(){ if($("pInactiveDetailWrap")) $("pInactiveDetailWrap").style.display = ($("pInactiveReason").value==="Other") ? "" : "none"; }
 
   // ---------- settings ----------
   var draftAccent="#DC2626";
@@ -3986,6 +4218,7 @@ window.startClinicApp = function(){
     renderTreatmentEditor();
     renderVisitTypeEditor();
     renderDiscountEditor();
+    renderLocationEditor();
     refreshBooksLockUI();
     closeSidebar();
     $("settingsModal").classList.add("show"); $("scrim").classList.add("show");
@@ -4099,6 +4332,18 @@ window.startClinicApp = function(){
       b.onclick=function(){ draftDiscounts.splice(+b.getAttribute("data-ddel"),1); paintDiscounts(); };
     });
   }
+  var draftLocations=[];
+  function renderLocationEditor(){ draftLocations = locations.slice(); paintLocations(); }
+  function paintLocations(){
+    $("locationList").innerHTML = draftLocations.map(function(l,i){
+      return '<div class="tier-edit">'+
+        '<input type="text" value="'+esc(l)+'" data-locname="'+i+'" placeholder="Location name">'+
+        '<button class="tier-del" data-locdel="'+i+'" aria-label="Remove location"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>'+
+      '</div>';
+    }).join("");
+    Array.prototype.forEach.call(document.querySelectorAll("[data-locname]"),function(inp){ inp.oninput=function(){ draftLocations[+inp.getAttribute("data-locname")]=inp.value; }; });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-locdel]"),function(b){ b.onclick=function(){ draftLocations.splice(+b.getAttribute("data-locdel"),1); paintLocations(); }; });
+  }
   function saveSettingsChanges(){
     var name=$("setName").value.trim()||"Alpha Performance";
     settings.name=name;
@@ -4126,6 +4371,11 @@ window.startClinicApp = function(){
     saveVisitTypes();
     discounts = draftDiscounts.filter(function(d){return (""+d.name).trim();}).map(function(d){return {name:(""+d.name).trim(),percent:Math.max(0,Math.min(100,+d.percent||0))};});
     saveDiscounts();
+    locations = draftLocations.map(function(l){return (""+l).trim();}).filter(function(l){return l;});
+    if(locations.length===0) locations=["Bohemia","Setauket"];
+    // de-duplicate, keep order
+    (function(){ var seen={},out=[]; locations.forEach(function(l){ if(!seen[l.toLowerCase()]){ seen[l.toLowerCase()]=1; out.push(l); } }); locations=out; })();
+    saveLocations();
     applyBrand();
     closeSettings(); renderAll();
     toast("Settings saved");
@@ -4610,6 +4860,8 @@ window.startClinicApp = function(){
   };
   // membership sub-form
   $("pMembSwitch").onclick=function(){ setMembOn(!membOn()); };
+  $("pActiveSwitch").onclick=function(){ setActiveOn(!activeOn()); };
+  $("pInactiveReason").onchange=syncInactiveDetail;
   $("pmStart").onchange=updateMembRenew;
   $("pmTier").onchange=function(){
     if($("pmTier").value==="__add_tier__") addMembTierInline();
@@ -4658,6 +4910,7 @@ window.startClinicApp = function(){
   $("addTreatmentBtn").onclick=function(){ draftTreatments.push({name:"",dose:false,retail:"",cost:""}); paintTreatments(); };
   $("addVisitTypeBtn").onclick=function(){ draftVisitTypes.push(""); paintVisitTypes(); };
   $("addDiscountBtn").onclick=function(){ draftDiscounts.push({name:"",percent:0}); paintDiscounts(); };
+  $("addLocationBtn").onclick=function(){ draftLocations.push(""); paintLocations(); };
   $("clearAllBtn").onclick=clearAll;
   $("cloudPill").onclick=function(){
     if(sb && sbUser){ openSettings(); }
