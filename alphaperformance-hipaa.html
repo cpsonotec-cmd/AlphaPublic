@@ -286,6 +286,8 @@
   .panel-foot{padding:16px 22px calc(env(safe-area-inset-bottom) + 16px);border-top:1px solid var(--line);display:flex;gap:10px}
   .panel-foot .btn-primary{flex:1;justify-content:center;padding:13px}
   .btn-danger{padding:13px 15px;border-radius:11px;border:1px solid var(--red-soft);background:var(--red-soft);color:#a5352f;font-weight:600;font-size:14px;transition:.15s}
+  .btn-danger.is-disabled{opacity:.45;pointer-events:none}
+  .confirm-type{width:100%;padding:12px;margin:4px 0 6px;border:1.5px solid var(--red);border-radius:10px;outline:none;font-size:15px;text-align:center;letter-spacing:2px;font-weight:600;text-transform:uppercase;background:var(--card)}
   .btn-danger:hover{background:var(--red);color:#fff;border-color:var(--red)}
 
   /* ---------- Settings modal ---------- */
@@ -1019,6 +1021,10 @@
   <div id="reportsView" style="display:none">
     <div class="rep-toolbar">
       <div class="chips" id="repPeriod"></div>
+      <button class="btn-ghost" id="repPdf" title="Download PDF report">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M9 15h6M9 18h4"/></svg>
+        <span>PDF report</span>
+      </button>
       <button class="btn-ghost" id="repExport" title="Export summary CSV">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
         <span>Export</span>
@@ -1071,6 +1077,12 @@
       <div class="rep-card"><h3 class="rep-h">Discounts in use</h3><div id="repDiscounts"></div></div>
     </div>
     <div class="rep-card"><h3 class="rep-h">Popular treatments</h3><div id="repTreatments"></div></div>
+    <div class="rep-card"><h3 class="rep-h">GLP-1 therapies <span class="rep-sub" id="repGlpSummary"></span></h3>
+      <div class="rep-grid">
+        <div><div class="demo-cap">By type <span class="demo-cap-note">· grouped</span></div><div id="repGlpGroup"></div></div>
+        <div><div class="demo-cap">By type &amp; dose</div><div id="repGlpDose"></div></div>
+      </div>
+    </div>
     <div class="rep-card"><h3 class="rep-h">Treatment revenue &amp; profit <span class="rep-sub">monthly, from current clients</span></h3><div id="repRx"></div></div>
     <div class="rep-grid">
       <div class="rep-card"><h3 class="rep-h">Visits by type</h3><div id="repVisitTypes"></div></div>
@@ -1629,6 +1641,7 @@
 <div class="confirm-box" id="confirmBox" role="alertdialog" aria-hidden="true">
   <div class="confirm-title" id="confirmTitle">Are you sure?</div>
   <div class="confirm-msg" id="confirmMsg"></div>
+  <input id="confirmType" class="confirm-type" style="display:none" autocomplete="off" autocapitalize="characters">
   <div class="confirm-actions">
     <button class="btn-ghost" id="confirmCancel">Cancel</button>
     <button class="btn-danger" id="confirmOk">Delete</button>
@@ -2147,6 +2160,120 @@ window.startClinicApp = function(){
       '</div>';
     }).join("")+'</div>';
   }
+
+  /* ---------- PDF analytics report (self-contained, no libraries) ---------- */
+  function pdfAscii(s){ return String(s==null?"":s)
+      .replace(/[\u2018\u2019]/g,"'").replace(/[\u201C\u201D]/g,'"')
+      .replace(/[\u2013\u2014]/g,"-").replace(/\u00b7/g,"-").replace(/\u00d7/g,"x")
+      .replace(/\u2026/g,"...").replace(/[^\x20-\x7E]/g,""); }
+  function pdfEsc(s){ return pdfAscii(s).replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)"); }
+  function makePdf(build){
+    var W=612,H=792,M=48,pages=[],ops=[],y=0;
+    function flush(){ if(ops.length){ pages.push(ops.join("\n")); ops=[]; } }
+    function np(){ flush(); y=H-M; }
+    function col(c){ return (c[0])+" "+(c[1])+" "+(c[2]); }
+    function txt(s,x,size,font,c){ ops.push(col(c||[0,0,0])+" rg"); ops.push("BT /"+(font||"F1")+" "+size+" Tf "+r(x)+" "+r(y)+" Td ("+pdfEsc(s)+") Tj ET"); }
+    function r(n){ return Math.round(n*100)/100; }
+    function rect(x,yy,w,h,c){ ops.push(col(c||[0,0,0])+" rg "+r(x)+" "+r(yy)+" "+r(w)+" "+r(h)+" re f"); }
+    var api={
+      pageNo:function(){ return pages.length; },
+      line:function(s,size,font,c,gap){ size=size||10; if(y<M+size+4) np(); txt(s,M,size,font,c); y-=(size+(gap==null?5:gap)); },
+      heading:function(s){ if(y<M+34) np(); y-=8; txt(s,M,13,'F2',[0.09,0.09,0.09]); y-=5; rect(M,y,W-2*M,1.3,[0.86,0.15,0.15]); y-=16; },
+      kv:function(k,v){ if(y<M+16) np(); txt(k,M,10,'F1',[0.35,0.4,0.45]); txt(v,M+150,10,'F2',[0.1,0.1,0.1]); y-=15; },
+      bar:function(label,value,max,c){ if(y<M+26) np(); txt(label,M,9,'F1',[0.12,0.12,0.12]); txt(String(value),W-M-40,9,'F2',[0.12,0.12,0.12]); y-=11; var bw=W-2*M; rect(M,y,bw,5,[0.90,0.92,0.94]); rect(M,y,max>0?Math.max(2,bw*value/max):2,5,c||[0.86,0.15,0.15]); y-=15; },
+      gap:function(n){ y-=(n||8); },
+      bars:function(rows){ var max=1; rows.forEach(function(r){ if(r.value>max)max=r.value; }); rows.forEach(function(r){ api.bar(r.label, r.value, max, r.color); }); }
+    };
+    np(); build(api); flush();
+    // assemble objects
+    var objs=[],N=0; function nx(){ return ++N; }
+    var cat=nx(),pgs=nx(),f1=nx(),f2=nx(); var meta=[];
+    pages.forEach(function(content){ var cN=nx(),pN=nx(); meta.push({cN:cN,pN:pN,content:content}); });
+    objs[cat]="<< /Type /Catalog /Pages "+pgs+" 0 R >>";
+    objs[pgs]="<< /Type /Pages /Kids ["+meta.map(function(m){return m.pN+" 0 R";}).join(" ")+"] /Count "+meta.length+" >>";
+    objs[f1]="<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";
+    objs[f2]="<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>";
+    meta.forEach(function(m){ objs[m.cN]="<< /Length "+m.content.length+" >>\nstream\n"+m.content+"\nendstream";
+      objs[m.pN]="<< /Type /Page /Parent "+pgs+" 0 R /MediaBox [0 0 "+W+" "+H+"] /Resources << /Font << /F1 "+f1+" 0 R /F2 "+f2+" 0 R >> >> /Contents "+m.cN+" 0 R >>"; });
+    var out="%PDF-1.4\n",off=[]; for(var n=1;n<=N;n++){ off[n]=out.length; out+=n+" 0 obj\n"+objs[n]+"\nendobj\n"; }
+    var xs=out.length; out+="xref\n0 "+(N+1)+"\n0000000000 65535 f \n";
+    for(var n2=1;n2<=N;n2++){ out+=("0000000000"+off[n2]).slice(-10)+" 00000 n \n"; }
+    out+="trailer\n<< /Size "+(N+1)+" /Root "+cat+" 0 R >>\nstartxref\n"+xs+"\n%%EOF";
+    return out;
+  }
+  function downloadAnalyticsPDF(){
+    var GLP=["Semaglutide","Tirzepatide","Retatrutide"];
+    var total=patients.length, active=0,inactive=0,onTx=0,members=0,ageSum=0,ageN=0;
+    var sex={Male:0,Female:0}, loc={}, locNone=0, src={}, refBy={}, inact={};
+    var anyGlp=0, glpType={}, glpDose={}, glpRetail=0;
+    var byRx={}, totCost=0, totRetail=0;
+    var nameById={}; patients.forEach(function(p){ nameById[p.id]=p.name; });
+    patients.forEach(function(p){
+      if(p.active===false){ inactive++; inact[p.inactiveReason||"No reason given"]=(inact[p.inactiveReason||"No reason given"]||0)+1; } else active++;
+      if((p.treatments||[]).length) onTx++;
+      if(p.isMember) members++;
+      var a=clientAge(p); if(a!=null){ ageSum+=a; ageN++; }
+      if(p.sex==="Male")sex.Male++; else if(p.sex==="Female")sex.Female++;
+      if(p.location) loc[p.location]=(loc[p.location]||0)+1; else locNone++;
+      if(p.refSource) src[p.refSource]=(src[p.refSource]||0)+1;
+      var rk=p.refByName||(p.refBy&&nameById[p.refBy])||(p.refDetail?p.refDetail+" ("+(p.refSource||"referral")+")":""); if(rk) refBy[rk]=(refBy[rk]||0)+1;
+      var hasGlp=false;
+      (p.treatments||[]).forEach(function(t){
+        var pr=rxPrice(t, p.doses&&p.doses[t]);
+        if(!byRx[t]) byRx[t]={n:0,cost:0,retail:0}; byRx[t].n++;
+        if(pr){ byRx[t].cost+=pr.cost; byRx[t].retail+=pr.retail; totCost+=pr.cost; totRetail+=pr.retail; }
+        if(GLP.indexOf(t)>=0){ hasGlp=true; glpType[t]=(glpType[t]||0)+1; var d=(p.doses&&p.doses[t])||"no dose set"; glpDose[t+" - "+d]=(glpDose[t+" - "+d]||0)+1; if(pr) glpRetail+=pr.retail; }
+      });
+      if(hasGlp) anyGlp++;
+    });
+    function rows(obj,color){ return Object.keys(obj).map(function(k){return {label:k,value:obj[k],color:color};}).sort(function(a,b){return b.value-a.value;}); }
+    var clinic=(settings&&settings.name)||"Alpha Performance";
+    var dateStr=new Date().toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'});
+    var pdf=makePdf(function(d){
+      d.line(clinic,20,'F2',[0.09,0.09,0.09],4);
+      d.line("Analytics report",13,'F1',[0.4,0.45,0.5],2);
+      d.line(dateStr,10,'F1',[0.5,0.55,0.6],10);
+      d.heading("Overview");
+      d.kv("Total clients",String(total));
+      d.kv("Active / inactive",active+" / "+inactive+(total?"  ("+Math.round(active/total*100)+"% retained)":""));
+      d.kv("On treatment",String(onTx));
+      d.kv("Members",String(members));
+      d.kv("Average age",ageN?String(Math.round(ageSum/ageN)):"n/a");
+      d.heading("GLP-1 therapies (grouped)");
+      d.kv("Clients on any GLP-1",String(anyGlp));
+      if(glpRetail) d.kv("GLP-1 monthly retail","$"+money(glpRetail));
+      d.gap(2);
+      var gt=GLP.filter(function(t){return glpType[t];}).map(function(t){return {label:t,value:glpType[t],color:[0.15,0.39,0.92]};});
+      if(gt.length) d.bars(gt); else d.line("No GLP-1 clients yet.",10,'F1',[0.5,0.5,0.5]);
+      d.heading("GLP-1 by type & dose");
+      var gd=rows(glpDose,[0.49,0.23,0.93]); if(gd.length) d.bars(gd); else d.line("No doses recorded.",10,'F1',[0.5,0.5,0.5]);
+      d.heading("Demographics");
+      d.bars([{label:"Male",value:sex.Male,color:[0.15,0.39,0.92]},{label:"Female",value:sex.Female,color:[0.86,0.16,0.47]}]);
+      d.gap(2); d.line("By location",10,'F2',[0.2,0.2,0.2],6);
+      var lr=rows(loc,[0.05,0.65,0.91]); if(locNone) lr.push({label:"No location set",value:locNone,color:[0.77,0.79,0.83]}); d.bars(lr.length?lr:[{label:"None",value:0}]);
+      d.heading("Referrals");
+      d.line("How they heard about us",10,'F2',[0.2,0.2,0.2],6); var sr=rows(src,[0.15,0.39,0.92]); d.bars(sr.length?sr:[{label:"None recorded",value:0}]);
+      d.gap(2); d.line("Top referrers & sources",10,'F2',[0.2,0.2,0.2],6); var rr=rows(refBy,[0.86,0.15,0.15]).slice(0,12); d.bars(rr.length?rr:[{label:"None recorded",value:0}]);
+      d.heading("Why clients go inactive");
+      var ir=rows(inact,[0.71,0.29,0.06]); if(ir.length) d.bars(ir); else d.line("No inactive clients.",10,'F1',[0.5,0.5,0.5]);
+      d.heading("Treatment revenue (monthly, from current clients)");
+      d.kv("Retail / Cost / Profit","$"+money(totRetail)+"  /  $"+money(totCost)+"  /  $"+money(totRetail-totCost));
+      d.gap(2);
+      var rx=Object.keys(byRx).map(function(t){return {name:t,d:byRx[t]};}).filter(function(x){return x.d.retail>0;}).sort(function(a,b){return b.d.retail-a.d.retail;});
+      rx.forEach(function(x){ d.line(x.name+":  "+x.d.n+" clients  -  $"+money(x.d.retail)+" retail  -  $"+money(x.d.retail-x.d.cost)+" profit",9.5,'F1',[0.2,0.2,0.2],6); });
+      d.gap(10); d.line("Confidential - for internal use. Generated by Alpha Performance.",8,'F1',[0.6,0.6,0.6]);
+    });
+    try{
+      var blob=new Blob([pdf],{type:"application/pdf"});
+      var url=URL.createObjectURL(blob);
+      var a=document.createElement("a"); a.href=url;
+      a.download="AlphaPerformance-Analytics-"+new Date().toISOString().slice(0,10)+".pdf";
+      document.body.appendChild(a); a.click();
+      setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); },1500);
+      if(window.__hipAudit) window.__hipAudit("report_export","analytics_pdf");
+      toast("PDF report downloaded");
+    }catch(e){ toast("Could not create PDF"); }
+  }
   function vbars(series){
     var max=1; series.forEach(function(s){ if(s.value>max) max=s.value; });
     return '<div class="vbars">'+series.map(function(s){
@@ -2391,12 +2518,40 @@ window.startClinicApp = function(){
     }).filter(function(x){return x.value>0;}).sort(function(a,b){return b.value-a.value;});
     $("repDiscounts").innerHTML=discRows.length?hbars(discRows,"clients"):'<div class="rep-empty">No discounts assigned yet.</div>';
 
-    // Popular treatments
-    var treatRows=treatments.map(function(tn){
-      var n=patients.filter(function(p){return (p.treatments||[]).indexOf(tn)>=0;}).length;
-      return { label:tn, value:n, color:"#5344b0" };
-    }).filter(function(x){return x.value>0;}).sort(function(a,b){return b.value-a.value;}).slice(0,12);
+    // Popular treatments (GLP-1s grouped into one)
+    var GLP=["Semaglutide","Tirzepatide","Retatrutide"];
+    var tCount={}, glpClients=0;
+    patients.forEach(function(p){
+      var hasGlp=false;
+      (p.treatments||[]).forEach(function(tn){ if(GLP.indexOf(tn)>=0) hasGlp=true; else tCount[tn]=(tCount[tn]||0)+1; });
+      if(hasGlp) glpClients++;
+    });
+    var treatRows=Object.keys(tCount).map(function(tn){ return { label:tn, value:tCount[tn], color:"#5344b0" }; });
+    if(glpClients) treatRows.push({ label:"GLP-1 (all)", value:glpClients, color:"#DC2626" });
+    treatRows=treatRows.filter(function(x){return x.value>0;}).sort(function(a,b){return b.value-a.value;}).slice(0,12);
     $("repTreatments").innerHTML=treatRows.length?hbars(treatRows,"clients"):'<div class="rep-empty">No treatments assigned yet.</div>';
+
+    // GLP-1 therapies: grouped by type, and by type & dose
+    (function(){
+      var anyGlp=0, byType={}, byDose={}, glpRetail=0;
+      patients.forEach(function(p){
+        var has=false;
+        (p.treatments||[]).forEach(function(t){
+          if(GLP.indexOf(t)<0) return;
+          has=true; byType[t]=(byType[t]||0)+1;
+          var dose=(p.doses&&p.doses[t])?p.doses[t]:"no dose set";
+          var key=t+" \u00b7 "+dose; byDose[key]=(byDose[key]||0)+1;
+          var pr=rxPrice(t, p.doses&&p.doses[t]); if(pr) glpRetail+=pr.retail;
+        });
+        if(has) anyGlp++;
+      });
+      var C={Semaglutide:"#2563EB",Tirzepatide:"#0D9488",Retatrutide:"#B45309"};
+      var groupRows=GLP.filter(function(t){return byType[t];}).map(function(t){ return {label:t,value:byType[t],color:C[t]}; }).sort(function(a,b){return b.value-a.value;});
+      $("repGlpGroup").innerHTML = anyGlp ? hbars(groupRows,"clients") : '<div class="rep-empty">No GLP-1 clients yet.</div>';
+      var doseRows=Object.keys(byDose).map(function(k){ return {label:k,value:byDose[k],color:"#7C3AED"}; }).sort(function(a,b){return b.value-a.value || a.label.localeCompare(b.label);});
+      $("repGlpDose").innerHTML = doseRows.length ? hbars(doseRows,"clients") : '<div class="rep-empty">No doses recorded.</div>';
+      $("repGlpSummary").textContent = anyGlp+" on a GLP-1"+(glpRetail?" \u00b7 $"+money(glpRetail)+"/mo retail":"");
+    })();
 
     // Treatment revenue & profit (from pricing catalog)
     var byRx={}, totCost=0, totRetail=0, unpriced=0;
@@ -3125,12 +3280,26 @@ window.startClinicApp = function(){
     var dn=$("posDiscount").value, pct=discountByName(dn); var pdisc=sub*pct/100;
     var damt=Math.max(0, parseFloat($("posDiscountAmt").value)||0); damt=Math.min(damt, Math.max(0, sub-pdisc));
     var total=sub-pdisc-damt;
-    txns.push({ id:txId(), date:todayISO(), type:"sale", clientId:p?p.id:"", clientName:p?p.name:"Walk-in",
+    var saleId=txId();
+    txns.push({ id:saleId, date:todayISO(), type:"sale", clientId:p?p.id:"", clientName:p?p.name:"Walk-in",
       items:posCart.slice(), subtotal:sub, discountName:dn, discountPct:pct, discountAmt:damt, total:total, cost:cost, profit:total-cost,
       payment:$("posPay").value, source:"pos", entity:regEntity });
     saveTxns();
+    // Link the sale to the client's record: log it as a purchase visit for today
+    if(p){
+      var itemNames=posCart.map(function(l){ return l.qty>1 ? (l.name+" \u00d7"+l.qty) : l.name; });
+      p.visitLog = p.visitLog || [];
+      p.visitLog.push({
+        id:"v"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),
+        date: todayISO(), type:"Purchase", treatments:[], retail:0, cost:0,
+        note: itemNames.join(", ")+" \u00b7 $"+money(total)+" ("+entityName(regEntity)+")",
+        saleId: saleId
+      });
+      savePatients();
+    }
     if(window.__hipAudit) window.__hipAudit("sale", p?p.id:"walk-in");
     posCart=[]; $("posDiscount").value=""; $("posDiscountAmt").value=""; setPosClient(""); renderCart();
+    if(p) renderAll();
     toast("Sale recorded · $"+money(total));
   }
 
@@ -4118,8 +4287,9 @@ window.startClinicApp = function(){
     var p=findPatient(id); if(!p) return;
     askConfirm({
       title:"Delete "+p.name+"?",
-      message:"This permanently removes the client, their visit history, and any membership. This can't be undone.",
-      okLabel:"Delete",
+      message:"This permanently removes the client, their visit history, and any membership. This can't be undone. Type DELETE to confirm.",
+      okLabel:"Delete client",
+      requireType:"DELETE",
       onConfirm:function(){
         if(window.__hipAudit) window.__hipAudit("patient_delete", id);
         patients=patients.filter(function(x){return x.id!==id;});
@@ -4800,13 +4970,23 @@ window.startClinicApp = function(){
   }
 
   // ---------- confirm dialog ----------
-  var confirmCb=null;
+  var confirmCb=null, confirmWord=null;
   function askConfirm(opts){
     opts=opts||{};
     $("confirmTitle").textContent=opts.title||"Are you sure?";
     $("confirmMsg").textContent=opts.message||"";
     $("confirmOk").textContent=opts.okLabel||"Delete";
     confirmCb = typeof opts.onConfirm==="function" ? opts.onConfirm : null;
+    confirmWord = opts.requireType || null;
+    var inp=$("confirmType");
+    if(confirmWord){
+      inp.style.display="block"; inp.value=""; inp.placeholder='Type '+confirmWord+' to confirm';
+      $("confirmOk").disabled=true; $("confirmOk").classList.add("is-disabled");
+      inp.oninput=function(){ var ok=(inp.value||"").trim().toUpperCase()===confirmWord.toUpperCase(); $("confirmOk").disabled=!ok; $("confirmOk").classList.toggle("is-disabled",!ok); };
+      setTimeout(function(){ try{ inp.focus(); }catch(e){} },60);
+    } else {
+      inp.style.display="none"; $("confirmOk").disabled=false; $("confirmOk").classList.remove("is-disabled");
+    }
     $("confirmScrim").classList.add("show");
     $("confirmBox").classList.add("show");
     $("confirmBox").setAttribute("aria-hidden","false");
@@ -4815,7 +4995,8 @@ window.startClinicApp = function(){
     $("confirmScrim").classList.remove("show");
     $("confirmBox").classList.remove("show");
     $("confirmBox").setAttribute("aria-hidden","true");
-    confirmCb=null;
+    confirmCb=null; confirmWord=null;
+    var inp=$("confirmType"); if(inp){ inp.style.display="none"; inp.value=""; }
   }
 
   // ---------- events ----------
@@ -4897,6 +5078,7 @@ window.startClinicApp = function(){
   $("importDbBtn").onclick=function(){ $("importDbFile").click(); };
   $("importDbFile").onchange=function(e){ importDatabaseFile(e.target.files[0]); e.target.value=""; };
   $("repExport").onclick=exportReport;
+  $("repPdf").onclick=downloadAnalyticsPDF;
   $("repFrom").onchange=function(e){ repMode="custom"; repFromISO=e.target.value; renderReports(); };
   $("repTo").onchange=function(e){ repMode="custom"; repToISO=e.target.value; renderReports(); };
 
@@ -4923,7 +5105,7 @@ window.startClinicApp = function(){
   $("authSwitchBtn").onclick=function(){ setAuthMode(authMode==="signin"?"signup":"signin"); };
   $("authOffline").onclick=hideAuth;
   $("authPass").addEventListener("keydown",function(e){ if(e.key==="Enter") doAuth(); });
-  $("confirmOk").onclick=function(){ var cb=confirmCb; closeConfirm(); if(cb) cb(); };
+  $("confirmOk").onclick=function(){ if(confirmWord && (($("confirmType").value||"").trim().toUpperCase()!==confirmWord.toUpperCase())) return; var cb=confirmCb; closeConfirm(); if(cb) cb(); };
   $("confirmCancel").onclick=closeConfirm;
   $("confirmScrim").onclick=closeConfirm;
   document.addEventListener("keydown",function(e){
