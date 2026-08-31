@@ -599,6 +599,75 @@
   .disc-badge{background:var(--amber-soft);color:#946400}
   .due-badge{background:var(--red-soft);color:#a5352f}
   .inactive-badge{background:#E5E7EB;color:#4B5563}
+  .inv-statgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .inv-stat{background:var(--canvas);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .inv-stat-val{font-size:22px;font-weight:700;font-family:var(--font-display,inherit)}
+  .inv-stat-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:2px}
+  .inv-stat.t-warn .inv-stat-val{color:#B45309}
+  .inv-stat.t-bad .inv-stat-val{color:#B42318}
+  .inv-tools{display:flex;gap:12px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+  .inv-tools #invSearch{flex:1;min-width:160px;padding:11px;border:1px solid var(--line);border-radius:10px;outline:none;font-size:15px;background:var(--card)}
+  .inv-lowtoggle{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px;white-space:nowrap}
+  .inv-hint{font-size:12px;color:var(--muted);margin-bottom:12px}
+  .inv-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 4px;border-top:1px solid var(--line);flex-wrap:wrap}
+  .inv-row:first-of-type{border-top:none}
+  .inv-row.low{background:linear-gradient(90deg,rgba(180,83,9,.06),transparent)}
+  .inv-row.out{background:linear-gradient(90deg,rgba(180,35,24,.07),transparent)}
+  .inv-name{flex:1;min-width:150px;font-weight:600;font-size:14px}
+  .inv-tag{display:inline-block;margin-left:8px;font-size:10px;font-weight:600;color:#0D9488;background:#E7F6EF;padding:2px 7px;border-radius:20px;vertical-align:middle}
+  .inv-sub{font-size:11px;color:var(--muted);font-weight:400;margin-top:2px}
+  .inv-ctrls{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .inv-stepper{display:flex;align-items:center;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .inv-step{width:40px;height:42px;background:var(--canvas);color:var(--ink);font-size:20px;font-weight:600;border:none;cursor:pointer}
+  .inv-step:active{background:var(--line)}
+  .inv-qty{width:56px;height:42px;border:none;border-left:1px solid var(--line);border-right:1px solid var(--line);text-align:center;font-size:15px;font-weight:600;outline:none;font-variant-numeric:tabular-nums;background:var(--card)}
+  .inv-reorder{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+  .inv-ro{width:52px;height:36px;border:1px solid var(--line);border-radius:8px;text-align:center;font-size:14px;outline:none;background:var(--card)}
+  .inv-badge{font-size:11px;font-weight:600;padding:5px 10px;border-radius:20px;white-space:nowrap}
+  .b-ok{background:#E7F6EF;color:#0a7d53}.b-low{background:#FEF3E2;color:#B45309}.b-out{background:#FCEBEA;color:#B42318}
+  .inv-add{padding:11px 16px;white-space:nowrap}
+  .inv-additem{border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;background:var(--canvas)}
+  .inv-form-title{font-weight:700;font-size:15px;margin-bottom:10px}
+  .inv-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .ivf{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);font-weight:600}
+  .ivf-full{margin-top:10px}
+  .ivf input,.ivf select{padding:10px;border:1px solid var(--line);border-radius:9px;font-size:15px;outline:none;background:var(--card);color:var(--ink);font-weight:400}
+  .ivf input:focus,.ivf select:focus{border-color:var(--red)}
+  .inv-form-actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+  .inv-form-actions .btn-danger{margin-left:auto}
+  .inv-vendor{color:var(--muted)}
+  .inv-tag.t-other{color:#5B6472;background:#EEF1F4}
+  .inv-edit{width:38px;height:38px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .inv-edit svg{width:16px;height:16px}
+  .inv-edit:active{background:var(--line)}
+  .ivf-note{color:#0D9488;font-weight:600;font-size:10px;text-transform:none}
+  .inv-co{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;margin-right:8px;vertical-align:middle}
+  .inv-co-alpha{background:#FCE7E6;color:#B42318}
+  .inv-co-mjs{background:#E5EDFB;color:#1D4ED8}
+  .inv-import{position:fixed;z-index:120;left:50%;top:50%;transform:translate(-50%,-50%);width:min(720px,94vw);max-height:90vh;overflow:auto;background:var(--card);border-radius:16px;box-shadow:0 24px 60px rgba(0,0,0,.28)}
+  .inv-import-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--card)}
+  .inv-import-title{font-weight:700;font-size:16px}
+  .inv-import-x{width:34px;height:34px;border:none;background:var(--canvas);border-radius:9px;font-size:20px;color:var(--muted);cursor:pointer}
+  .inv-import-body{padding:16px 18px}
+  .inv-imp-hint{font-size:12.5px;color:var(--muted);margin-bottom:12px;line-height:1.5}
+  .inv-imp-drop{border:1.5px dashed var(--line);border-radius:12px;padding:16px;text-align:center;display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap}
+  .inv-imp-fname{font-size:13px;color:var(--muted)}
+  .inv-imp-or{text-align:center;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:12px 0}
+  .inv-imp-paste{width:100%;min-height:110px;border:1px solid var(--line);border-radius:10px;padding:11px;font-size:13px;font-family:ui-monospace,Menlo,monospace;outline:none;resize:vertical;background:var(--card)}
+  .inv-imp-paste:focus{border-color:var(--red)}
+  .inv-imp-opts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}
+  .inv-imp-opts .ivf input,.inv-imp-opts .ivf select{padding:10px;border:1px solid var(--line);border-radius:9px;font-size:15px;outline:none;background:var(--card);font-weight:400}
+  .inv-imp-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:14px}
+  .inv-imp-tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+  .inv-imp-table{width:100%;border-collapse:collapse;font-size:13px}
+  .inv-imp-table th{text-align:left;padding:8px 8px;background:var(--canvas);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;position:sticky;top:0}
+  .inv-imp-table td{padding:5px 8px;border-top:1px solid var(--line)}
+  .imp-in{width:100%;border:1px solid transparent;border-radius:7px;padding:7px;font-size:13px;outline:none;background:var(--canvas)}
+  .imp-in:focus{border-color:var(--red);background:var(--card)}
+  .imp-num{width:70px;text-align:right;font-variant-numeric:tabular-nums}
+  .imp-sm{min-width:90px}
+  .imp-tag{font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px}
+  .imp-new{background:#E7F6EF;color:#0a7d53}.imp-exist{background:#EEF1F4;color:#5B6472}
   .member.is-inactive{opacity:.62}
   .member.is-inactive .pulse{filter:grayscale(1)}
   .chip.chip-due{border-color:#f0c9c6;color:#a5352f}
@@ -893,6 +962,7 @@
       <a class="nav-link active" data-view="patients"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg><span>Clients</span></a>
       <a class="nav-link" data-view="members"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M9 12l2 2 4-4"/></svg><span>Memberships</span></a>
       <a class="nav-link" data-view="register"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M8 15h4"/></svg><span>Register</span></a>
+      <a class="nav-link" data-view="inventory"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7l-8-4-8 4 8 4 8-4z"/><path d="M4 7v10l8 4 8-4V7"/><path d="M12 11v10"/></svg><span>Inventory</span></a>
       <a class="nav-link" data-view="reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="4" width="3" height="14"/></svg><span>Analytics</span></a>
       <button class="nav-acct-head" id="acctHead" type="button">
         <span>Accounting</span>
@@ -1077,10 +1147,16 @@
       <div class="rep-card"><h3 class="rep-h">Discounts in use</h3><div id="repDiscounts"></div></div>
     </div>
     <div class="rep-card"><h3 class="rep-h">Popular treatments</h3><div id="repTreatments"></div></div>
-    <div class="rep-card"><h3 class="rep-h">GLP-1 therapies <span class="rep-sub" id="repGlpSummary"></span></h3>
+    <div class="rep-card"><h3 class="rep-h">GLP-1 &amp; Reta therapies <span class="rep-sub" id="repGlpSummary"></span></h3>
       <div class="rep-grid">
         <div><div class="demo-cap">By type <span class="demo-cap-note">· grouped</span></div><div id="repGlpGroup"></div></div>
         <div><div class="demo-cap">By type &amp; dose</div><div id="repGlpDose"></div></div>
+      </div>
+    </div>
+    <div class="rep-card"><h3 class="rep-h">Supplement sales <span class="rep-sub" id="repSuppSummary"></span></h3>
+      <div class="rep-grid">
+        <div><div class="demo-cap">Top sellers <span class="demo-cap-note">· units</span></div><div id="repSuppUnits"></div></div>
+        <div><div class="demo-cap">By revenue</div><div id="repSuppRev"></div></div>
       </div>
     </div>
     <div class="rep-card"><h3 class="rep-h">Treatment revenue &amp; profit <span class="rep-sub">monthly, from current clients</span></h3><div id="repRx"></div></div>
@@ -1154,6 +1230,48 @@
       <div class="rep-card"><h3 class="rep-h">Transaction history</h3><div id="regHistList"></div></div>
     </div>
   </div><!-- /registerView -->
+
+  <div id="inventoryView" style="display:none">
+    <div class="ent-bar" id="invEntityBar">
+      <button class="ent-btn on" data-inv="all">All companies</button>
+      <button class="ent-btn" data-inv="alpha">AlphaPerformance</button>
+      <button class="ent-btn" data-inv="mjs">MJS</button>
+    </div>
+    <div class="rep-card">
+      <div class="inv-statgrid" id="invStats"></div>
+    </div>
+    <div class="rep-card">
+      <div class="inv-tools">
+        <input type="text" id="invSearch" placeholder="Search products" autocomplete="off">
+        <label class="inv-lowtoggle"><input type="checkbox" id="invTrackedOnly" checked> Stocked items only</label>
+        <label class="inv-lowtoggle"><input type="checkbox" id="invLowOnly"> Low / out only</label>
+        <button class="btn-primary inv-add" id="invAddBtn">+ Add item</button>
+        <button class="btn-ghost inv-add" id="invUploadBtn" title="Import from an invoice or price list">Upload invoice</button>
+      </div>
+      <div class="inv-additem" id="invForm" style="display:none">
+        <div class="inv-form-title" id="invFormTitle">New inventory item</div>
+        <div class="inv-form-grid">
+          <label class="ivf">Company<select id="ivCompany"><option value="alpha">AlphaPerformance</option><option value="mjs">MJS</option></select></label>
+          <label class="ivf">Category<select id="ivCat"><option>Supplement</option><option>Supply</option><option>Medication</option><option>Equipment</option><option>Other</option></select></label>
+          <label class="ivf">Name<input id="ivName" autocomplete="off" placeholder="Item name"></label>
+          <label class="ivf">Vendor<input id="ivVendor" autocomplete="off" placeholder="Supplier / brand"></label>
+          <label class="ivf">SKU / Item #<input id="ivSku" autocomplete="off" placeholder="Optional"></label>
+          <label class="ivf">Unit cost<input id="ivCost" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></label>
+          <label class="ivf">Retail price <span class="ivf-note">= Register price</span><input id="ivRetail" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0 = not sold"></label>
+          <label class="ivf">Quantity on hand<input id="ivQty" type="number" min="0" step="1" inputmode="numeric" placeholder="0"></label>
+          <label class="ivf">Reorder at<input id="ivReorder" type="number" min="0" step="1" inputmode="numeric" placeholder="5"></label>
+        </div>
+        <label class="ivf ivf-full">Notes<input id="ivNotes" autocomplete="off" placeholder="Optional"></label>
+        <div class="inv-form-actions">
+          <button class="btn-ghost" id="ivCancel">Cancel</button>
+          <button class="btn-primary" id="ivSave">Save item</button>
+          <button class="btn-danger" id="ivDelete" style="display:none">Delete item</button>
+        </div>
+      </div>
+      <div class="inv-hint">Tap &minus; / + to adjust, or type a count after a delivery. &ldquo;Reorder at&rdquo; flags low stock. Sales in the Register lower these automatically.</div>
+      <div id="invList"></div>
+    </div>
+  </div>
 
   <div id="booksView" style="display:none">
     <div id="booksGate" style="display:none">
@@ -1638,6 +1756,41 @@
 
 <!-- Confirm dialog -->
 <div class="confirm-scrim" id="confirmScrim"></div>
+<div class="scrim" id="invImportScrim" style="display:none"></div>
+<div class="inv-import" id="invImport" style="display:none" role="dialog" aria-hidden="true">
+  <div class="inv-import-head">
+    <div class="inv-import-title">Import from invoice / price list</div>
+    <button class="inv-import-x" id="invImpClose" aria-label="Close">&times;</button>
+  </div>
+  <div class="inv-import-body">
+    <div id="invImpStep1">
+      <div class="inv-imp-hint">Upload a <b>CSV</b> or <b>Excel</b> export, or paste the invoice text below. It reads item names, costs, and quantities so you can review before importing. (Photographed paper invoices can't be read automatically.)</div>
+      <div class="inv-imp-drop" id="invImpDrop">
+        <input type="file" id="invImpFile" accept=".csv,.tsv,.txt,.xlsx,.xls" style="display:none">
+        <button class="btn-ghost" id="invImpPick">Choose file</button>
+        <span id="invImpFileName" class="inv-imp-fname"></span>
+      </div>
+      <div class="inv-imp-or">or paste text</div>
+      <textarea id="invImpPaste" class="inv-imp-paste" placeholder="Paste invoice lines here, e.g.&#10;ResveraCel  10  $27.49&#10;Creatine 90 servings  6  20.74"></textarea>
+      <div class="inv-imp-opts">
+        <label class="ivf">Company<select id="invImpCompany"><option value="alpha">AlphaPerformance</option><option value="mjs">MJS</option></select></label>
+        <label class="ivf">Default category<select id="invImpCat"><option>Supplement</option><option>Supply</option><option>Medication</option><option>Equipment</option><option>Other</option></select></label>
+        <label class="ivf">Vendor<input id="invImpVendor" placeholder="Supplier / brand"></label>
+        <label class="ivf">On import<select id="invImpMode"><option value="add">Add qty to stock (received)</option><option value="set">Set stock to this count</option><option value="price">Update cost/price only</option></select></label>
+      </div>
+      <div class="inv-imp-actions"><button class="btn-primary" id="invImpParse">Read items &rarr;</button></div>
+    </div>
+    <div id="invImpStep2" style="display:none">
+      <div class="inv-imp-hint" id="invImpReviewNote"></div>
+      <div class="inv-imp-tablewrap"><table class="inv-imp-table" id="invImpTable"></table></div>
+      <div class="inv-imp-actions">
+        <button class="btn-ghost" id="invImpBack">&larr; Back</button>
+        <button class="btn-primary" id="invImpDo">Import items</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="confirm-box" id="confirmBox" role="alertdialog" aria-hidden="true">
   <div class="confirm-title" id="confirmTitle">Are you sure?</div>
   <div class="confirm-msg" id="confirmMsg"></div>
@@ -1705,6 +1858,8 @@ window.startClinicApp = function(){
   var visitTypes = load("alphaperf_visittypes", DEFAULT_VISIT_TYPES);
   var discounts = load("alphaperf_discounts", DEFAULT_DISCOUNTS);
   var locations = load("alphaperf_locations", null); if(!Array.isArray(locations)||!locations.length) locations=["Bohemia","Setauket"];
+  var inventory = load("alphaperf_inventory", {}); if(!inventory||typeof inventory!=="object") inventory={};
+  var invEntity = "all";
   var treatmentPricing = load("alphaperf_pricing", {});
   var SB_URL_DEFAULT = "";
   var SB_KEY_DEFAULT = "";
@@ -1838,6 +1993,9 @@ window.startClinicApp = function(){
   function saveVisitTypes(){ store.set("alphaperf_visittypes", JSON.stringify(visitTypes)); schedulePush(); }
   function saveDiscounts(){ store.set("alphaperf_discounts", JSON.stringify(discounts)); schedulePush(); }
   function saveLocations(){ store.set("alphaperf_locations", JSON.stringify(locations)); schedulePush(); }
+  function saveInventory(){ store.set("alphaperf_inventory", JSON.stringify(inventory)); schedulePush(); }
+  function invRec(name){ var r=inventory[name]; return {qty:(r&&r.qty)||0, reorderAt:(r&&r.reorderAt!=null)?r.reorderAt:5}; }
+  function invSet(name, qty, reorderAt){ var r=invRec(name); if(qty!=null) r.qty=Math.max(0,Math.round(qty)); if(reorderAt!=null) r.reorderAt=Math.max(0,Math.round(reorderAt)); inventory[name]={qty:r.qty, reorderAt:r.reorderAt}; saveInventory(); }
   function saveTreatmentPricing(){ store.set("alphaperf_pricing", JSON.stringify(treatmentPricing)); schedulePush(); }
   function saveSettings(){ store.set("alphaperf_settings", JSON.stringify(settings)); schedulePush(); }
   function persistLocalRaw(){
@@ -2207,6 +2365,14 @@ window.startClinicApp = function(){
     var sex={Male:0,Female:0}, loc={}, locNone=0, src={}, refBy={}, inact={};
     var anyGlp=0, glpType={}, glpDose={}, glpRetail=0;
     var byRx={}, totCost=0, totRetail=0;
+    var suppNames={}; (regProducts.alpha||[]).forEach(function(p){ if(p.cat==="Supplement") suppNames[p.name]=1; });
+    (typeof THORNE_SUPPS!=="undefined"?THORNE_SUPPS:[]).forEach(function(s){ suppNames[s.name]=1; });
+    var bySupp={}, suppUnits=0, suppRev=0, suppCost=0;
+    txns.forEach(function(t){ if(t.type!=="sale") return; (t.items||[]).forEach(function(it){ if(!suppNames[it.name]) return; var q=it.qty||1; if(!bySupp[it.name]) bySupp[it.name]={units:0,rev:0}; bySupp[it.name].units+=q; bySupp[it.name].rev+=(it.retail||0)*q; suppUnits+=q; suppRev+=(it.retail||0)*q; suppCost+=(it.cost||0)*q; }); });
+    // Inventory snapshot (low / out / value across both companies)
+    var invValue=0, invLowList=[], invTracked=0;
+    ["alpha","mjs"].forEach(function(e){ (regProducts[e]||[]).forEach(function(p){ if(p.cat==="Membership") return; if(!(inventory[p.name])) return; var r=inventory[p.name]; invTracked++; invValue+=(r.qty||0)*(+p.cost||0); if((r.qty||0)<=(r.reorderAt||0)) invLowList.push({name:p.name, qty:r.qty||0, reorderAt:r.reorderAt||0}); }); });
+    invLowList.sort(function(a,b){ return a.qty-b.qty; });
     var nameById={}; patients.forEach(function(p){ nameById[p.id]=p.name; });
     patients.forEach(function(p){
       if(p.active===false){ inactive++; inact[p.inactiveReason||"No reason given"]=(inact[p.inactiveReason||"No reason given"]||0)+1; } else active++;
@@ -2239,14 +2405,30 @@ window.startClinicApp = function(){
       d.kv("On treatment",String(onTx));
       d.kv("Members",String(members));
       d.kv("Average age",ageN?String(Math.round(ageSum/ageN)):"n/a");
-      d.heading("GLP-1 therapies (grouped)");
-      d.kv("Clients on any GLP-1",String(anyGlp));
-      if(glpRetail) d.kv("GLP-1 monthly retail","$"+money(glpRetail));
+      d.heading("GLP-1 & Reta therapies (grouped)");
+      d.kv("Clients on GLP-1 / Reta",String(anyGlp));
+      if(glpRetail) d.kv("GLP-1 / Reta monthly retail","$"+money(glpRetail));
       d.gap(2);
       var gt=GLP.filter(function(t){return glpType[t];}).map(function(t){return {label:t,value:glpType[t],color:[0.15,0.39,0.92]};});
-      if(gt.length) d.bars(gt); else d.line("No GLP-1 clients yet.",10,'F1',[0.5,0.5,0.5]);
-      d.heading("GLP-1 by type & dose");
+      if(gt.length) d.bars(gt); else d.line("No GLP-1 / Reta clients yet.",10,'F1',[0.5,0.5,0.5]);
+      d.heading("GLP-1 & Reta by type & dose");
       var gd=rows(glpDose,[0.49,0.23,0.93]); if(gd.length) d.bars(gd); else d.line("No doses recorded.",10,'F1',[0.5,0.5,0.5]);
+      d.heading("Supplement sales");
+      if(suppUnits){
+        d.kv("Units / Revenue / Profit",suppUnits+"  /  $"+money(suppRev)+"  /  $"+money(suppRev-suppCost));
+        d.gap(2);
+        var sr=Object.keys(bySupp).map(function(n){return {label:n,value:bySupp[n].rev,color:[0.05,0.6,0.53]};}).sort(function(a,b){return b.value-a.value;});
+        sr.forEach(function(x){ d.line(x.label+":  "+bySupp[x.label].units+" sold  -  $"+money(x.value),9.5,'F1',[0.2,0.2,0.2],6); });
+      } else { d.line("No supplement sales recorded yet.",10,'F1',[0.5,0.5,0.5]); }
+      d.heading("Inventory");
+      if(invTracked){
+        d.kv("Items tracked",String(invTracked));
+        d.kv("Stock value","$"+money(invValue));
+        d.kv("Low / out of stock",String(invLowList.length));
+        if(invLowList.length){ d.gap(2); d.line("Needs reordering:",10,'F2',[0.71,0.29,0.06],6);
+          invLowList.slice(0,25).forEach(function(x){ d.line(x.name+":  "+x.qty+" on hand  (reorder at "+x.reorderAt+")",9.5,'F1',[0.2,0.2,0.2],6); });
+        }
+      } else { d.line("No inventory counts entered yet.",10,'F1',[0.5,0.5,0.5]); }
       d.heading("Demographics");
       d.bars([{label:"Male",value:sex.Male,color:[0.15,0.39,0.92]},{label:"Female",value:sex.Female,color:[0.86,0.16,0.47]}]);
       d.gap(2); d.line("By location",10,'F2',[0.2,0.2,0.2],6);
@@ -2527,7 +2709,7 @@ window.startClinicApp = function(){
       if(hasGlp) glpClients++;
     });
     var treatRows=Object.keys(tCount).map(function(tn){ return { label:tn, value:tCount[tn], color:"#5344b0" }; });
-    if(glpClients) treatRows.push({ label:"GLP-1 (all)", value:glpClients, color:"#DC2626" });
+    if(glpClients) treatRows.push({ label:"GLP-1 & Reta (all)", value:glpClients, color:"#DC2626" });
     treatRows=treatRows.filter(function(x){return x.value>0;}).sort(function(a,b){return b.value-a.value;}).slice(0,12);
     $("repTreatments").innerHTML=treatRows.length?hbars(treatRows,"clients"):'<div class="rep-empty">No treatments assigned yet.</div>';
 
@@ -2550,7 +2732,31 @@ window.startClinicApp = function(){
       $("repGlpGroup").innerHTML = anyGlp ? hbars(groupRows,"clients") : '<div class="rep-empty">No GLP-1 clients yet.</div>';
       var doseRows=Object.keys(byDose).map(function(k){ return {label:k,value:byDose[k],color:"#7C3AED"}; }).sort(function(a,b){return b.value-a.value || a.label.localeCompare(b.label);});
       $("repGlpDose").innerHTML = doseRows.length ? hbars(doseRows,"clients") : '<div class="rep-empty">No doses recorded.</div>';
-      $("repGlpSummary").textContent = anyGlp+" on a GLP-1"+(glpRetail?" \u00b7 $"+money(glpRetail)+"/mo retail":"");
+      $("repGlpSummary").textContent = anyGlp+" on GLP-1 / Reta"+(glpRetail?" \u00b7 $"+money(glpRetail)+"/mo retail":"");
+    })();
+
+    // Supplement sales (from register transactions; AlphaPerformance catalog)
+    (function(){
+      var suppNames={};
+      (regProducts.alpha||[]).forEach(function(p){ if(p.cat==="Supplement") suppNames[p.name]=1; });
+      THORNE_SUPPS.forEach(function(s){ suppNames[s.name]=1; });
+      var bySupp={}, totUnits=0, totRev=0, totCost=0;
+      txns.forEach(function(t){
+        if(t.type!=="sale") return;
+        (t.items||[]).forEach(function(it){
+          if(!suppNames[it.name]) return;
+          var q=it.qty||1, rev=(it.retail||0)*q, cost=(it.cost||0)*q;
+          if(!bySupp[it.name]) bySupp[it.name]={units:0,rev:0,cost:0};
+          bySupp[it.name].units+=q; bySupp[it.name].rev+=rev; bySupp[it.name].cost+=cost;
+          totUnits+=q; totRev+=rev; totCost+=cost;
+        });
+      });
+      var names=Object.keys(bySupp);
+      var unitRows=names.map(function(n){ return {label:n, value:bySupp[n].units, color:"#0D9488"}; }).sort(function(a,b){return b.value-a.value;});
+      var revRows=names.map(function(n){ return {label:n, value:bySupp[n].rev, display:"$"+money(bySupp[n].rev), color:"#DC2626"}; }).sort(function(a,b){return b.value-a.value;});
+      $("repSuppUnits").innerHTML = unitRows.length ? hbars(unitRows,"sold") : '<div class="rep-empty">No supplement sales yet.</div>';
+      $("repSuppRev").innerHTML = revRows.length ? hbars(revRows) : '<div class="rep-empty">Ring up supplement sales in the Register to see this.</div>';
+      $("repSuppSummary").textContent = totUnits ? (totUnits+" sold \u00b7 $"+money(totRev)+" \u00b7 $"+money(totRev-totCost)+" profit") : "";
     })();
 
     // Treatment revenue & profit (from pricing catalog)
@@ -2687,6 +2893,7 @@ window.startClinicApp = function(){
     patients:["Clients","Your client book"],
     members:["Memberships","Recurring members & revenue"],
     reports:["Analytics","Practice analytics"],
+    inventory:["Inventory","Stock on hand"],
     register:["Register","Point of sale"],
     expenses:["Expenses","Record business costs"],
     gl:["General Ledger","Double-entry transactions"],
@@ -2700,6 +2907,7 @@ window.startClinicApp = function(){
     $("patientsView").style.display = v==="patients" ? "block" : "none";
     $("reportsView").style.display = v==="reports" ? "block" : "none";
     $("registerView").style.display = v==="register" ? "block" : "none";
+    $("inventoryView").style.display = v==="inventory" ? "block" : "none";
     $("booksView").style.display = ACCT_VIEWS[v] ? "block" : "none";
     Array.prototype.forEach.call(document.querySelectorAll(".nav-link"),function(b){
       b.classList.toggle("active", b.getAttribute("data-view")===v);
@@ -2711,6 +2919,7 @@ window.startClinicApp = function(){
     if(v==="patients"){ renderFollowupBanner(); renderPatientStats(); renderPipeline(); renderPatientChips(); renderPatientList(); }
     if(v==="reports") renderReports();
     if(v==="register") renderRegister();
+    if(v==="inventory") renderInventory();
     if(ACCT_VIEWS[v]) renderAccounting(v);
     updateAddButton();
     window.scrollTo(0,0);
@@ -3033,6 +3242,277 @@ window.startClinicApp = function(){
   function saveRegProducts(){ store.set("alphaperf_regprod_mjs", JSON.stringify(regProducts.mjs)); store.set("alphaperf_regprod_alpha", JSON.stringify(regProducts.alpha)); if(typeof schedulePush==="function") schedulePush(); }
   function curProducts(){ ensureRegProducts(); return regProducts[regEntity]||[]; }
   function renderRegister(){ wirePOS(); fillPosSelects(); renderCart(); renderRegSub(); }
+
+  var invWired=false, invEditName=null, invEditEntity=null;
+  function invRows(){
+    ensureRegProducts();
+    var out=[]; var ents = invEntity==="all" ? ["alpha","mjs"] : [invEntity];
+    ents.forEach(function(e){ (regProducts[e]||[]).forEach(function(p){ if(p.cat!=="Membership") out.push({p:p, entity:e}); }); });
+    return out;
+  }
+  function prodInEntity(name, entity){ return (regProducts[entity]||[]).filter(function(x){return x.name===name;})[0]; }
+  function openInvForm(name, entity){
+    invEditName = name || null;
+    invEditEntity = entity || (invEntity==="all" ? "alpha" : invEntity);
+    var p = name ? prodInEntity(name, invEditEntity) : null, r = name ? invRec(name) : {qty:0,reorderAt:5};
+    $("invFormTitle").textContent = name ? ("Edit "+name) : "New inventory item";
+    $("ivCompany").value = invEditEntity;
+    $("ivName").value = p?p.name:"";
+    $("ivCat").value = (p&&p.cat) ? p.cat : "Supplement";
+    $("ivVendor").value = (p&&p.vendor)||"";
+    $("ivSku").value = (p&&p.sku)||"";
+    $("ivCost").value = p?(p.cost||0):"";
+    $("ivRetail").value = p?(p.price||0):"";
+    $("ivQty").value = name?r.qty:"";
+    $("ivReorder").value = name?r.reorderAt:5;
+    $("ivNotes").value = (p&&p.invNotes)||"";
+    $("ivDelete").style.display = name ? "inline-block" : "none";
+    $("invForm").style.display="block";
+    $("invAddBtn").style.display="none";
+    try{ $("ivName").focus(); }catch(e){}
+  }
+  function closeInvForm(){ $("invForm").style.display="none"; $("invAddBtn").style.display=""; invEditName=null; invEditEntity=null; }
+  function saveInvItem(){
+    ensureRegProducts();
+    var name=($("ivName").value||"").trim(); if(!name){ $("ivName").focus(); return; }
+    var target=$("ivCompany").value||"alpha";
+    var cat=$("ivCat").value||"Other";
+    var vendor=($("ivVendor").value||"").trim(), sku=($("ivSku").value||"").trim(), notes=($("ivNotes").value||"").trim();
+    var cost=Math.max(0,parseFloat($("ivCost").value)||0);
+    var retail=Math.max(0,parseFloat($("ivRetail").value)||0);
+    var qty=Math.max(0,Math.round(parseFloat($("ivQty").value)||0));
+    var reorderAt=Math.max(0,Math.round(parseFloat($("ivReorder").value)||0));
+    if(!regProducts[target]) regProducts[target]=[];
+    var dup=(regProducts[target]||[]).filter(function(x){ return x.name.toLowerCase()===name.toLowerCase() && x.name!==invEditName; })[0];
+    if(dup){ $("ivName").focus(); toast("An item with that name already exists in "+entityName(target)); return; }
+    if(invEditName){
+      var oldEntity=invEditEntity, p=prodInEntity(invEditName, oldEntity);
+      if(oldEntity!==target){
+        // moved company: remove from old, add to new
+        if(p) regProducts[oldEntity]=(regProducts[oldEntity]||[]).filter(function(x){return x!==p;});
+        regProducts[target].push({ id:pid(), name:name, price:retail, cost:cost, cat:cat, vendor:vendor, sku:sku, invNotes:notes });
+      } else if(p){
+        var oldName=p.name; p.name=name; p.cat=cat; p.vendor=vendor; p.sku=sku; p.cost=cost; p.price=retail; p.invNotes=notes;
+        if(oldName!==name && inventory[oldName]){ inventory[name]=inventory[oldName]; delete inventory[oldName]; }
+      }
+    } else {
+      regProducts[target].push({ id:pid(), name:name, price:retail, cost:cost, cat:cat, vendor:vendor, sku:sku, invNotes:notes });
+    }
+    saveRegProducts();
+    invSet(name, qty, reorderAt);      // retail is the register price for that company; kept in one place
+    if(typeof fillPosSelects==="function") fillPosSelects();
+    closeInvForm(); paintInventory();
+    toast(invEditName?"Item updated":"Item added");
+  }
+  function deleteInvItem(){
+    if(!invEditName) return; var nm=invEditName, ent=invEditEntity;
+    askConfirm({ title:"Delete "+nm+"?", message:"Remove this item from the "+entityName(ent)+" catalog and inventory.", okLabel:"Delete item",
+      onConfirm:function(){ regProducts[ent]=(regProducts[ent]||[]).filter(function(x){return x.name!==nm;}); if(inventory[nm]) delete inventory[nm]; saveRegProducts(); saveInventory(); if(typeof fillPosSelects==="function") fillPosSelects(); closeInvForm(); paintInventory(); toast("Item deleted"); } });
+  }
+  function renderInventory(){
+    if(!invWired){
+      invWired=true;
+      Array.prototype.forEach.call(document.querySelectorAll("#invEntityBar .ent-btn"),function(b){ b.onclick=function(){ invEntity=b.getAttribute("data-inv"); Array.prototype.forEach.call(document.querySelectorAll("#invEntityBar .ent-btn"),function(x){ x.classList.toggle("on", x===b); }); closeInvForm(); paintInventory(); }; });
+      $("invSearch").oninput=paintInventory;
+      $("invLowOnly").onchange=paintInventory;
+      $("invTrackedOnly").onchange=paintInventory;
+      $("invAddBtn").onclick=function(){ openInvForm(null,null); };
+      $("invUploadBtn").onclick=openInvImport;
+      $("invImpClose").onclick=closeInvImport;
+      $("invImportScrim").onclick=closeInvImport;
+      $("invImpPick").onclick=function(){ $("invImpFile").click(); };
+      $("invImpFile").onchange=function(){ var f=this.files&&this.files[0]; if(f){ $("invImpFileName").textContent=f.name; readInvFile(f); } };
+      $("invImpParse").onclick=invImpParse;
+      $("invImpBack").onclick=function(){ $("invImpStep2").style.display="none"; $("invImpStep1").style.display="block"; };
+      $("invImpDo").onclick=invImpDoImport;
+      $("invImpCompany").onchange=function(){ if($("invImpStep2").style.display!=="none") renderImpReview(); };
+      $("ivCancel").onclick=closeInvForm;
+      $("ivSave").onclick=saveInvItem;
+      $("ivDelete").onclick=deleteInvItem;
+    }
+    closeInvForm(); paintInventory();
+  }
+
+  /* ---------- invoice / price-list import ---------- */
+  var invImpRows=[];
+  function openInvImport(){
+    $("invImpStep1").style.display="block"; $("invImpStep2").style.display="none";
+    $("invImpFile").value=""; $("invImpFileName").textContent=""; $("invImpPaste").value="";
+    $("invImpVendor").value=""; $("invImpCompany").value = (invEntity==="mjs"?"mjs":"alpha");
+    invImpRows=[];
+    $("invImportScrim").style.display="block"; $("invImport").style.display="block"; $("invImport").setAttribute("aria-hidden","false");
+  }
+  function closeInvImport(){ $("invImportScrim").style.display="none"; $("invImport").style.display="none"; $("invImport").setAttribute("aria-hidden","true"); }
+  function detectDelim(text){ var l=(text.split(/\r?\n/).filter(function(x){return x.trim();})[0])||""; if(l.indexOf("\t")>=0) return "\t"; if((l.match(/,/g)||[]).length>=(l.match(/;/g)||[]).length) return ","; return ";"; }
+  function splitCSVLine(line, d){ var out=[],cur="",q=false; for(var i=0;i<line.length;i++){ var c=line[i]; if(c==='"'){ if(q&&line[i+1]==='"'){cur+='"';i++;} else q=!q; } else if(c===d && !q){ out.push(cur); cur=""; } else cur+=c; } out.push(cur); return out.map(function(s){return s.trim();}); }
+  function toGrid(text){ var d=detectDelim(text); return text.split(/\r?\n/).filter(function(l){return l.trim();}).map(function(l){return splitCSVLine(l,d);}); }
+  function num(v){ if(v==null) return null; var m=(""+v).replace(/[^0-9.\-]/g,""); if(m===""||m==="-"||m===".") return null; var n=parseFloat(m); return isNaN(n)?null:n; }
+  var HDR={ name:/(item|product|description|name|supplement)/i, cost:/(unit ?cost|cost|our price|wholesale|net|unit price|price ea|price$)/i, retail:/(retail|msrp|list|sell|srp)/i, qty:/(qty|quantity|units|count|ordered|received|ship)/i, vendor:/(vendor|supplier|manufacturer|brand)/i, sku:/(sku|item ?#|item ?no|item ?code|upc)/i };
+  function parseInvoice(text){
+    var grid=toGrid(text); if(!grid.length) return [];
+    // find header row (first row where >=2 header keywords match)
+    var hdrIdx=-1, map={};
+    for(var i=0;i<Math.min(grid.length,8);i++){
+      var row=grid[i], hits=0, m={};
+      row.forEach(function(cell,ci){ for(var k in HDR){ if(m[k]==null && HDR[k].test(cell)){ m[k]=ci; hits++; } } });
+      if(hits>=2 && m.name!=null){ hdrIdx=i; map=m; break; }
+    }
+    var items=[];
+    function pushItem(name,cost,retail,qty,vendor,sku){
+      name=(name||"").trim(); if(!name) return;
+      if(/^(total|subtotal|tax|shipping|invoice|balance|amount due|thank you)/i.test(name)) return;
+      items.push({ include:true, name:name, cost:cost==null?"":cost, retail:retail==null?"":retail, qty:qty==null?"":qty, vendor:(vendor||"").trim(), sku:(sku||"").trim() });
+    }
+    if(hdrIdx>=0){
+      for(var r=hdrIdx+1;r<grid.length;r++){ var row=grid[r]; if(!row.join("").trim()) continue;
+        pushItem(row[map.name], map.cost!=null?num(row[map.cost]):null, map.retail!=null?num(row[map.retail]):null, map.qty!=null?num(row[map.qty]):null, map.vendor!=null?row[map.vendor]:"", map.sku!=null?row[map.sku]:"");
+      }
+    } else {
+      // no header: heuristic per line -> name + trailing numbers (qty, cost) 
+      grid.forEach(function(row){
+        if(row.length>=2){ // delimited: assume [name, ...numbers]
+          var nums=row.slice(1).map(num).filter(function(n){return n!=null;});
+          var qty=null, cost=null;
+          if(nums.length>=2){ qty=nums[0]; cost=nums[nums.length-1]; } else if(nums.length===1){ cost=nums[0]; }
+          pushItem(row[0], cost, null, qty, "", "");
+        } else {
+          var line=row[0]||""; var mm=line.match(/^(.*?)[\s]+([0-9]+)?[\s]*\$?([0-9]+(?:\.[0-9]{1,2})?)\s*$/);
+          if(mm) pushItem(mm[1], num(mm[3]), null, mm[2]?num(mm[2]):null, "", "");
+          else pushItem(line, null, null, null, "", "");
+        }
+      });
+    }
+    return items;
+  }
+  function invImpParse(){
+    var text=($("invImpPaste").value||"").trim();
+    if(!text){ toast("Choose a file or paste some text first"); return; }
+    invImpRows=parseInvoice(text);
+    if(!invImpRows.length){ toast("Couldn't find any items to import"); return; }
+    var vend=($("invImpVendor").value||"").trim();
+    if(vend) invImpRows.forEach(function(it){ if(!it.vendor) it.vendor=vend; });
+    renderImpReview();
+    $("invImpStep1").style.display="none"; $("invImpStep2").style.display="block";
+  }
+  function renderImpReview(){
+    var company=$("invImpCompany").value, existing={};
+    (regProducts[company]||[]).forEach(function(p){ existing[p.name.toLowerCase()]=1; });
+    $("invImpReviewNote").innerHTML='Review the <b>'+invImpRows.length+'</b> item'+(invImpRows.length===1?"":"s")+' below. Uncheck any you don\u2019t want, edit values, then import into <b>'+esc(entityName(company))+'</b>.';
+    var head='<thead><tr><th></th><th>Item</th><th>Vendor</th><th>Cost</th><th>Retail</th><th>Qty</th><th></th></tr></thead>';
+    var body=invImpRows.map(function(it,i){
+      var isNew = !existing[(it.name||"").toLowerCase()];
+      return '<tr>'+
+        '<td><input type="checkbox" data-impinc="'+i+'"'+(it.include?" checked":"")+'></td>'+
+        '<td><input class="imp-in" data-impname="'+i+'" value="'+esc(it.name)+'"></td>'+
+        '<td><input class="imp-in imp-sm" data-impvendor="'+i+'" value="'+esc(it.vendor)+'"></td>'+
+        '<td><input class="imp-in imp-num" data-impcost="'+i+'" value="'+esc(""+it.cost)+'" inputmode="decimal"></td>'+
+        '<td><input class="imp-in imp-num" data-impretail="'+i+'" value="'+esc(""+it.retail)+'" inputmode="decimal"></td>'+
+        '<td><input class="imp-in imp-num" data-impqty="'+i+'" value="'+esc(""+it.qty)+'" inputmode="numeric"></td>'+
+        '<td><span class="imp-tag '+(isNew?"imp-new":"imp-exist")+'">'+(isNew?"New":"Update")+'</span></td>'+
+      '</tr>';
+    }).join("");
+    $("invImpTable").innerHTML=head+'<tbody>'+body+'</tbody>';
+    var t=$("invImpTable");
+    t.querySelectorAll("[data-impinc]").forEach(function(c){ c.onchange=function(){ invImpRows[+c.getAttribute("data-impinc")].include=c.checked; }; });
+    function bind(attr,key){ t.querySelectorAll("["+attr+"]").forEach(function(inp){ inp.onchange=function(){ invImpRows[+inp.getAttribute(attr)][key]=inp.value; if(attr==="data-impname") renderImpReview(); }; }); }
+    bind("data-impname","name"); bind("data-impvendor","vendor"); bind("data-impcost","cost"); bind("data-impretail","retail"); bind("data-impqty","qty");
+  }
+  function invImpDoImport(){
+    ensureRegProducts();
+    var company=$("invImpCompany").value, cat=$("invImpCat").value, mode=$("invImpMode").value;
+    if(!regProducts[company]) regProducts[company]=[];
+    var arr=regProducts[company], n=0;
+    invImpRows.forEach(function(it){
+      if(!it.include) return; var name=(it.name||"").trim(); if(!name) return;
+      var cost=num(it.cost), retail=num(it.retail), qty=num(it.qty);
+      var p=arr.filter(function(x){return x.name.toLowerCase()===name.toLowerCase();})[0];
+      if(!p){ p={ id:pid(), name:name, price:retail||0, cost:cost||0, cat:cat, vendor:it.vendor||"", sku:it.sku||"" }; arr.push(p); }
+      else { if(cost!=null) p.cost=cost; if(retail!=null && mode==="price") p.price=retail; if(retail!=null && mode!=="price" && !p.price) p.price=retail; if(it.vendor) p.vendor=it.vendor; }
+      var cur=invRec(name);
+      if(mode==="set" && qty!=null) invSet(name, qty, cur.reorderAt);
+      else if(mode==="add" && qty!=null) invSet(name, cur.qty+qty, cur.reorderAt);
+      else if(!inventory[name]) invSet(name, (mode==="add"||mode==="set")&&qty!=null?qty:0, cur.reorderAt); // ensure tracked
+      n++;
+    });
+    saveRegProducts();
+    if(typeof fillPosSelects==="function") fillPosSelects();
+    if(window.__hipAudit) window.__hipAudit("inventory_import", n+" items");
+    closeInvImport(); paintInventory();
+    toast("Imported "+n+" item"+(n===1?"":"s"));
+  }
+  function readInvFile(file){
+    var name=(file.name||"").toLowerCase();
+    if(/\.(xlsx|xls)$/.test(name)){
+      // lazy-load a spreadsheet parser (needs internet); fall back to CSV/paste if unavailable
+      loadXLSX(function(XLSX){
+        if(!XLSX){ toast("Excel needs internet \u2014 export as CSV or paste instead"); return; }
+        var fr=new FileReader();
+        fr.onload=function(e){ try{ var wb=XLSX.read(new Uint8Array(e.target.result),{type:"array"}); var ws=wb.Sheets[wb.SheetNames[0]]; var csv=XLSX.utils.sheet_to_csv(ws); $("invImpPaste").value=csv; invImpParse(); }catch(err){ toast("Couldn't read that spreadsheet"); } };
+        fr.readAsArrayBuffer(file);
+      });
+    } else {
+      var fr=new FileReader();
+      fr.onload=function(e){ $("invImpPaste").value=e.target.result||""; invImpParse(); };
+      fr.readAsText(file);
+    }
+  }
+  var _xlsx=null;
+  function loadXLSX(cb){
+    if(_xlsx){ cb(_xlsx); return; }
+    if(window.XLSX){ _xlsx=window.XLSX; cb(_xlsx); return; }
+    var s=document.createElement("script");
+    s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+    s.onload=function(){ _xlsx=window.XLSX||null; cb(_xlsx); };
+    s.onerror=function(){ cb(null); };
+    document.head.appendChild(s);
+  }  var STOCK_CATS={Supplement:1, Supply:1, Medication:1, Equipment:1};
+  function invIsTracked(p){ return !!inventory[p.name] || !!STOCK_CATS[p.cat]; }
+  function paintInventory(){
+    var base=invRows();
+    if($("invTrackedOnly").checked) base=base.filter(function(x){ return invIsTracked(x.p); });
+    var q=($("invSearch").value||"").trim().toLowerCase();
+    var lowOnly=$("invLowOnly").checked;
+    var showCo = invEntity==="all";
+    var items=0, low=0, out=0, value=0;
+    base.forEach(function(x){ var r=invRec(x.p.name); items++; value+=r.qty*(+x.p.cost||0); if(r.qty<=0) out++; else if(r.qty<=r.reorderAt) low++; });
+    $("invStats").innerHTML=
+      statCell("Products", items, "") + statCell("Low stock", low, low?"warn":"") + statCell("Out of stock", out, out?"bad":"") + statCell("Stock value", "$"+money(value), "");
+    var rows=base.filter(function(x){ if(q && x.p.name.toLowerCase().indexOf(q)<0) return false; if(lowOnly){ var r=invRec(x.p.name); return r.qty<=r.reorderAt; } return true; })
+      .sort(function(a,b){ return a.p.name.localeCompare(b.p.name); });
+    if(!rows.length){ $("invList").innerHTML='<div class="rep-empty">No products'+(q?" match your search":"")+'.</div>'; return; }
+    $("invList").innerHTML=rows.map(function(x){
+      var p=x.p, r=invRec(p.name);
+      var state = r.qty<=0 ? "out" : (r.qty<=r.reorderAt ? "low" : "ok");
+      var badge = state==="out" ? '<span class="inv-badge b-out">Out</span>' : state==="low" ? '<span class="inv-badge b-low">Low</span>' : '<span class="inv-badge b-ok">In stock</span>';
+      var tag = p.cat==="Supplement" ? '<span class="inv-tag">Supplement</span>' : (p.cat&&p.cat!=="Membership" ? '<span class="inv-tag t-other">'+esc(p.cat)+'</span>' : '');
+      var coTag = showCo ? '<span class="inv-co inv-co-'+x.entity+'">'+(x.entity==="alpha"?"Alpha":"MJS")+'</span>' : '';
+      var meta=[]; if(p.vendor) meta.push(esc(p.vendor)); if(p.sku) meta.push("#"+esc(p.sku));
+      var metaLine = meta.length ? '<span class="inv-vendor">'+meta.join(" \u00b7 ")+'</span>' : '';
+      return '<div class="inv-row '+state+'">'+
+        '<div class="inv-name">'+coTag+esc(p.name)+tag+'<div class="inv-sub">$'+money(p.price)+' retail \u00b7 $'+money(p.cost)+' cost'+(metaLine?' \u00b7 '+metaLine:'')+'</div></div>'+
+        '<div class="inv-ctrls">'+
+          '<div class="inv-stepper"><button type="button" class="inv-step" data-invdec="'+esc(p.name)+'">\u2212</button>'+
+          '<input type="number" class="inv-qty" data-invqty="'+esc(p.name)+'" value="'+r.qty+'" min="0" inputmode="numeric">'+
+          '<button type="button" class="inv-step" data-invinc="'+esc(p.name)+'">+</button></div>'+
+          '<div class="inv-reorder">Reorder at <input type="number" class="inv-ro" data-invro="'+esc(p.name)+'" value="'+r.reorderAt+'" min="0" inputmode="numeric"></div>'+
+          badge+
+          '<button type="button" class="inv-edit" data-invedit="'+esc(p.name)+'" data-invent="'+x.entity+'" aria-label="Edit item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4z"/></svg></button>'+
+        '</div>'+
+      '</div>';
+    }).join("");
+    var el=$("invList");
+    Array.prototype.forEach.call(el.querySelectorAll("[data-invdec]"),function(b){ b.onclick=function(){ var n=b.getAttribute("data-invdec"); invSet(n, invRec(n).qty-1, null); paintInventory(); }; });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-invinc]"),function(b){ b.onclick=function(){ var n=b.getAttribute("data-invinc"); invSet(n, invRec(n).qty+1, null); paintInventory(); }; });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-invqty]"),function(inp){ inp.onchange=function(){ var n=inp.getAttribute("data-invqty"); invSet(n, parseInt(inp.value,10)||0, null); paintInventory(); }; });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-invro]"),function(inp){ inp.onchange=function(){ var n=inp.getAttribute("data-invro"); invSet(n, null, parseInt(inp.value,10)||0); paintInventory(); }; });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-invedit]"),function(b){ b.onclick=function(){ openInvForm(b.getAttribute("data-invedit"), b.getAttribute("data-invent")); window.scrollTo(0,0); }; });
+  }
+  function statCell(label, val, tone){ return '<div class="inv-stat'+(tone?" t-"+tone:"")+'"><div class="inv-stat-val">'+val+'</div><div class="inv-stat-lbl">'+label+'</div></div>'; }
+  function decrementInventoryForSale(cart){
+    var changed=false;
+    (cart||[]).forEach(function(it){ if(inventory[it.name]){ var r=invRec(it.name); inventory[it.name]={qty:Math.max(0, r.qty-(it.qty||1)), reorderAt:r.reorderAt}; changed=true; } });
+    if(changed) saveInventory();
+  }
   function renderRegSub(){
     $("regSale").style.display = regSub==="sale"?"block":"none";
     $("regHistory").style.display = regSub==="history"?"block":"none";
@@ -3113,7 +3593,8 @@ window.startClinicApp = function(){
   function fillPosSelects(){
     ensureRegProducts();
     Array.prototype.forEach.call($("regEntityBar").querySelectorAll(".ent-btn"),function(b){ b.classList.toggle("on", b.getAttribute("data-regentity")===regEntity); });
-    var prods=curProducts().slice().sort(function(a,b){return (a.name||"").localeCompare(b.name||"");});
+    var NONSELL={Supply:1,Equipment:1,Other:1};
+    var prods=curProducts().slice().filter(function(p){ return !NONSELL[p.cat]; }).sort(function(a,b){return (a.name||"").localeCompare(b.name||"");});
     var groups={}; var order=[];
     prods.forEach(function(p){ var g=p.cat|| (/^Membership/.test(p.name)?"Membership":"Products"); if(!groups[g]){ groups[g]=[]; order.push(g); } groups[g].push(p); });
     var prefer=["Supplement","Treatment","Membership","Products"];
@@ -3199,7 +3680,7 @@ window.startClinicApp = function(){
   function addProdToCart(){
     var id=$("posProd").value; if(!id) return;
     var p=curProducts().filter(function(x){return x.id===id;})[0]; if(!p) return;
-    posCart.push({ name:p.name, retail:+p.price||0, cost:+p.cost||0, qty:1 });
+    posCart.push({ name:p.name, retail:+p.price||0, cost:+p.cost||0, qty:1, cat:p.cat||"" });
     $("posProd").value="";
     renderCart();
   }
@@ -3298,6 +3779,7 @@ window.startClinicApp = function(){
       savePatients();
     }
     if(window.__hipAudit) window.__hipAudit("sale", p?p.id:"walk-in");
+    decrementInventoryForSale(posCart);
     posCart=[]; $("posDiscount").value=""; $("posDiscountAmt").value=""; setPosClient(""); renderCart();
     if(p) renderAll();
     toast("Sale recorded · $"+money(total));
