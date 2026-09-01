@@ -5622,6 +5622,24 @@ window.startClinicApp = function(){
     return crypto.subtle.deriveKey({name:"PBKDF2", salt:unb64(saltB64), iterations:ITERS, hash:"SHA-256"}, base, {name:"AES-GCM", length:256}, false, ["encrypt","decrypt"]); }
   async function gcmEnc(key, str){ var iv=crypto.getRandomValues(new Uint8Array(12)); var ct=await crypto.subtle.encrypt({name:"AES-GCM", iv:iv}, key, enc.encode(str)); return {iv:b64(iv), ct:b64(ct)}; }
   async function gcmDec(key, obj){ var pt=await crypto.subtle.decrypt({name:"AES-GCM", iv:unb64(obj.iv)}, key, unb64(obj.ct)); return dec.decode(pt); }
+  /* --- gzip helpers (vault compression). Falls back cleanly if unsupported. --- */
+  var ZIP_OK = (typeof CompressionStream !== "undefined" && typeof DecompressionStream !== "undefined");
+  async function gzipB64(str){
+    var cs=new CompressionStream("gzip"), w=cs.writable.getWriter();
+    w.write(enc.encode(str)); w.close();
+    var b=new Uint8Array(await new Response(cs.readable).arrayBuffer());
+    var out="", CH=0x8000;
+    for(var i=0;i<b.length;i+=CH) out+=String.fromCharCode.apply(null,b.subarray(i,i+CH));
+    return btoa(out);
+  }
+  async function gunzipB64(s){
+    var bin=atob(s), a=new Uint8Array(bin.length);
+    for(var i=0;i<bin.length;i++) a[i]=bin.charCodeAt(i);
+    var ds=new DecompressionStream("gzip"), w=ds.writable.getWriter();
+    w.write(a); w.close();
+    return new Response(ds.readable).text();
+  }
+
   async function importDK(raw){ return crypto.subtle.importKey("raw", raw, {name:"AES-GCM"}, false, ["encrypt","decrypt"]); }
   async function wrapDK(kek, raw){ var iv=crypto.getRandomValues(new Uint8Array(12)); var ct=await crypto.subtle.encrypt({name:"AES-GCM", iv:iv}, kek, raw); return {iv:b64(iv), ct:b64(ct)}; }
   async function unwrapDK(kek, w){ var raw=await crypto.subtle.decrypt({name:"AES-GCM", iv:unb64(w.iv)}, kek, unb64(w.ct)); return new Uint8Array(raw); }
@@ -5704,8 +5722,17 @@ window.startClinicApp = function(){
   /* vault (encrypts all app data at rest) */
   var vaultTimer=null;
   window.__vaultSave=function(){ clearTimeout(vaultTimer); vaultTimer=setTimeout(saveVaultNow,600); };
-  async function saveVaultNow(){ if(!DKKey) return; try{ var blob=await gcmEnc(DKKey, JSON.stringify(window.__vaultMem||{})); lsSet("vault", blob); pushSoon(); }catch(e){} }
-  async function loadVault(){ var blob=lsGet("vault",null); if(!blob){ window.__vaultMem={}; return; } try{ window.__vaultMem=JSON.parse(await gcmDec(DKKey, blob))||{}; }catch(e){ window.__vaultMem={}; } }
+  async function saveVaultNow(){ if(!DKKey) return; try{
+    var plain=JSON.stringify(window.__vaultMem||{});
+    var blob;
+    if(ZIP_OK){ blob=await gcmEnc(DKKey, await gzipB64(plain)); blob.z=1; }
+    else { blob=await gcmEnc(DKKey, plain); }
+    lsSet("vault", blob); pushSoon();
+  }catch(e){} }
+  async function loadVault(){ var blob=lsGet("vault",null); if(!blob){ window.__vaultMem={}; return; }
+    try{ var txt=await gcmDec(DKKey, blob); if(blob.z===1) txt=await gunzipB64(txt); window.__vaultMem=JSON.parse(txt)||{}; }
+    catch(e){ window.__vaultMem={}; }
+  }
 
   /* idle auto-logoff */
   var idle=null;
