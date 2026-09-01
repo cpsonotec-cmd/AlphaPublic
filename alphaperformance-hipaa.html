@@ -668,6 +668,29 @@
   .imp-sm{min-width:90px}
   .imp-tag{font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px}
   .imp-new{background:#E7F6EF;color:#0a7d53}.imp-exist{background:#EEF1F4;color:#5B6472}
+  .ar-list-h{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:16px 0 8px}
+  .ar-inv{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px}
+  .ar-inv.ar-late{background:linear-gradient(90deg,rgba(180,83,9,.06),transparent)}
+  .ar-inv.ar-over{background:linear-gradient(90deg,rgba(180,35,24,.08),transparent)}
+  .ar-inv-cust{font-weight:600;font-size:14px}
+  .ar-inv-meta{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+  .ar-paid{white-space:nowrap;padding:8px 14px}
+  .mo-yearbar{display:flex;align-items:center;gap:14px;margin-bottom:10px}
+  .mo-yr-btn{width:34px;height:34px;border:1px solid var(--line);border-radius:9px;background:var(--card);font-size:20px;line-height:1;color:var(--ink);cursor:pointer}
+  .mo-yr-btn:active{background:var(--line)}
+  .mo-yr-lbl{font-weight:700;font-size:18px;font-variant-numeric:tabular-nums}
+  .mo-wrap{overflow-x:auto}
+  .mo-table{min-width:900px;font-size:12px}
+  .mo-table th,.mo-table td{padding:6px 9px;white-space:nowrap}
+  .mo-table .mo-first{position:sticky;left:0;background:var(--card);text-align:left;z-index:1;box-shadow:1px 0 0 var(--line)}
+  .mo-table thead .mo-first{background:var(--canvas)}
+  .mo-table .num{text-align:right;font-variant-numeric:tabular-nums}
+  .mo-table .neg{color:var(--red)}
+  .mo-sub{color:var(--muted);padding-left:14px!important}
+  .mo-rev td{font-weight:600}
+  .mo-tot td{font-weight:700;border-top:1px solid var(--line)}
+  .mo-net td{font-weight:700;border-top:2px solid var(--ink);background:var(--canvas)}
+  .mo-grp td{font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);background:var(--canvas);padding-top:10px}
   .member.is-inactive{opacity:.62}
   .member.is-inactive .pulse{filter:grayscale(1)}
   .chip.chip-due{border-color:#f0c9c6;color:#a5352f}
@@ -1219,7 +1242,7 @@
         <div class="pos-line"><span>Discount %</span><select id="posDiscount"></select></div>
         <div class="pos-line"><span>$ off</span><input type="number" id="posDiscountAmt" min="0" step="0.01" placeholder="0.00" inputmode="decimal"></div>
         <div class="pos-line"><span>Payment</span>
-          <select id="posPay"><option>Cash</option><option>Card</option><option>Zelle</option><option>Check</option><option>Other</option></select>
+          <select id="posPay"><option>Cash</option><option>Card</option><option>Zelle</option><option>Check</option><option>Invoice (unpaid)</option><option>Other</option></select>
         </div>
         <div class="pos-totals" id="posTotals"></div>
         <button class="btn-primary pos-complete" id="posComplete">Complete sale</button>
@@ -1327,12 +1350,14 @@
     </div>
 
     <div id="booksStatements" style="display:none">
-      <div class="rep-card"><h3 class="rep-h">Income statement <span class="rep-sub" id="fsPeriodLbl"></span></h3><div id="fsIncome"></div></div>
-      <div class="rep-card"><h3 class="rep-h">Net profit trend <span class="rep-sub">last 6 months</span></h3><div id="fsTrend"></div></div>
-      <div class="rep-card"><h3 class="rep-h">Cash flow <span class="rep-sub">cash basis, in period</span></h3><div id="fsCash"></div></div>
+      <div class="rep-card"><h3 class="rep-h">Profit &amp; Loss <span class="rep-sub" id="fsPeriodLbl"></span></h3><div id="fsIncome"></div></div>
       <div class="rep-card"><h3 class="rep-h">Balance sheet <span class="rep-sub">as of today</span></h3><div id="fsBalance"></div></div>
-      <div class="rep-card"><h3 class="rep-h">Trial balance <span class="rep-sub">as of today</span></h3><div id="fsTrial"></div></div>
-      <div class="rep-card"><h3 class="rep-h">Liquidity</h3><div id="fsLiquidity"></div></div>
+      <div class="rep-card"><h3 class="rep-h">A/R aging summary <span class="rep-sub">open invoices, as of today</span></h3><div id="fsAR"></div></div>
+      <div class="rep-card">
+        <div class="mo-yearbar"><button class="mo-yr-btn" id="moPrevYear" aria-label="Previous year">&lsaquo;</button><span class="mo-yr-lbl" id="moYearLbl"></span><button class="mo-yr-btn" id="moNextYear" aria-label="Next year">&rsaquo;</button></div>
+        <h3 class="rep-h">Monthly Profit &amp; Loss <span class="rep-sub">each month across the year</span></h3><div id="fsMonthlyPL"></div>
+      </div>
+      <div class="rep-card"><h3 class="rep-h">Monthly Balance Sheet <span class="rep-sub">month-end balances</span></h3><div id="fsMonthlyBS"></div></div>
     </div>
 
     <div id="booksAccounts" style="display:none">
@@ -2289,7 +2314,7 @@ window.startClinicApp = function(){
   }
 
   // ---------- reports ----------
-  var REP_PERIODS=[["m1","This month",1],["m3","3 months",3],["m12","12 months",12],["all","All time",null]];
+  var REP_PERIODS=[["m1","This month",1],["lastmonth","Prev month","lastmonth"],["ytd","YTD","ytd"],["m3","3 months",3],["m12","12 months",12],["all","All time",null]];
   function monthsAgoStart(months){
     if(months==null) return null;
     var t=new Date(); return new Date(t.getFullYear(), t.getMonth()-months+1, 1);
@@ -2465,6 +2490,12 @@ window.startClinicApp = function(){
     }).join("")+'</div>';
   }
 
+  function treatmentStartDate(p){
+    if(!(p.treatments && p.treatments.length)) return null;
+    var ds=(p.visitLog||[]).filter(function(v){ return v.treatments && v.treatments.length; }).map(function(v){ return v.date; }).filter(Boolean).sort();
+    if(ds.length) return ds[0];
+    return p.consultDate || p.createdAt || null;
+  }
   function reportRange(){
     if(repMode==="custom"){
       var s=repFromISO?parseISO(repFromISO):null;
@@ -2472,6 +2503,9 @@ window.startClinicApp = function(){
       if(e) e=new Date(e.getFullYear(),e.getMonth(),e.getDate(),23,59,59,999);
       return {start:s, end:e};
     }
+    var t=new Date(); t.setHours(0,0,0,0); var y=t.getFullYear(), m=t.getMonth();
+    if(repPeriod==="ytd") return { start:new Date(y,0,1), end:null };
+    if(repPeriod==="lastmonth") return { start:new Date(y,m-1,1), end:new Date(new Date(y,m,1).getTime()-1) };
     return { start:monthsAgoStart(repPeriod), end:null };
   }
   function inRange(iso, r){
@@ -2562,8 +2596,12 @@ window.startClinicApp = function(){
     $("repTo").value = repMode==="custom" ? repToISO : todayISO();
 
     // KPIs
+    var initConsults = patients.filter(function(p){ return p.consultDate && inRange(p.consultDate, r.range); }).length;
+    var startedTx = patients.filter(function(p){ var sd=treatmentStartDate(p); return sd && inRange(sd, r.range); }).length;
     $("repKpis").innerHTML=[
       statTile("Total clients", patients.length, "", "#9AA39D", "in your book"),
+      statTile("Initial consults", initConsults, "", "#D9820B", periodLbl),
+      statTile("Started treatment", startedTx, "", "var(--good)", periodLbl),
       statTile("On treatment", patients.filter(function(p){return p.treatments&&p.treatments.length;}).length, "", "var(--good)", "active protocols"),
       statTile("Active members", r.activeMembers.length, "", "var(--emerald-deep)", "enrolled & active"),
       statTile("Monthly revenue", "$"+money(r.mrrNet), "", "var(--emerald)", "after discounts"),
@@ -2898,7 +2936,7 @@ window.startClinicApp = function(){
     expenses:["Expenses","Record business costs"],
     gl:["General Ledger","Double-entry transactions"],
     coa:["Chart of Accounts","Your account structure"],
-    freports:["Reports","P&L, balance sheet & trial balance"]
+    freports:["Reports","P&L, balance sheet & A/R aging"]
   };
   var ACCT_VIEWS={expenses:1,gl:1,coa:1,freports:1};
   function switchView(v){
@@ -3030,9 +3068,9 @@ window.startClinicApp = function(){
   // ---------- POS / Books (Plus) ----------
   var txns = load("alphaperf_txns", []);
   function saveTxns(){ store.set("alphaperf_txns", JSON.stringify(txns)); if(typeof schedulePush==="function") schedulePush(); }
-  var posCart=[], bookSub="activity", posPeriod=0, posWired=false, posClientId="", cdActive=-1;
+  var posCart=[], bookSub="activity", posPeriod="month", posWired=false, posClientId="", cdActive=-1;
   var posMode="preset", posFromISO="", posToISO="";
-  var POS_PERIODS=[["Today",0],["7 days",7],["Month","month"],["Quarter","quarter"],["Last Q","lastq"],["YTD","ytd"],["All","all"]];
+  var POS_PERIODS=[["This month","month"],["This quarter","quarter"],["Last month","lastmonth"],["Last quarter","lastq"],["Last year","lastyear"],["YTD","ytd"]];
   var balance = load("alphaperf_balance", {cash:0,ar:0,inventory:0,equipment:0,ap:0,cards:0,loans:0});
   function saveBalance(){ store.set("alphaperf_balance", JSON.stringify(balance)); }
   var DEFAULT_ACCOUNTS_MJS=[
@@ -3116,6 +3154,7 @@ window.startClinicApp = function(){
     var dues = sub>0 ? Math.round(t.total*(duesSub/sub)*100)/100 : 0;
     return { dues:dues, other:Math.round((t.total-dues)*100)/100 };
   }
+  function isReceivable(t){ return t && t.type==="sale" && /invoice|account|unpaid/i.test(t.payment||"") && !t.paid; }
   function buildLedger(){
     var both=isCombined(), entries=[];
     function saleAlpha(t,who,nm){
@@ -3124,7 +3163,8 @@ window.startClinicApp = function(){
       var subA=memb+oth;
       var mShare = subA>0 ? Math.round(t.total*(memb/subA)*100)/100 : t.total;
       var oShare = Math.round((t.total-mShare)*100)/100;
-      var lines=[{acct:"1000",dr:t.total,cr:0}];
+      var dr = isReceivable(t) ? "1100" : "1000";
+      var lines=[{acct:dr,dr:t.total,cr:0}];
       if(mShare) lines.push({acct:"4100",dr:0,cr:mShare});
       if(oShare) lines.push({acct:"4200",dr:0,cr:oShare});
       entries.push({date:t.date,ref:(oShare&&!mShare?"SUPP":"DUES"),memo:who+" — "+nm,lines:lines,ent:"alpha"});
@@ -3133,15 +3173,16 @@ window.startClinicApp = function(){
       if(t.type==="sale"){
         var who=(t.clientName||"Walk-in");
         var nm=((t.items||[]).map(function(i){return i.name;}).join(", ")||"sale");
+        var drAcct = isReceivable(t) ? "1100" : "1000";
         if(t.entity){
           if(!both && t.entity!==acctEntity) return;
           if(t.entity==="alpha") saleAlpha(t,who,nm);
-          else entries.push({date:t.date,ref:"SALE",memo:who+" — "+nm,lines:[{acct:"1000",dr:t.total,cr:0},{acct:"4000",dr:0,cr:t.total}],ent:"mjs"});
+          else entries.push({date:t.date,ref:"SALE",memo:who+" — "+nm,lines:[{acct:drAcct,dr:t.total,cr:0},{acct:"4000",dr:0,cr:t.total}],ent:"mjs"});
         } else {
           var sp=saleSplit(t);
           var otherNames=(t.items||[]).filter(function(i){return !/dues/i.test(i.name);}).map(function(i){return i.name;}).join(", ");
-          if(both || acctEntity==="alpha"){ if(sp.dues>0) entries.push({date:t.date,ref:"DUES",memo:who+" — membership dues",lines:[{acct:"1000",dr:sp.dues,cr:0},{acct:"4100",dr:0,cr:sp.dues}],ent:"alpha"}); }
-          if(both || acctEntity==="mjs"){ if(sp.other>0) entries.push({date:t.date,ref:"SALE",memo:who+" — "+(otherNames||"sale"),lines:[{acct:"1000",dr:sp.other,cr:0},{acct:"4000",dr:0,cr:sp.other}],ent:"mjs"}); }
+          if(both || acctEntity==="alpha"){ if(sp.dues>0) entries.push({date:t.date,ref:"DUES",memo:who+" — membership dues",lines:[{acct:drAcct,dr:sp.dues,cr:0},{acct:"4100",dr:0,cr:sp.dues}],ent:"alpha"}); }
+          if(both || acctEntity==="mjs"){ if(sp.other>0) entries.push({date:t.date,ref:"SALE",memo:who+" — "+(otherNames||"sale"),lines:[{acct:drAcct,dr:sp.other,cr:0},{acct:"4000",dr:0,cr:sp.other}],ent:"mjs"}); }
         }
       } else {
         var ee=t.entity||"mjs";
@@ -3797,8 +3838,10 @@ window.startClinicApp = function(){
     if(posPeriod===0) return {start:t, end:null};
     if(posPeriod===7){ var d=new Date(t); d.setDate(d.getDate()-6); return {start:d, end:null}; }
     if(posPeriod==="month") return {start:new Date(y,m,1), end:null};
+    if(posPeriod==="lastmonth"){ var lms=new Date(y,m-1,1); var lme=new Date(new Date(y,m,1).getTime()-1); return {start:lms, end:lme}; }
     if(posPeriod==="quarter"){ var qs=Math.floor(m/3)*3; return {start:new Date(y,qs,1), end:null}; }
     if(posPeriod==="lastq"){ var qs2=Math.floor(m/3)*3; var cq=new Date(y,qs2,1); return {start:new Date(y,qs2-3,1), end:new Date(cq.getTime()-1)}; }
+    if(posPeriod==="lastyear") return {start:new Date(y-1,0,1), end:new Date(y-1,11,31,23,59,59,999)};
     if(posPeriod==="ytd") return {start:new Date(y,0,1), end:null};
     return {start:null, end:null};
   }
@@ -3856,32 +3899,23 @@ window.startClinicApp = function(){
     return { income:income, cogs:cogs, gross:income-cogs, expByCat:expByCat, expTotal:expTotal, net:income-cogs-expTotal };
   }
   function fsRow(label, val, opts){
-    opts=opts||{};
+    opts=opts||{}; if(Math.abs(val)<0.005) val=0;
     return '<div class="fs-row'+(opts.bold?" fs-bold":"")+(opts.top?" fs-top":"")+(opts.sub?" fs-sub":"")+'">'+
       '<span>'+esc(label)+'</span><span class="fs-val'+(val<0?" neg":"")+'">'+(val<0?"−$"+money(-val):"$"+money(val))+'</span></div>';
   }
   function renderStatements(){
-    var lbl=posPeriodLabel();
-    $("fsPeriodLbl").textContent=lbl;
-    $("fsTrend").innerHTML=plTrend();
+    $("fsPeriodLbl").textContent=posPeriodLabel();
 
-    // Income statement (entity-aware, from the ledger)
+    // Profit & Loss (entity-aware, from the ledger, for the selected period)
     var pl=periodPL();
     var nm=pl.income?Math.round(pl.net/pl.income*100):0;
-    var inc=fsRow("Revenue", pl.income, {top:true, bold:true})+
-      '<div class="fs-gap"></div>'+
-      '<div class="fs-head">Operating expenses</div>'+
+    $("fsIncome").innerHTML=
+      fsRow("Revenue", pl.income, {top:true, bold:true})+
+      '<div class="fs-gap"></div><div class="fs-head">Operating expenses</div>'+
       (Object.keys(pl.expByAcct).length ? Object.keys(pl.expByAcct).sort().map(function(c){ return fsRow(c, -pl.expByAcct[c], {sub:true}); }).join("") : '<div class="fs-none">None recorded</div>')+
       fsRow("Total expenses", -pl.expenses)+
       fsRow("Net income", pl.net, {bold:true, top:true})+
       '<div class="fs-margins"><span>Net margin '+nm+'%</span></div>';
-    $("fsIncome").innerHTML=inc;
-
-    // Cash flow (cash basis)
-    $("fsCash").innerHTML=
-      fsRow("Cash from revenue", pl.income, {top:true})+
-      fsRow("Cash paid for expenses", -pl.expenses)+
-      fsRow("Net cash change", pl.income-pl.expenses, {bold:true});
 
     // Balance sheet (derived from general ledger, as of today)
     var bal=accountBalances();
@@ -3900,33 +3934,97 @@ window.startClinicApp = function(){
       '<div class="fs-gap"></div>'+fsRow("Liabilities + equity", totL+totEq, {bold:true})+
       '<div class="fs-note">'+(Math.abs(totA-(totL+totEq))<0.01?"✓ Balanced — assets = liabilities + equity. ":"")+'Balances derive from the general ledger. Set opening balances with a journal entry.</div>';
 
-    // Liquidity (from derived current account balances)
-    function curAsset(a){ return parseInt(a.code,10)<1500; }
-    function curLiab(a){ return parseInt(a.code,10)<2500; }
-    var ca=assets.filter(curAsset).reduce(function(s,a){return s+(bal[a.code]||0);},0);
-    var cl=liabs.filter(curLiab).reduce(function(s,a){return s+(bal[a.code]||0);},0);
-    var invTot=assets.filter(function(a){return /invent/i.test(a.name);}).reduce(function(s,a){return s+(bal[a.code]||0);},0);
-    var curR = cl? (ca/cl) : null, quickR = cl? ((ca-invTot)/cl) : null;
-    function ratio(v){ return v==null? "—" : (Math.round(v*100)/100).toFixed(2); }
-    $("fsLiquidity").innerHTML=
-      '<div class="rx-totals">'+
-        '<div class="rx-tot"><div class="rx-tot-cap">Current ratio</div><div class="rx-tot-val">'+ratio(curR)+'</div></div>'+
-        '<div class="rx-tot"><div class="rx-tot-cap">Quick ratio</div><div class="rx-tot-val">'+ratio(quickR)+'</div></div>'+
-        '<div class="rx-tot"><div class="rx-tot-cap">Working capital</div><div class="rx-tot-val" style="color:'+((ca-cl)>=0?"var(--good-deep)":"var(--red)")+'">$'+money(ca-cl)+'</div></div>'+
-      '</div>'+
-      '<div class="fs-note">Current ratio = current assets ÷ current liabilities (healthy ≈ 1.5–3). Quick ratio excludes inventory.</div>';
-
-    // Trial balance (as of today)
-    var raw={}; buildLedger().forEach(function(e){ e.lines.forEach(function(l){ if(!raw[l.acct]) raw[l.acct]={dr:0,cr:0}; raw[l.acct].dr+=l.dr; raw[l.acct].cr+=l.cr; }); });
-    var tbDr=0, tbCr=0;
-    var tbRows=accounts.map(function(a){ var r=raw[a.code]; if(!r) return ""; var net=r.dr-r.cr; if(Math.abs(net)<0.005) return "";
-      var d=net>0?net:0, c=net<0?-net:0; tbDr+=d; tbCr+=c;
-      return '<tr><td class="num">'+esc(a.code)+'</td><td>'+esc(a.name)+'</td><td class="num">'+(d?"$"+money(d):"")+'</td><td class="num">'+(c?"$"+money(c):"")+'</td></tr>';
+    // A/R aging summary
+    renderAR();
+    // Monthly comparison (12-month P&L and balance sheet)
+    renderMonthly();
+  }
+  function renderAR(){
+    var both=isCombined();
+    var open=txns.filter(function(t){ return isReceivable(t) && (both || (t.entity||"mjs")===acctEntity); });
+    if(!open.length){ $("fsAR").innerHTML='<div class="fs-none">No open invoices. In the Register, set a sale\u2019s payment to \u201cInvoice (unpaid)\u201d to track it here.</div>'; return; }
+    var today=new Date(); today.setHours(0,0,0,0);
+    function ageDays(iso){ var d=parseISO(iso); if(!d) return 0; return Math.max(0,Math.floor((today-d)/86400000)); }
+    var BK=["Current","31-60","61-90","90+"];
+    function bucketOf(days){ return days<=30?"Current":days<=60?"31-60":days<=90?"61-90":"90+"; }
+    var byCust={}, totals={Current:0,"31-60":0,"61-90":0,"90+":0}, grand=0;
+    open.forEach(function(t){ var c=t.clientName||"Walk-in"; if(!byCust[c]) byCust[c]={Current:0,"31-60":0,"61-90":0,"90+":0,total:0};
+      var b=bucketOf(ageDays(t.date)); byCust[c][b]+=t.total; byCust[c].total+=t.total; totals[b]+=t.total; grand+=t.total; });
+    var names=Object.keys(byCust).sort(function(a,b){return byCust[b].total-byCust[a].total;});
+    var head='<thead><tr><th>Customer</th>'+BK.map(function(b){return '<th class="num">'+b+'</th>';}).join("")+'<th class="num">Total</th></tr></thead>';
+    var body=names.map(function(c){ var r=byCust[c]; return '<tr><td>'+esc(c)+'</td>'+BK.map(function(b){return '<td class="num">'+(r[b]?"$"+money(r[b]):"—")+'</td>';}).join("")+'<td class="num"><b>$'+money(r.total)+'</b></td></tr>'; }).join("");
+    var foot='<tfoot><tr><td><b>Total</b></td>'+BK.map(function(b){return '<td class="num"><b>$'+money(totals[b])+'</b></td>';}).join("")+'<td class="num"><b>$'+money(grand)+'</b></td></tr></tfoot>';
+    var summary='<div class="gl-wrap"><table class="rx-table gl-table">'+head+'<tbody>'+body+'</tbody>'+foot+'</table></div>';
+    var list=open.slice().sort(function(a,b){return (a.date||"").localeCompare(b.date||"");}).map(function(t){
+      var days=ageDays(t.date), od=days>90?"ar-over":days>30?"ar-late":"";
+      return '<div class="ar-inv '+od+'"><div class="ar-inv-main"><span class="ar-inv-cust">'+esc(t.clientName||"Walk-in")+'</span>'+
+        '<span class="ar-inv-meta">'+fmtDate(parseISO(t.date))+' \u00b7 '+days+'d \u00b7 $'+money(t.total)+(both?' \u00b7 '+entityName(t.entity||"mjs"):"")+'</span></div>'+
+        '<button class="btn-ghost ar-paid" data-arpaid="'+t.id+'">Mark paid</button></div>';
     }).join("");
-    $("fsTrial").innerHTML = tbRows ?
-      '<div class="gl-wrap"><table class="rx-table gl-table"><thead><tr><th>Code</th><th>Account</th><th class="num">Debit</th><th class="num">Credit</th></tr></thead><tbody>'+tbRows+
-      '</tbody><tfoot><tr><td colspan="2" class="num"><b>Totals</b></td><td class="num"><b>$'+money(tbDr)+'</b></td><td class="num"><b>$'+money(tbCr)+'</b></td></tr></tfoot></table></div>'
-      : '<div class="rep-empty">No ledger activity yet.</div>';
+    $("fsAR").innerHTML=summary+'<div class="ar-list-h">Open invoices ('+open.length+')</div>'+list;
+    Array.prototype.forEach.call($("fsAR").querySelectorAll("[data-arpaid]"),function(b){ b.onclick=function(){ markInvoicePaid(b.getAttribute("data-arpaid")); }; });
+  }
+  function markInvoicePaid(id){
+    var t=txns.filter(function(x){return x.id===id;})[0]; if(!t) return;
+    t.paid=true; t.paidDate=todayISO(); saveTxns();
+    if(window.__hipAudit) window.__hipAudit("invoice_paid", t.clientId||"invoice");
+    renderAccounting(activeView); toast("Marked paid \u2014 moved to cash");
+  }
+
+  var MO_ABBR=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  var moYear=new Date().getFullYear();
+  function computeMonthly(year){
+    var led=buildLedger();
+    var incByMonth=new Array(12).fill(0);
+    var expAccts={}; // name -> [12]
+    var monthNet={}, openBal={};
+    activeAccounts().forEach(function(a){ monthNet[a.code]=new Array(12).fill(0); openBal[a.code]=0; });
+    function signed(a,l){ var d=l.dr-l.cr; return (a.type==="Asset"||a.type==="Expense")? d : -d; }
+    led.forEach(function(e){ var dt=parseISO(e.date); if(!dt) return; var ey=dt.getFullYear(), em=dt.getMonth();
+      e.lines.forEach(function(l){ var a=acctByCode(l.acct); if(!a) return;
+        var delta=signed(a,l);
+        if(ey<year){ openBal[a.code]=(openBal[a.code]||0)+delta; }
+        else if(ey===year){ if(monthNet[a.code]) monthNet[a.code][em]+=delta;
+          if(a.type==="Income") incByMonth[em]+=(l.cr-l.dr);
+          else if(a.type==="Expense"){ if(!expAccts[a.name]) expAccts[a.name]=new Array(12).fill(0); expAccts[a.name][em]+=(l.dr-l.cr); }
+        }
+      });
+    });
+    var bsMonthEnd={};
+    Object.keys(monthNet).forEach(function(code){ var run=openBal[code]||0, arr=new Array(12);
+      for(var i=0;i<12;i++){ run+=(monthNet[code][i]||0); arr[i]=run; } bsMonthEnd[code]=arr; });
+    return { incByMonth:incByMonth, expAccts:expAccts, bsMonthEnd:bsMonthEnd };
+  }
+  function renderMonthly(){
+    if(!$("moYearLbl")) return;
+    $("moYearLbl").textContent=moYear;
+    var d=computeMonthly(moYear);
+    function cell(v){ if(!v||Math.abs(v)<0.005) v=0; return '<td class="num'+(v<0?" neg":"")+'">'+(v<0?"\u2212$"+money(-v):"$"+money(v))+'</td>'; }
+    function sum(arr){ return arr.reduce(function(s,x){return s+(x||0);},0); }
+    var moHead='<thead><tr><th class="mo-first">Line</th>'+MO_ABBR.map(function(l){return '<th class="num">'+l+'</th>';}).join('')+'<th class="num">Year</th></tr></thead>';
+    var expNames=Object.keys(d.expAccts).sort();
+    var totExp=new Array(12).fill(0); expNames.forEach(function(n){ for(var i=0;i<12;i++) totExp[i]+=d.expAccts[n][i]; });
+    var net=d.incByMonth.map(function(v,i){return v-totExp[i];});
+    var plBody='<tr class="mo-rev"><td class="mo-first">Revenue</td>'+d.incByMonth.map(cell).join('')+cell(sum(d.incByMonth))+'</tr>';
+    if(expNames.length){ expNames.forEach(function(n){ plBody+='<tr><td class="mo-first mo-sub">'+esc(n)+'</td>'+d.expAccts[n].map(cell).join('')+cell(sum(d.expAccts[n]))+'</tr>'; }); }
+    plBody+='<tr class="mo-tot"><td class="mo-first">Total expenses</td>'+totExp.map(cell).join('')+cell(sum(totExp))+'</tr>';
+    plBody+='<tr class="mo-net"><td class="mo-first">Net income</td>'+net.map(cell).join('')+cell(sum(net))+'</tr>';
+    $("fsMonthlyPL").innerHTML='<div class="gl-wrap mo-wrap"><table class="rx-table gl-table mo-table">'+moHead+'<tbody>'+plBody+'</tbody></table></div>';
+
+    var assets=acctByType("Asset"), liabs=acctByType("Liability"), eqAccts=acctByType("Equity");
+    var incAccts=acctByType("Income"), expAcctsT=acctByType("Expense");
+    function typeSum(list,i){ return list.reduce(function(s,a){return s+((d.bsMonthEnd[a.code]||[])[i]||0);},0); }
+    function acctRow(a){ return '<tr><td class="mo-first mo-sub">'+esc(a.name)+'</td>'+MO_ABBR.map(function(l,i){return cell((d.bsMonthEnd[a.code]||[])[i]||0);}).join('')+'</tr>'; }
+    var re=new Array(12); for(var i=0;i<12;i++){ re[i]=typeSum(incAccts,i)-typeSum(expAcctsT,i); }
+    var bsHead='<thead><tr><th class="mo-first">Account</th>'+MO_ABBR.map(function(l){return '<th class="num">'+l+'</th>';}).join('')+'</tr></thead>';
+    function totRow(label,vals){ return '<tr class="mo-tot"><td class="mo-first">'+label+'</td>'+vals.map(cell).join('')+'</tr>'; }
+    function grp(label){ return '<tr class="mo-grp"><td class="mo-first" colspan="13">'+label+'</td></tr>'; }
+    var idx=[0,1,2,3,4,5,6,7,8,9,10,11];
+    var bsBody=grp("Assets")+assets.map(acctRow).join('')+totRow("Total assets", idx.map(function(i){return typeSum(assets,i);}))+
+      grp("Liabilities")+(liabs.length?liabs.map(acctRow).join(''):'')+totRow("Total liabilities", idx.map(function(i){return typeSum(liabs,i);}))+
+      grp("Equity")+eqAccts.map(acctRow).join('')+'<tr><td class="mo-first mo-sub">Retained earnings</td>'+re.map(cell).join('')+'</tr>'+
+      totRow("Total equity", idx.map(function(i){return typeSum(eqAccts,i)+re[i];}));
+    $("fsMonthlyBS").innerHTML='<div class="gl-wrap mo-wrap"><table class="rx-table gl-table mo-table">'+bsHead+'<tbody>'+bsBody+'</tbody></table></div>';
   }
   function renderGL(){
     $("glPeriodLbl").textContent=posPeriodLabel();
@@ -4174,6 +4272,8 @@ window.startClinicApp = function(){
     $("posExpSave").onclick=saveExpense;
     $("posFrom").onchange=function(e){ posMode="custom"; posFromISO=e.target.value; renderAccounting(activeView); };
     $("posTo").onchange=function(e){ posMode="custom"; posToISO=e.target.value; renderAccounting(activeView); };
+    if($("moPrevYear")) $("moPrevYear").onclick=function(){ moYear--; renderMonthly(); };
+    if($("moNextYear")) $("moNextYear").onclick=function(){ moYear++; renderMonthly(); };
     $("booksUnlock").onclick=tryUnlockBooks;
     $("glJournalBtn").onclick=openJournal;
     $("glExportBtn").onclick=exportGL;
