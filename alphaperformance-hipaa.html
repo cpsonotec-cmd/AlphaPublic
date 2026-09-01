@@ -691,6 +691,41 @@
   .mo-tot td{font-weight:700;border-top:1px solid var(--line)}
   .mo-net td{font-weight:700;border-top:2px solid var(--ink);background:var(--canvas)}
   .mo-grp td{font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);background:var(--canvas);padding-top:10px}
+  .home-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+  .home-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px}
+  .hc-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .hc-title{font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+  .hc-period{font-size:12px;color:var(--muted)}
+  .hc-sub{font-size:13px;color:var(--muted)}
+  .hc-big{font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;margin:2px 0 4px}
+  .hc-chg-line{font-size:12px;margin-bottom:12px}
+  .hc-chg{font-weight:700}.hc-good{color:#0a7d53}.hc-bad{color:#B42318}.hc-flat{color:var(--muted)}
+  .hc-chg-note{color:var(--muted)}
+  .hc-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .hc-bar-lbl{width:64px;font-size:12px;font-weight:600}
+  .hc-track{flex:1;height:12px;background:var(--canvas);border-radius:8px;overflow:hidden}
+  .hc-fill{height:100%;border-radius:8px}
+  .hc-bar-val{width:76px;text-align:right;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+  .hc-donut-wrap{display:flex;gap:16px;align-items:center;margin-top:8px;flex-wrap:wrap}
+  .hc-donut{position:relative;width:132px;height:132px;flex-shrink:0}
+  .hc-donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
+  .hc-donut-c-val{font-size:14px;font-weight:700}.hc-donut-c-lbl{font-size:10px;color:var(--muted)}
+  .hc-legend{flex:1;min-width:150px}
+  .hc-leg{display:flex;align-items:center;gap:8px;font-size:12.5px;margin-bottom:5px}
+  .hc-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+  .hc-leg-lbl{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hc-leg-val{font-weight:600;font-variant-numeric:tabular-nums}
+  .hc-acct-list{margin-top:12px;border-top:1px solid var(--line);padding-top:6px}
+  .hc-acct{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .hc-acct:last-child{border-bottom:none}
+  .hc-acct-bal{font-weight:600;font-variant-numeric:tabular-nums}
+  .hc-empty,.hc-empty-donut{color:var(--muted);font-size:13px;padding:20px;text-align:center}
+  .trend-block{margin-bottom:16px}
+  .trend-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px}
+  .trend-title{font-weight:600;font-size:13px}
+  .trend-latest{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
+  .trend-chg{font-size:11px;font-weight:700;margin-left:8px}.tc-up{color:#0a7d53}.tc-down{color:#B42318}
+  .trend-svg{width:100%;height:auto;display:block}
   .member.is-inactive{opacity:.62}
   .member.is-inactive .pulse{filter:grayscale(1)}
   .chip.chip-due{border-color:#f0c9c6;color:#a5352f}
@@ -998,6 +1033,7 @@
         <div class="acct-lock-err" id="acctLockErr"></div>
       </div>
       <div class="acct-items" id="acctItems" style="display:none">
+      <a class="nav-link" data-view="fhome"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg><span>Home Summary</span></a>
       <a class="nav-link" data-view="expenses"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg><span>Expenses</span></a>
       <a class="nav-link" data-view="gl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg><span>General Ledger</span></a>
       <a class="nav-link" data-view="coa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg><span>Chart of Accounts</span></a>
@@ -1130,6 +1166,7 @@
       <input type="date" id="repTo" aria-label="End date">
     </div>
     <section class="stats" id="repKpis"></section>
+    <div class="rep-card"><h3 class="rep-h">Monthly trends <span class="rep-sub">last 12 months</span></h3><div id="repTrends"></div></div>
     <div class="rep-card"><h3 class="rep-h">Revenue in period <span class="rep-sub" id="repPeriodLbl"></span></h3><div id="repPeriodRev"></div></div>
     <div class="rep-card"><h3 class="rep-h">Pipeline funnel</h3><div id="repFunnel"></div></div>
     <div class="rep-card"><h3 class="rep-h">Demographics <span class="rep-sub" id="repDemoSummary"></span></h3>
@@ -1321,6 +1358,10 @@
         <span class="rep-dr-dash">to</span>
         <input type="date" id="posTo" aria-label="End date">
       </div>
+    </div>
+
+    <div id="booksHome" style="display:none">
+      <div class="home-grid" id="homeGrid"></div>
     </div>
 
     <div id="booksLedger">
@@ -2612,6 +2653,7 @@ window.startClinicApp = function(){
       statTile("New clients", r.newClients, "", "#7C6FE0", periodLbl),
       statTile("Visits logged", r.visitsInPeriod, "", "var(--amber)", periodLbl)
     ].join("");
+    renderTrends();
 
     // Revenue in period (dated events: memberships started + treatment value at visits)
     $("repPeriodLbl").textContent = periodLbl;
@@ -2940,9 +2982,10 @@ window.startClinicApp = function(){
     expenses:["Expenses","Record business costs"],
     gl:["General Ledger","Double-entry transactions"],
     coa:["Chart of Accounts","Your account structure"],
-    freports:["Reports","P&L, balance sheet & A/R aging"]
+    freports:["Reports","P&L, balance sheet & A/R aging"],
+    fhome:["Home Summary","Your books at a glance"]
   };
-  var ACCT_VIEWS={expenses:1,gl:1,coa:1,freports:1};
+  var ACCT_VIEWS={fhome:1,expenses:1,gl:1,coa:1,freports:1};
   function switchView(v){
     activeView=v;
     $("membersView").style.display = v==="members" ? "block" : "none";
@@ -3026,11 +3069,13 @@ window.startClinicApp = function(){
     ["glJournalBtn","coaJournalBtn","openBalBtn"].forEach(function(id){ var el=$(id); if(el) el.style.display = combinedRO?"none":""; });
     $("bookPeriodBar").style.display = (v==="coa") ? "none" : "block";
     if(v!=="coa") renderBookPeriod();
+    $("booksHome").style.display = v==="fhome"?"block":"none";
     $("booksLedger").style.display = v==="expenses"?"block":"none";
     $("booksGL").style.display = v==="gl"?"block":"none";
     $("booksStatements").style.display = v==="freports"?"block":"none";
     $("booksAccounts").style.display = v==="coa"?"block":"none";
-    if(v==="expenses") renderExpenses();
+    if(v==="fhome") renderHomeSummary();
+    else if(v==="expenses") renderExpenses();
     else if(v==="gl") renderGL();
     else if(v==="coa") renderAccounts();
     else renderStatements();
@@ -3973,6 +4018,113 @@ window.startClinicApp = function(){
     t.paid=true; t.paidDate=todayISO(); saveTxns();
     if(window.__hipAudit) window.__hipAudit("invoice_paid", t.clientId||"invoice");
     renderAccounting(activeView); toast("Marked paid \u2014 moved to cash");
+  }
+
+  /* ---- Accounting Home Summary dashboard ---- */
+  function inRangeR(iso, r){ var d=parseISO(iso); if(!d) return false; if(r.start && d<r.start) return false; if(r.end && d>r.end) return false; return true; }
+  function plForRange(range){
+    var led=buildLedger(), income=0, expenses=0, expBy={};
+    led.forEach(function(e){ if(!inRangeR(e.date, range)) return;
+      e.lines.forEach(function(l){ var a=acctByCode(l.acct); if(!a) return;
+        if(a.type==="Income") income+=(l.cr-l.dr);
+        else if(a.type==="Expense"){ var v=l.dr-l.cr; expenses+=v; expBy[a.name]=(expBy[a.name]||0)+v; }
+      });
+    });
+    return {income:income, expenses:expenses, net:income-expenses, expBy:expBy};
+  }
+  function priorRange(range){
+    if(!range.start) return null;
+    var s=new Date(range.start.getTime()); var e=range.end?new Date(range.end.getTime()):new Date();
+    var len=e.getTime()-s.getTime(); var pe=new Date(s.getTime()-1); var ps=new Date(pe.getTime()-len);
+    return {start:ps, end:pe};
+  }
+  function pctChange(cur, prior){ if(!prior) return (cur?null:0); return Math.round((cur-prior)/Math.abs(prior)*100); }
+  function changeTag(pct, goodUp){
+    if(pct==null) return '<span class="hc-chg hc-flat">new</span>';
+    var up=pct>=0, good=goodUp?up:!up;
+    return '<span class="hc-chg '+(good?"hc-good":"hc-bad")+'">'+(up?"\u25B2":"\u25BC")+' '+Math.abs(pct)+'%</span>';
+  }
+  function donutSVG(items, size){
+    var total=items.reduce(function(s,i){return s+i.value;},0)||1;
+    var r=size/2-9, cx=size/2, cy=size/2, circ=2*Math.PI*r, off=0;
+    var segs=items.map(function(it){ var len=it.value/total*circ;
+      var seg='<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+it.color+'" stroke-width="17" stroke-dasharray="'+len.toFixed(2)+' '+(circ-len).toFixed(2)+'" stroke-dashoffset="'+(-off).toFixed(2)+'" transform="rotate(-90 '+cx+' '+cy+')"/>';
+      off+=len; return seg; }).join('');
+    return '<svg viewBox="0 0 '+size+' '+size+'" width="'+size+'" height="'+size+'">'+segs+'</svg>';
+  }
+  function renderHomeSummary(){
+    var range=posRange(), lbl=posPeriodLabel();
+    var cur=plForRange(range);
+    var pr=priorRange(range), prior=pr?plForRange(pr):{income:0,expenses:0,net:0,expBy:{}};
+    var maxIE=Math.max(cur.income, cur.expenses, 1);
+    var netColor = cur.net>=0 ? "var(--good-deep)" : "var(--red)";
+    var plCard='<div class="home-card">'+
+      '<div class="hc-head"><span class="hc-title">Profit &amp; Loss</span><span class="hc-period">'+esc(lbl)+'</span></div>'+
+      '<div class="hc-sub">Net profit</div><div class="hc-big" style="color:'+netColor+'">$'+money(cur.net)+'</div>'+
+      '<div class="hc-chg-line">'+changeTag(pctChange(cur.net, prior.net), true)+' <span class="hc-chg-note">vs prior period</span></div>'+
+      '<div class="hc-bars">'+
+        '<div class="hc-bar-row"><span class="hc-bar-lbl">Income</span><div class="hc-track"><div class="hc-fill" style="width:'+(cur.income/maxIE*100).toFixed(1)+'%;background:var(--good)"></div></div><span class="hc-bar-val">$'+money(cur.income)+'</span></div>'+
+        '<div class="hc-bar-row"><span class="hc-bar-lbl">Expenses</span><div class="hc-track"><div class="hc-fill" style="width:'+(cur.expenses/maxIE*100).toFixed(1)+'%;background:#0D9488"></div></div><span class="hc-bar-val">$'+money(cur.expenses)+'</span></div>'+
+      '</div></div>';
+    var PAL=["#2563EB","#0D9488","#7C3AED","#DB2777","#B45309","#DC2626","#0EA5E9","#65A30D","#6B7280"];
+    var eItems=Object.keys(cur.expBy).map(function(k,i){return {label:k, value:cur.expBy[k], color:PAL[i%PAL.length]};}).sort(function(a,b){return b.value-a.value;});
+    var donut = eItems.length ? donutSVG(eItems, 132) : '<div class="hc-empty-donut">No expenses in period</div>';
+    var legend = eItems.slice(0,6).map(function(it){ return '<div class="hc-leg"><span class="hc-dot" style="background:'+it.color+'"></span><span class="hc-leg-lbl">'+esc(it.label)+'</span><span class="hc-leg-val">$'+money(it.value)+'</span></div>'; }).join('');
+    var expCard='<div class="home-card">'+
+      '<div class="hc-head"><span class="hc-title">Expenses</span><span class="hc-period">'+esc(lbl)+'</span></div>'+
+      '<div class="hc-sub">Spending</div><div class="hc-big">$'+money(cur.expenses)+'</div>'+
+      '<div class="hc-chg-line">'+changeTag(pctChange(cur.expenses, prior.expenses), false)+' <span class="hc-chg-note">vs prior period</span></div>'+
+      '<div class="hc-donut-wrap"><div class="hc-donut">'+donut+(eItems.length?'<div class="hc-donut-center"><div class="hc-donut-c-val">$'+money(cur.expenses)+'</div><div class="hc-donut-c-lbl">total</div></div>':'')+'</div><div class="hc-legend">'+legend+'</div></div></div>';
+    var bal=accountBalances();
+    var cashAccts=acctByType("Asset").filter(function(a){ return /cash|bank|checking|savings/i.test(a.name) || a.code==="1000"; });
+    if(!cashAccts.length) cashAccts=acctByType("Asset").filter(function(a){ return parseInt(a.code,10)<1100; });
+    var cashTotal=cashAccts.reduce(function(s,a){return s+(bal[a.code]||0);},0);
+    var acctList=cashAccts.map(function(a){ return '<div class="hc-acct"><span class="hc-acct-nm">'+esc(a.name)+'</span><span class="hc-acct-bal">$'+money(bal[a.code]||0)+'</span></div>'; }).join('') || '<div class="hc-empty">No cash accounts</div>';
+    var bankCard='<div class="home-card">'+
+      '<div class="hc-head"><span class="hc-title">Cash &amp; bank</span><span class="hc-period">as of today</span></div>'+
+      '<div class="hc-sub">Total cash balance</div><div class="hc-big">$'+money(cashTotal)+'</div>'+
+      '<div class="hc-acct-list">'+acctList+'</div></div>';
+    $("homeGrid").innerHTML=plCard+expCard+bankCard;
+  }
+
+  /* ---- Analytics monthly trends ---- */
+  function miniBars(values, labels, color){
+    var W=680,H=112,pad=18, max=Math.max.apply(null,values.concat([1])), n=values.length, gap=6;
+    var bw=(W-pad*2-gap*(n-1))/n;
+    var bars=values.map(function(v,i){ var h=max?Math.max(1,(v/max)*(H-38)):1; var x=pad+i*(bw+gap); var y=H-24-h;
+      return '<rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+h.toFixed(1)+'" rx="3" fill="'+color+'" opacity="'+(i===n-1?1:0.5)+'"/>'+
+        '<text x="'+(x+bw/2).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="9" fill="#9AA3AD">'+labels[i]+'</text>'+
+        (v>0?'<text x="'+(x+bw/2).toFixed(1)+'" y="'+(y-3).toFixed(1)+'" text-anchor="middle" font-size="9" fill="#5B6472">'+v+'</text>':''); }).join('');
+    return '<svg class="trend-svg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">'+bars+'</svg>';
+  }
+  function miniLine(values, labels, color){
+    var W=680,H=112,pad=18, max=Math.max.apply(null,values.concat([1])), n=values.length, xw=(W-pad*2)/(n-1||1);
+    var pts=values.map(function(v,i){ return [pad+i*xw, H-24-(max?(v/max)*(H-38):0)]; });
+    var d="M"+pts.map(function(p){return p[0].toFixed(1)+","+p[1].toFixed(1);}).join(" L");
+    var area=d+" L"+pts[n-1][0].toFixed(1)+","+(H-24)+" L"+pts[0][0].toFixed(1)+","+(H-24)+" Z";
+    var dot='<circle cx="'+pts[n-1][0].toFixed(1)+'" cy="'+pts[n-1][1].toFixed(1)+'" r="3.5" fill="'+color+'"/>';
+    var lbls=labels.map(function(l,i){ return (i%2===0||i===n-1)?'<text x="'+(pad+i*xw).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="9" fill="#9AA3AD">'+l+'</text>':''; }).join('');
+    return '<svg class="trend-svg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet"><path d="'+area+'" fill="'+color+'" opacity="0.12"/><path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="2.5"/>'+dot+lbls+'</svg>';
+  }
+  function trendBlock(title, values, labels, color, type){
+    var latest=values[values.length-1]||0, prev=values[values.length-2]||0;
+    var chg=prev?Math.round((latest-prev)/Math.abs(prev)*100):null;
+    var chgHtml=(chg==null)?"":('<span class="trend-chg '+(chg>=0?"tc-up":"tc-down")+'">'+(chg>=0?"\u25B2":"\u25BC")+Math.abs(chg)+'%</span>');
+    return '<div class="trend-block"><div class="trend-head"><span class="trend-title">'+title+'</span><span class="trend-latest">'+latest+chgHtml+'</span></div>'+(type==="line"?miniLine(values,labels,color):miniBars(values,labels,color))+'</div>';
+  }
+  function renderTrends(){
+    if(!$("repTrends")) return;
+    var now=new Date(), months=[];
+    for(var i=11;i>=0;i--){ var dd=new Date(now.getFullYear(), now.getMonth()-i, 1); months.push({y:dd.getFullYear(),m:dd.getMonth(),label:MO_ABBR[dd.getMonth()]}); }
+    function inMonth(iso,mo){ var d=parseISO(iso); return d && d.getFullYear()===mo.y && d.getMonth()===mo.m; }
+    var consults=months.map(function(mo){ return patients.filter(function(p){ return p.consultDate && inMonth(p.consultDate,mo); }).length; });
+    var starts=months.map(function(mo){ return patients.filter(function(p){ var sd=treatmentStartDate(p); return sd && inMonth(sd,mo); }).length; });
+    var totals=months.map(function(mo){ var end=new Date(mo.y,mo.m+1,1).getTime()-1; return patients.filter(function(p){ var d=parseISO(p.createdAt||p.consultDate); return d? d.getTime()<=end : true; }).length; });
+    var labels=months.map(function(mo){return mo.label;});
+    $("repTrends").innerHTML=
+      trendBlock("Initial consults", consults, labels, "#D9820B","bars")+
+      trendBlock("Started treatment", starts, labels, "#0a7d53","bars")+
+      trendBlock("Total clients", totals, labels, "#2563EB","line");
   }
 
   var MO_ABBR=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
