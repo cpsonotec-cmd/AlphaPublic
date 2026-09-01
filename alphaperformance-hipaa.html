@@ -6120,5 +6120,110 @@ window.startClinicApp = function(){
 })();
 
 </script>
+
+<!--
+  ============================================================================
+  AlphaPerformance - Sync Guard  (v1.0)
+  ----------------------------------------------------------------------------
+  FIXES: two tabs/devices holding different in-memory copies of the vault
+  silently overwrite each other on save (last write wins, no warning).
+  This is what erased the August QuickBooks import on 2026-08-16.
+
+  HOW: wraps window.fetch. Before any POST to workspace_sync it re-reads the
+  remote row's updated_at and compares it to the value this tab last saw.
+  If the cloud copy is newer the push is blocked and a banner is shown.
+
+  Does NOT touch encryption, vault structure, save logic or data.
+  Remove by deleting this block.
+  ============================================================================
+-->
+<script>
+(function () {
+  'use strict';
+  if (window.__ALPHA_SYNC_GUARD__) return;
+  window.__ALPHA_SYNC_GUARD__ = '1.0';
+
+  var SYNC_TABLE = 'workspace_sync';
+  var SEEN_KEY   = 'alphahipaa_cloud_seen';
+  var originalFetch = window.fetch.bind(window);
+
+  function ts(v) { var t = Date.parse(v || ''); return isNaN(t) ? 0 : t; }
+  function readSeen() { try { return localStorage.getItem(SEEN_KEY) || ''; } catch (e) { return ''; } }
+  function writeSeen(v) { try { if (v) localStorage.setItem(SEEN_KEY, v); } catch (e) {} }
+
+  function banner(msg, tone) {
+    try {
+      var id = 'alphaSyncGuardBanner';
+      var el = document.getElementById(id);
+      if (!el) {
+        el = document.createElement('div');
+        el.id = id;
+        el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:2147483647;' +
+          'padding:14px 18px;font:600 14px/1.4 system-ui,-apple-system,sans-serif;' +
+          'color:#fff;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,.3)';
+        document.body.appendChild(el);
+      }
+      el.style.background = tone === 'warn' ? '#b91c1c' : '#065f46';
+      el.textContent = msg;
+      el.style.display = 'block';
+      if (tone !== 'warn') setTimeout(function () { el.style.display = 'none'; }, 4000);
+    } catch (e) {}
+  }
+
+  function remoteStamp(url, headers) {
+    var base = String(url).split('?')[0];
+    return originalFetch(base + '?id=eq.workspace&select=updated_at', { method: 'GET', headers: headers })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) { return (Array.isArray(j) && j[0] && j[0].updated_at) ? j[0].updated_at : null; })
+      .catch(function () { return null; });
+  }
+
+  window.fetch = function (input, init) {
+    var url = (typeof input === 'string') ? input : (input && input.url) || '';
+    var opts = init || {};
+    var method = (opts.method || (input && input.method) || 'GET').toUpperCase();
+    var isSyncWrite = url.indexOf(SYNC_TABLE) !== -1 && method === 'POST' && opts.body;
+
+    if (!isSyncWrite) {
+      var p = originalFetch(input, init);
+      if (url.indexOf(SYNC_TABLE) !== -1 && method === 'GET') {
+        p.then(function (res) {
+          res.clone().json().then(function (j) {
+            if (Array.isArray(j) && j[0] && j[0].updated_at) writeSeen(j[0].updated_at);
+          }).catch(function () {});
+        }).catch(function () {});
+      }
+      return p;
+    }
+
+    return remoteStamp(url, opts.headers).then(function (cloud) {
+      var seen = readSeen();
+      if (!cloud) return originalFetch(input, init);
+
+      if (seen && ts(cloud) > ts(seen)) {
+        banner('Save blocked: another tab or device saved more recently (' +
+               new Date(cloud).toLocaleString() +
+               '). Reload before making further changes so you do not overwrite that work.', 'warn');
+        console.warn('[sync-guard] push blocked. cloud=' + cloud + ' seen=' + seen);
+        return new Response(JSON.stringify({ blocked: true, reason: 'stale-local', cloud: cloud, seen: seen }),
+          { status: 409, headers: { 'Content-Type': 'application/json' } });
+      }
+
+      return originalFetch(input, init).then(function (res) {
+        if (res.ok) {
+          try {
+            var row = JSON.parse(opts.body);
+            if (Array.isArray(row)) row = row[0];
+            if (row && row.updated_at) writeSeen(row.updated_at);
+          } catch (e) {}
+        }
+        return res;
+      });
+    });
+  };
+
+  console.log('[sync-guard] active - pushes are checked against cloud updated_at');
+})();
+</script>
 </body>
 </html>
