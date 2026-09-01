@@ -6123,15 +6123,20 @@ window.startClinicApp = function(){
 
 <!--
   ============================================================================
-  AlphaPerformance - Sync Guard  (v1.0)
+  AlphaPerformance - Sync Guard  (v1.1)
   ----------------------------------------------------------------------------
   FIXES: two tabs/devices holding different in-memory copies of the vault
   silently overwrite each other on save (last write wins, no warning).
   This is what erased the August QuickBooks import on 2026-08-16.
 
-  HOW: wraps window.fetch. Before any POST to workspace_sync it re-reads the
-  remote row's updated_at and compares it to the value this tab last saw.
-  If the cloud copy is newer the push is blocked and a banner is shown.
+  HOW: wraps window.fetch and XMLHttpRequest. Before any POST to
+  workspace_sync it re-reads the remote row's updated_at and compares it to
+  the stamp this TAB adopted for this page session. If the cloud copy is
+  newer, the push is blocked and a banner is shown.
+
+  The stamp lives in sessionStorage (per tab, cleared on reload), so a fresh
+  load - which has just pulled current cloud data - always starts clean and
+  can never deadlock itself out of saving.
 
   Does NOT touch encryption, vault structure, save logic or data.
   Remove by deleting this block.
@@ -6141,15 +6146,24 @@ window.startClinicApp = function(){
 (function () {
   'use strict';
   if (window.__ALPHA_SYNC_GUARD__) return;
-  window.__ALPHA_SYNC_GUARD__ = '1.0';
+  window.__ALPHA_SYNC_GUARD__ = '1.1';
 
   var SYNC_TABLE = 'workspace_sync';
   var SEEN_KEY   = 'alphahipaa_cloud_seen';
   var originalFetch = window.fetch.bind(window);
 
   function ts(v) { var t = Date.parse(v || ''); return isNaN(t) ? 0 : t; }
-  function readSeen() { try { return localStorage.getItem(SEEN_KEY) || ''; } catch (e) { return ''; } }
-  function writeSeen(v) { try { if (v) localStorage.setItem(SEEN_KEY, v); } catch (e) {} }
+  function readSeen() { try { return sessionStorage.getItem(SEEN_KEY) || ''; } catch (e) { return ''; } }
+  function writeSeen(v) { try { if (v) sessionStorage.setItem(SEEN_KEY, v); } catch (e) {} }
+
+  // Adopt a stamp from any workspace_sync payload we happen to observe.
+  function observe(text) {
+    try {
+      var j = JSON.parse(text);
+      var row = Array.isArray(j) ? j[0] : j;
+      if (row && row.updated_at) writeSeen(row.updated_at);
+    } catch (e) {}
+  }
 
   function banner(msg, tone) {
     try {
@@ -6178,6 +6192,7 @@ window.startClinicApp = function(){
       .catch(function () { return null; });
   }
 
+  // ---- fetch -------------------------------------------------------------
   window.fetch = function (input, init) {
     var url = (typeof input === 'string') ? input : (input && input.url) || '';
     var opts = init || {};
@@ -6186,21 +6201,22 @@ window.startClinicApp = function(){
 
     if (!isSyncWrite) {
       var p = originalFetch(input, init);
-      if (url.indexOf(SYNC_TABLE) !== -1 && method === 'GET') {
-        p.then(function (res) {
-          res.clone().json().then(function (j) {
-            if (Array.isArray(j) && j[0] && j[0].updated_at) writeSeen(j[0].updated_at);
-          }).catch(function () {});
-        }).catch(function () {});
+      if (url.indexOf(SYNC_TABLE) !== -1) {
+        p.then(function (res) { res.clone().text().then(observe).catch(function () {}); })
+         .catch(function () {});
       }
       return p;
     }
 
     return remoteStamp(url, opts.headers).then(function (cloud) {
       var seen = readSeen();
+
       if (!cloud) return originalFetch(input, init);
 
-      if (seen && ts(cloud) > ts(seen)) {
+      // First push of this page session: we loaded current data, so adopt it.
+      if (!seen) { writeSeen(cloud); seen = cloud; }
+
+      if (ts(cloud) > ts(seen)) {
         banner('Save blocked: another tab or device saved more recently (' +
                new Date(cloud).toLocaleString() +
                '). Reload before making further changes so you do not overwrite that work.', 'warn');
@@ -6222,7 +6238,22 @@ window.startClinicApp = function(){
     });
   };
 
-  console.log('[sync-guard] active - pushes are checked against cloud updated_at');
+  // ---- XMLHttpRequest (in case the app pulls this way) --------------------
+  try {
+    var xhrOpen = window.XMLHttpRequest.prototype.open;
+    window.XMLHttpRequest.prototype.open = function (m, u) {
+      try {
+        if (String(u).indexOf(SYNC_TABLE) !== -1) {
+          this.addEventListener('load', function () {
+            try { observe(this.responseText); } catch (e) {}
+          });
+        }
+      } catch (e) {}
+      return xhrOpen.apply(this, arguments);
+    };
+  } catch (e) {}
+
+  console.log('[sync-guard v1.1] active - pushes checked against cloud updated_at');
 })();
 </script>
 </body>
