@@ -5609,7 +5609,8 @@ window.startClinicApp = function(){
   var PFX="alphahipaa_";
   var enc=new TextEncoder(), dec=new TextDecoder();
   function lsGet(k,d){ try{ var r=localStorage.getItem(PFX+k); return r?JSON.parse(r):d; }catch(e){ return d; } }
-  function lsSet(k,v){ try{ localStorage.setItem(PFX+k, JSON.stringify(v)); }catch(e){} }
+  function lsSet(k,v){ try{ localStorage.setItem(PFX+k, JSON.stringify(v)); return true; }
+    catch(e){ try{ console.error("[storage] write failed for "+k+": "+(e&&e.name||e)); }catch(_){} return false; } }
   function escp(s){ return (s==null?"":String(s)).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
   function uid(p){ return (p||"")+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 
@@ -5727,8 +5728,27 @@ window.startClinicApp = function(){
     var blob;
     if(ZIP_OK){ blob=await gcmEnc(DKKey, await gzipB64(plain)); blob.z=1; }
     else { blob=await gcmEnc(DKKey, plain); }
-    lsSet("vault", blob); pushSoon();
+    if(lsSet("vault", blob)){ pushSoon(); }
+    else { storageFull(); }
   }catch(e){} }
+  /* Local write failed (quota). Never push - syncPush reads the vault back from
+     localStorage, so pushing now would send the PREVIOUS vault to the cloud with a
+     fresh timestamp and overwrite good data. Warn loudly instead. */
+  var storageWarned=false;
+  function storageFull(){
+    try{
+      console.error("[storage] vault NOT saved - browser storage is full. Cloud push skipped to protect existing data.");
+      if(storageWarned) return; storageWarned=true;
+      var el=document.getElementById("storageFullBanner");
+      if(!el){ el=document.createElement("div"); el.id="storageFullBanner";
+        el.style.cssText="position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#b91c1c;color:#fff;"+
+          "padding:14px 18px;font:600 14px/1.4 system-ui,-apple-system,sans-serif;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,.3)";
+        document.body.appendChild(el); }
+      el.textContent="Not saved - browser storage is full. Your recent changes exist only in this tab. "+
+        "Export a backup now, then free space or contact support before continuing.";
+      el.style.display="block";
+    }catch(e){}
+  }
   async function loadVault(){ var blob=lsGet("vault",null); if(!blob){ window.__vaultMem={}; return; }
     try{ var txt=await gcmDec(DKKey, blob); if(blob.z===1) txt=await gunzipB64(txt); window.__vaultMem=JSON.parse(txt)||{}; }
     catch(e){ window.__vaultMem={}; }
