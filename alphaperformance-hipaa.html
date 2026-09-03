@@ -625,6 +625,54 @@
   .inv-ro{width:52px;height:36px;border:1px solid var(--line);border-radius:8px;text-align:center;font-size:14px;outline:none;background:var(--card)}
   .inv-badge{font-size:11px;font-weight:600;padding:5px 10px;border-radius:20px;white-space:nowrap}
   .b-ok{background:#E7F6EF;color:#0a7d53}.b-low{background:#FEF3E2;color:#B45309}.b-out{background:#FCEBEA;color:#B42318}
+  .b-svc{background:#EDE9FE;color:#6D28D9}
+  .inv-modal{position:fixed;z-index:130;left:50%;top:50%;transform:translate(-50%,-50%);width:min(640px,94vw);max-height:90vh;overflow:auto;background:var(--card);border-radius:16px;box-shadow:0 24px 60px rgba(0,0,0,.28)}
+  .inv-modal-head{display:flex;align-items:center;justify-content:space-between;padding:15px 18px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--card);z-index:1}
+  .inv-modal-title{font-weight:700;font-size:16px}
+  .inv-modal-body{padding:16px 18px}
+  .inv-modal-foot{display:flex;align-items:center;gap:10px;padding:14px 18px;border-top:1px solid var(--line);position:sticky;bottom:0;background:var(--card)}
+  .iv-foot-spacer{flex:1}
+  .inv-modal-seclbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:14px 0 8px}
+  .ivseg{display:flex;gap:6px;background:var(--canvas);border-radius:11px;padding:4px;margin-bottom:14px}
+  .ivseg button{flex:1;padding:9px;border:none;background:transparent;border-radius:8px;font-weight:600;font-size:13px;color:var(--muted);cursor:pointer}
+  .ivseg button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .iv-adj-hist{margin-top:6px}
+  .iv-adj-h-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:6px}
+  .iv-adj-row{display:flex;gap:10px;font-size:12.5px;padding:4px 0;border-top:1px solid var(--line)}
+  .iv-adj-row span:first-child{flex:1}
+  .iv-adj-row .neg{color:var(--red)}
+  .iv-adj-date{color:var(--muted)}
+  .inv-row.is-svc{background:linear-gradient(90deg,rgba(109,40,217,.05),transparent)}
+  .inv-svc-price{font-weight:700;font-variant-numeric:tabular-nums;font-size:15px}
+  .pos-cust-ent{padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--card);font-size:14px}
+  .pos-catalog-note{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5}
+  .cart-ent{display:inline-block;font-size:9px;font-weight:700;padding:1px 6px;border-radius:20px;margin-right:7px;vertical-align:middle}
+  .cart-ent-alpha{background:#FCE7E6;color:#B42318}
+  .cart-ent-mjs{background:#E5EDFB;color:#1D4ED8}
+  .settings-note{font-size:13px;color:var(--muted);line-height:1.55;background:var(--canvas);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:8px}
+  .pos-split-line{justify-content:flex-end!important}
+  .pos-split-toggle{background:none;border:none;color:var(--red);font-weight:600;font-size:13px;cursor:pointer;padding:2px 0}
+  #posSplit{border:1px solid var(--line);border-radius:10px;padding:10px;margin:2px 0 4px;background:var(--canvas)}
+  .pos-split-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .pos-split-row select{flex:1;padding:10px;border:1px solid var(--line);border-radius:9px;background:var(--card);font-size:14px}
+  .pos-split-row input{width:110px;padding:10px;border:1px solid var(--line);border-radius:9px;text-align:right;font-size:14px;font-variant-numeric:tabular-nums;background:var(--card)}
+  .pos-split-foot{display:flex;align-items:center;justify-content:space-between;margin-top:2px}
+  .pos-split-add{background:none;border:1px dashed var(--line);color:var(--ink);border-radius:9px;padding:8px 12px;font-weight:600;font-size:13px;cursor:pointer}
+  .pos-split-remain{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
+  .pos-split-remain.sp-good{color:#0a7d53}.pos-split-remain.sp-bad{color:#B45309}
+  .pos-split-seg{margin-bottom:10px}
+  .pos-split-item{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:7px 0;border-top:1px solid var(--line)}
+  .pos-split-item:first-child{border-top:none}
+  .psi-name{flex:1;font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .psi-amt{color:var(--muted);font-variant-numeric:tabular-nums}
+  .pos-split-item select{width:150px;padding:9px;border:1px solid var(--line);border-radius:9px;background:var(--card);font-size:13px}
+  .pos-split-summary{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  .psum-chip{font-size:12px;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:4px 11px}
+  .sq-fee-set{background:var(--canvas);border:1px solid var(--line);border-radius:11px;padding:12px 14px}
+  .sq-fee-toggle{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;margin-bottom:10px}
+  .sq-fee-rate{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+  .sq-fee-rate input{width:72px;padding:9px;border:1px solid var(--line);border-radius:9px;text-align:right;font-size:14px;background:var(--card);font-variant-numeric:tabular-nums}
+  .sq-fee-note{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5}
   .inv-add{padding:11px 16px;white-space:nowrap}
   .inv-additem{border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;background:var(--canvas)}
   .inv-form-title{font-weight:700;font-size:15px;margin-bottom:10px}
@@ -1020,7 +1068,7 @@
       <a class="nav-link active" data-view="patients"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg><span>Clients</span></a>
       <a class="nav-link" data-view="members"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M9 12l2 2 4-4"/></svg><span>Memberships</span></a>
       <a class="nav-link" data-view="register"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M8 15h4"/></svg><span>Register</span></a>
-      <a class="nav-link" data-view="inventory"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7l-8-4-8 4 8 4 8-4z"/><path d="M4 7v10l8 4 8-4V7"/><path d="M12 11v10"/></svg><span>Inventory</span></a>
+      <a class="nav-link" data-view="inventory"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7l-8-4-8 4 8 4 8-4z"/><path d="M4 7v10l8 4 8-4V7"/><path d="M12 11v10"/></svg><span>Items</span></a>
       <a class="nav-link" data-view="reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="4" width="3" height="14"/></svg><span>Analytics</span></a>
       <button class="nav-acct-head" id="acctHead" type="button">
         <span>Accounting</span>
@@ -1234,10 +1282,6 @@
       <button class="reg-sub" data-regsub="history">History</button>
     </div>
     <div id="regSale">
-    <div class="entity-bar" id="regEntityBar">
-      <button class="ent-btn" data-regentity="mjs">Accounting MJS</button>
-      <button class="ent-btn" data-regentity="alpha">Accounting AlphaPerformance</button>
-    </div>
     <div class="rep-card">
       <div class="pos-field"><label>Client</label>
         <div class="client-search">
@@ -1255,22 +1299,13 @@
         <div class="pos-add-row" id="posDuesRow" style="display:none">
           <button type="button" class="pos-quick" id="posAddDues"></button>
         </div>
-        <button type="button" class="pos-newprod-toggle" id="posNewToggle">+ New product</button>
-        <button type="button" class="pos-newprod-toggle" id="posEditToggle">Manage prices</button>
-        <div class="pos-newprod" id="posNewForm" style="display:none">
-          <input type="text" id="posNewName" placeholder="Product name" autocomplete="off">
-          <div class="pos-add-row">
-            <div class="pw"><input type="number" id="posNewPrice" placeholder="Price" min="0"></div>
-            <div class="pw"><input type="number" id="posNewCost" placeholder="Cost" min="0"></div>
-            <button type="button" class="vc-add" id="posNewSave">Save</button>
-          </div>
-        </div>
-        <div class="pos-editprod" id="posEditForm" style="display:none"></div>
         <div class="pos-add-row">
           <input type="text" id="posCustomName" placeholder="One-off item" autocomplete="off">
           <div class="pw"><input type="number" id="posCustomPrice" placeholder="Price" min="0"></div>
+          <select id="posCustomEntity" class="pos-cust-ent"><option value="mjs">MJS</option><option value="alpha">Alpha</option></select>
           <button type="button" class="vc-add" id="posAddCustom">Add</button>
         </div>
+        <div class="pos-catalog-note">Each item posts to its own company (tagged in the list). Manage products &amp; prices in the <b>Items</b> tab.</div>
       </div>
 
       <div id="posCart" class="pos-cart"></div>
@@ -1278,8 +1313,24 @@
       <div class="pos-foot">
         <div class="pos-line"><span>Discount %</span><select id="posDiscount"></select></div>
         <div class="pos-line"><span>$ off</span><input type="number" id="posDiscountAmt" min="0" step="0.01" placeholder="0.00" inputmode="decimal"></div>
-        <div class="pos-line"><span>Payment</span>
+        <div class="pos-line" id="posPayRow"><span>Payment</span>
           <select id="posPay"><option>Cash</option><option>Card</option><option>Zelle</option><option>Check</option><option>Invoice (unpaid)</option><option>Other</option></select>
+        </div>
+        <div class="pos-line pos-split-line"><span></span><button type="button" id="posSplitToggle" class="pos-split-toggle">Split payment</button></div>
+        <div id="posSplit" style="display:none">
+          <div class="ivseg pos-split-seg" id="posSplitMode">
+            <button type="button" class="on" data-spmode="item">By item</button>
+            <button type="button" data-spmode="amount">By amount</button>
+          </div>
+          <div id="posSplitItems"></div>
+          <div id="posSplitAmount">
+            <div id="posSplitRows"></div>
+            <div class="pos-split-foot">
+              <button type="button" id="posSplitAdd" class="pos-split-add">+ Add payment</button>
+              <span id="posSplitRemain" class="pos-split-remain"></span>
+            </div>
+          </div>
+          <div id="posSplitSummary" class="pos-split-summary"></div>
         </div>
         <div class="pos-totals" id="posTotals"></div>
         <button class="btn-primary pos-complete" id="posComplete">Complete sale</button>
@@ -1308,27 +1359,44 @@
         <button class="btn-primary inv-add" id="invAddBtn">+ Add item</button>
         <button class="btn-ghost inv-add" id="invUploadBtn" title="Import from an invoice or price list">Upload invoice</button>
       </div>
-      <div class="inv-additem" id="invForm" style="display:none">
-        <div class="inv-form-title" id="invFormTitle">New inventory item</div>
-        <div class="inv-form-grid">
-          <label class="ivf">Company<select id="ivCompany"><option value="alpha">AlphaPerformance</option><option value="mjs">MJS</option></select></label>
-          <label class="ivf">Category<select id="ivCat"><option>Supplement</option><option>Supply</option><option>Medication</option><option>Equipment</option><option>Other</option></select></label>
-          <label class="ivf">Name<input id="ivName" autocomplete="off" placeholder="Item name"></label>
-          <label class="ivf">Vendor<input id="ivVendor" autocomplete="off" placeholder="Supplier / brand"></label>
-          <label class="ivf">SKU / Item #<input id="ivSku" autocomplete="off" placeholder="Optional"></label>
-          <label class="ivf">Unit cost<input id="ivCost" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></label>
-          <label class="ivf">Retail price <span class="ivf-note">= Register price</span><input id="ivRetail" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0 = not sold"></label>
-          <label class="ivf">Quantity on hand<input id="ivQty" type="number" min="0" step="1" inputmode="numeric" placeholder="0"></label>
-          <label class="ivf">Reorder at<input id="ivReorder" type="number" min="0" step="1" inputmode="numeric" placeholder="5"></label>
+      <div class="scrim" id="invFormScrim" style="display:none"></div>
+      <div class="inv-modal" id="invForm" style="display:none" role="dialog" aria-hidden="true">
+        <div class="inv-modal-head"><span class="inv-modal-title" id="invFormTitle">New item</span><button class="inv-import-x" id="ivClose" aria-label="Close">&times;</button></div>
+        <div class="inv-modal-body">
+          <div class="ivseg" id="ivType">
+            <button type="button" class="on" data-ivtype="inventory">Inventory item</button>
+            <button type="button" data-ivtype="service">Service</button>
+          </div>
+          <div class="inv-form-grid">
+            <label class="ivf">Entity<select id="ivCompany"><option value="alpha">AlphaPerformance</option><option value="mjs">MJS</option></select></label>
+            <label class="ivf">Category<select id="ivCat"><option>Supplement</option><option>Treatment</option><option>Supply</option><option>Medication</option><option>Equipment</option><option>Membership</option><option>Other</option></select></label>
+            <label class="ivf ivf-full">Name<input id="ivName" autocomplete="off" placeholder="Item name"></label>
+            <label class="ivf">Vendor<input id="ivVendor" autocomplete="off" placeholder="Supplier / brand"></label>
+            <label class="ivf">SKU / Item #<input id="ivSku" autocomplete="off" placeholder="Optional"></label>
+            <label class="ivf">Unit cost<input id="ivCost" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></label>
+            <label class="ivf">Retail price <span class="ivf-note">= Register price</span><input id="ivRetail" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></label>
+          </div>
+          <div id="ivInvFields">
+            <div class="inv-modal-seclbl">Inventory</div>
+            <div class="inv-form-grid">
+              <label class="ivf">Starting inventory<input id="ivStartQty" type="number" min="0" step="1" inputmode="numeric" placeholder="0"></label>
+              <label class="ivf">Current inventory<input id="ivQty" type="number" min="0" step="1" inputmode="numeric" placeholder="0"></label>
+              <label class="ivf">Reorder at<input id="ivReorder" type="number" min="0" step="1" inputmode="numeric" placeholder="5"></label>
+              <label class="ivf">Adjustment <span class="ivf-note">applied on save</span><input id="ivAdjust" type="number" step="1" inputmode="numeric" placeholder="e.g. -3 or +12"></label>
+            </div>
+            <label class="ivf ivf-full">Adjustment reason<input id="ivAdjustReason" autocomplete="off" placeholder="e.g. damaged, recount, expired, received"></label>
+            <div class="iv-adj-hist" id="ivAdjHistory"></div>
+          </div>
+          <label class="ivf ivf-full">Notes<input id="ivNotes" autocomplete="off" placeholder="Optional"></label>
         </div>
-        <label class="ivf ivf-full">Notes<input id="ivNotes" autocomplete="off" placeholder="Optional"></label>
-        <div class="inv-form-actions">
+        <div class="inv-modal-foot">
+          <button class="btn-danger" id="ivDelete" style="display:none">Delete</button>
+          <div class="iv-foot-spacer"></div>
           <button class="btn-ghost" id="ivCancel">Cancel</button>
           <button class="btn-primary" id="ivSave">Save item</button>
-          <button class="btn-danger" id="ivDelete" style="display:none">Delete item</button>
         </div>
       </div>
-      <div class="inv-hint">Tap &minus; / + to adjust, or type a count after a delivery. &ldquo;Reorder at&rdquo; flags low stock. Sales in the Register lower these automatically.</div>
+      <div class="inv-hint">Tap &minus; / + to adjust stock, or open an item to set price, cost, entity, and inventory. Sales in the Register lower stock automatically.</div>
       <div id="invList"></div>
     </div>
   </div>
@@ -1732,6 +1800,15 @@
       <input type="number" id="setFollowup" min="1" max="365">
       <span>days</span>
     </div>
+    <div class="settings-label">Card processing fee (Square)</div>
+    <div class="sq-fee-set">
+      <label class="sq-fee-toggle"><input type="checkbox" id="setSqOn"> Auto‑record Square fees on AlphaPerformance card sales</label>
+      <div class="sq-fee-rate">
+        <span>Rate</span><input type="number" id="setSqPct" min="0" step="0.01" inputmode="decimal"><span>% +</span>
+        <input type="number" id="setSqFixed" min="0" step="0.01" inputmode="decimal"><span>per transaction</span>
+      </div>
+      <div class="sq-fee-note">Square's standard in‑person rate is 2.6% + $0.10. The fee is booked to <b>Card Processing (Square)</b> and reduces cash automatically.</div>
+    </div>
     <div class="settings-label">Cloud sync</div>
     <div id="cloudStatus" class="cloud-status">Not connected. Data stays on this device only.</div>
     <div id="cloudConnected" style="display:none">
@@ -1762,12 +1839,8 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
       Add tier
     </button>
-    <div class="settings-label">Treatment options</div>
-    <div id="treatmentList"></div>
-    <button class="add-tier" id="addTreatmentBtn">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-      Add treatment
-    </button>
+    <div class="settings-label">Treatments &amp; services</div>
+    <div class="settings-note">Treatments and services are now managed in the <b>Items</b> tab, where you can set their company, price, cost, and doses. Changes there update the treatment options on client records automatically.</div>
     <div class="settings-label">Visit types</div>
     <div id="visitTypeList"></div>
     <button class="add-tier" id="addVisitTypeBtn">
@@ -2064,8 +2137,47 @@ window.startClinicApp = function(){
   function saveDiscounts(){ store.set("alphaperf_discounts", JSON.stringify(discounts)); schedulePush(); }
   function saveLocations(){ store.set("alphaperf_locations", JSON.stringify(locations)); schedulePush(); }
   function saveInventory(){ store.set("alphaperf_inventory", JSON.stringify(inventory)); schedulePush(); }
-  function invRec(name){ var r=inventory[name]; return {qty:(r&&r.qty)||0, reorderAt:(r&&r.reorderAt!=null)?r.reorderAt:5}; }
-  function invSet(name, qty, reorderAt){ var r=invRec(name); if(qty!=null) r.qty=Math.max(0,Math.round(qty)); if(reorderAt!=null) r.reorderAt=Math.max(0,Math.round(reorderAt)); inventory[name]={qty:r.qty, reorderAt:r.reorderAt}; saveInventory(); }
+  function invRec(name){ var r=inventory[name]; return {qty:(r&&r.qty)||0, reorderAt:(r&&r.reorderAt!=null)?r.reorderAt:5, startQty:(r&&r.startQty!=null)?r.startQty:((r&&r.qty)||0), adj:(r&&r.adj)||[]}; }
+  function invSet(name, qty, reorderAt){ var r=invRec(name); if(qty!=null) r.qty=Math.max(0,Math.round(qty)); if(reorderAt!=null) r.reorderAt=Math.max(0,Math.round(reorderAt)); inventory[name]={qty:r.qty, reorderAt:r.reorderAt, startQty:r.startQty, adj:r.adj}; saveInventory(); }
+  function invSetFull(name, rec){ inventory[name]={qty:Math.max(0,Math.round(rec.qty||0)), reorderAt:Math.max(0,Math.round(rec.reorderAt||0)), startQty:Math.max(0,Math.round(rec.startQty||0)), adj:rec.adj||[]}; saveInventory(); }
+  // Treatments are managed in Items; keep the client-form list + pricing in sync.
+  function ensureTreatmentsInItems(){
+    ensureRegProducts();
+    var existing={}; ["mjs","alpha"].forEach(function(e){ (regProducts[e]||[]).forEach(function(p){ existing[(p.name||"").toLowerCase()]=1; }); });
+    var added=false;
+    treatments.forEach(function(t){
+      if(existing[t.toLowerCase()]) return;
+      var pr=(treatmentPricing[t]&&(treatmentPricing[t].retail||treatmentPricing[t].cost))?treatmentPricing[t]:(TREATMENT_PRICING[t]||{});
+      var retail=0, cost=0;
+      if(pr.doses){ var dk=Object.keys(pr.doses)[0]; if(dk){ retail=pr.doses[dk].retail||0; cost=pr.doses[dk].cost||0; } }
+      else { retail=pr.retail||0; cost=pr.cost||0; }
+      regProducts.mjs.push({ id:pid(), name:t, price:retail, cost:cost, cat:"Treatment", type:"service" });
+      existing[t.toLowerCase()]=1; added=true;
+    });
+    if(added) saveRegProducts();
+  }
+  function syncTreatmentFromItem(oldName, newName, price, cost, isTreatment){
+    var changed=false, patientsChanged=false;
+    function isDose(n){ return TREATMENT_PRICING[n] && TREATMENT_PRICING[n].doses; }
+    if(oldName && oldName!==newName){
+      var idx=treatments.indexOf(oldName);
+      if(idx>=0){ treatments[idx]=newName; changed=true; }
+      if(treatmentPricing[oldName]){ treatmentPricing[newName]=treatmentPricing[oldName]; delete treatmentPricing[oldName]; }
+      patients.forEach(function(p){
+        if(p.treatments && p.treatments.indexOf(oldName)>=0){ p.treatments=p.treatments.map(function(x){return x===oldName?newName:x;}); patientsChanged=true; }
+        if(p.doses && p.doses[oldName]!=null){ p.doses[newName]=p.doses[oldName]; delete p.doses[oldName]; patientsChanged=true; }
+      });
+    }
+    if(isTreatment){
+      if(treatments.indexOf(newName)<0){ treatments.push(newName); changed=true; }
+      if(!isDose(newName) && (price||cost)) treatmentPricing[newName]={cost:cost, retail:price};
+    } else {
+      [oldName, newName].forEach(function(n){ if(!n) return; var i=treatments.indexOf(n); if(i>=0){ treatments.splice(i,1); changed=true; } });
+    }
+    if(changed) saveTreatments();
+    saveTreatmentPricing();
+    if(patientsChanged) savePatients();
+  }
   function saveTreatmentPricing(){ store.set("alphaperf_pricing", JSON.stringify(treatmentPricing)); schedulePush(); }
   function saveSettings(){ store.set("alphaperf_settings", JSON.stringify(settings)); schedulePush(); }
   function persistLocalRaw(){
@@ -2977,7 +3089,7 @@ window.startClinicApp = function(){
     patients:["Clients","Your client book"],
     members:["Memberships","Recurring members & revenue"],
     reports:["Analytics","Practice analytics"],
-    inventory:["Inventory","Stock on hand"],
+    inventory:["Items","Products & services"],
     register:["Register","Point of sale"],
     expenses:["Expenses","Record business costs"],
     gl:["General Ledger","Double-entry transactions"],
@@ -3139,6 +3251,7 @@ window.startClinicApp = function(){
     {code:"5400",name:"Rent & Utilities",type:"Expense"},
     {code:"5500",name:"Insurance",type:"Expense"},
     {code:"5600",name:"Software & Merchant Fees",type:"Expense"},
+    {code:"5650",name:"Card Processing (Square)",type:"Expense"},
     {code:"5700",name:"Advertising & Marketing",type:"Expense"},
     {code:"5800",name:"Office & Admin",type:"Expense"},
     {code:"5900",name:"Other Expense",type:"Expense"}
@@ -3154,6 +3267,7 @@ window.startClinicApp = function(){
     {code:"5400",name:"Rent & Utilities",type:"Expense"},
     {code:"5500",name:"Insurance",type:"Expense"},
     {code:"5600",name:"Software & Merchant Fees",type:"Expense"},
+    {code:"5650",name:"Card Processing (Square)",type:"Expense"},
     {code:"5700",name:"Advertising & Marketing",type:"Expense"},
     {code:"5800",name:"Office & Admin",type:"Expense"},
     {code:"5900",name:"Other Expense",type:"Expense"}
@@ -3204,6 +3318,19 @@ window.startClinicApp = function(){
     return { dues:dues, other:Math.round((t.total-dues)*100)/100 };
   }
   function isReceivable(t){ return t && t.type==="sale" && /invoice|account|unpaid/i.test(t.payment||"") && !t.paid; }
+  function arOpen(t){ if(!t || t.type!=="sale" || t.paid) return 0; if(t.arAmount!=null) return Math.max(0, Math.min(t.arAmount, t.total||0)); return isReceivable(t)?(t.total||0):0; }
+  function saleDebitLines(amount, t){
+    var ar = t.paid ? 0 : (t.arAmount!=null ? Math.max(0,Math.min(t.arAmount, t.total||0)) : (isReceivable(t)?(t.total||0):0));
+    // proportion the AR to this posting's amount when a sale posts in parts (dues/other)
+    var frac = (t.total>0) ? amount/t.total : 1;
+    var arPart=Math.round(ar*frac*100)/100; arPart=Math.max(0,Math.min(arPart, amount));
+    var cashPart=Math.round((amount-arPart)*100)/100;
+    var lines=[];
+    if(cashPart>0.005) lines.push({acct:"1000",dr:cashPart,cr:0});
+    if(arPart>0.005) lines.push({acct:"1100",dr:arPart,cr:0});
+    if(!lines.length) lines.push({acct:"1000",dr:0,cr:0});
+    return lines;
+  }
   function buildLedger(){
     var both=isCombined(), entries=[];
     function saleAlpha(t,who,nm){
@@ -3212,26 +3339,26 @@ window.startClinicApp = function(){
       var subA=memb+oth;
       var mShare = subA>0 ? Math.round(t.total*(memb/subA)*100)/100 : t.total;
       var oShare = Math.round((t.total-mShare)*100)/100;
-      var dr = isReceivable(t) ? "1100" : "1000";
-      var lines=[{acct:dr,dr:t.total,cr:0}];
+      var lines=saleDebitLines(t.total, t);
       if(mShare) lines.push({acct:"4100",dr:0,cr:mShare});
       if(oShare) lines.push({acct:"4200",dr:0,cr:oShare});
       entries.push({date:t.date,ref:(oShare&&!mShare?"SUPP":"DUES"),memo:who+" — "+nm,lines:lines,ent:"alpha"});
+      var fee=squareFeeFor(t);
+      if(fee>0){ entries.push({date:t.date,ref:"FEE",memo:"Square card fee ("+squareFeePct()+"% + $"+money(squareFeeFixed())+")",lines:[{acct:"5650",dr:fee,cr:0},{acct:"1000",dr:0,cr:fee}],ent:"alpha"}); }
     }
     txns.forEach(function(t){
       if(t.type==="sale"){
         var who=(t.clientName||"Walk-in");
         var nm=((t.items||[]).map(function(i){return i.name;}).join(", ")||"sale");
-        var drAcct = isReceivable(t) ? "1100" : "1000";
         if(t.entity){
           if(!both && t.entity!==acctEntity) return;
           if(t.entity==="alpha") saleAlpha(t,who,nm);
-          else entries.push({date:t.date,ref:"SALE",memo:who+" — "+nm,lines:[{acct:drAcct,dr:t.total,cr:0},{acct:"4000",dr:0,cr:t.total}],ent:"mjs"});
+          else entries.push({date:t.date,ref:"SALE",memo:who+" — "+nm,lines:saleDebitLines(t.total,t).concat([{acct:"4000",dr:0,cr:t.total}]),ent:"mjs"});
         } else {
           var sp=saleSplit(t);
           var otherNames=(t.items||[]).filter(function(i){return !/dues/i.test(i.name);}).map(function(i){return i.name;}).join(", ");
-          if(both || acctEntity==="alpha"){ if(sp.dues>0) entries.push({date:t.date,ref:"DUES",memo:who+" — membership dues",lines:[{acct:drAcct,dr:sp.dues,cr:0},{acct:"4100",dr:0,cr:sp.dues}],ent:"alpha"}); }
-          if(both || acctEntity==="mjs"){ if(sp.other>0) entries.push({date:t.date,ref:"SALE",memo:who+" — "+(otherNames||"sale"),lines:[{acct:drAcct,dr:sp.other,cr:0},{acct:"4000",dr:0,cr:sp.other}],ent:"mjs"}); }
+          if(both || acctEntity==="alpha"){ if(sp.dues>0) entries.push({date:t.date,ref:"DUES",memo:who+" — membership dues",lines:saleDebitLines(sp.dues,t).concat([{acct:"4100",dr:0,cr:sp.dues}]),ent:"alpha"}); }
+          if(both || acctEntity==="mjs"){ if(sp.other>0) entries.push({date:t.date,ref:"SALE",memo:who+" — "+(otherNames||"sale"),lines:saleDebitLines(sp.other,t).concat([{acct:"4000",dr:0,cr:sp.other}]),ent:"mjs"}); }
         }
       } else {
         var ee=t.entity||"mjs";
@@ -3297,11 +3424,25 @@ window.startClinicApp = function(){
   function ensureAlphaSupplyAccount(){
     var accts=load("alphaperf_accounts_alpha", null);
     if(!accts) return; // fresh seed already includes 4200
-    if(!accts.some(function(a){return a.code==="4200";})){
-      accts.push({code:"4200",name:"Product & Supplement Sales",type:"Income",id:"4200"});
+    var changed=false;
+    if(!accts.some(function(a){return a.code==="4200";})){ accts.push({code:"4200",name:"Product & Supplement Sales",type:"Income",id:"4200"}); changed=true; }
+    if(!accts.some(function(a){return a.code==="5650";})){ accts.push({code:"5650",name:"Card Processing (Square)",type:"Expense",id:"5650"}); changed=true; }
+    if(changed){
       store.set("alphaperf_accounts_alpha", JSON.stringify(accts));
       if(acctEntity==="alpha"){ var e=loadEntity("alpha"); accounts=e.accounts; journals=e.journals; }
     }
+  }
+  function squareFeePct(){ return (settings.squareFeePct!=null)?+settings.squareFeePct:2.6; }
+  function squareFeeFixed(){ return (settings.squareFeeFixed!=null)?+settings.squareFeeFixed:0.10; }
+  function squareFeeOn(){ return settings.squareFeeOn!==false; }
+  function cardAmountOf(t){
+    if(t.payments && t.payments.length) return t.payments.filter(function(pm){return /card|credit/i.test(pm.method);}).reduce(function(s,pm){return s+(pm.amount||0);},0);
+    return /card|credit/i.test(t.payment||"") ? (t.total||0) : 0;
+  }
+  function squareFeeFor(t){
+    if(!squareFeeOn() || (t.entity||"")!=="alpha") return 0;
+    var card=cardAmountOf(t); if(card<=0) return 0;
+    return Math.round((card*squareFeePct()/100 + squareFeeFixed())*100)/100;
   }
   function applyThorneSupps(){
     ensureRegProducts();
@@ -3337,59 +3478,85 @@ window.startClinicApp = function(){
   function invRows(){
     ensureRegProducts();
     var out=[]; var ents = invEntity==="all" ? ["alpha","mjs"] : [invEntity];
-    ents.forEach(function(e){ (regProducts[e]||[]).forEach(function(p){ if(p.cat!=="Membership") out.push({p:p, entity:e}); }); });
+    ents.forEach(function(e){ (regProducts[e]||[]).forEach(function(p){ out.push({p:p, entity:e}); }); });
     return out;
   }
   function prodInEntity(name, entity){ return (regProducts[entity]||[]).filter(function(x){return x.name===name;})[0]; }
+  var invFormType="inventory";
+  function setInvType(t){
+    invFormType=t;
+    Array.prototype.forEach.call(document.querySelectorAll("#ivType [data-ivtype]"),function(b){ b.classList.toggle("on", b.getAttribute("data-ivtype")===t); });
+    $("ivInvFields").style.display = t==="service" ? "none" : "block";
+  }
   function openInvForm(name, entity){
     invEditName = name || null;
     invEditEntity = entity || (invEntity==="all" ? "alpha" : invEntity);
-    var p = name ? prodInEntity(name, invEditEntity) : null, r = name ? invRec(name) : {qty:0,reorderAt:5};
-    $("invFormTitle").textContent = name ? ("Edit "+name) : "New inventory item";
+    var p = name ? prodInEntity(name, invEditEntity) : null, r = name ? invRec(name) : {qty:0,reorderAt:5,startQty:0,adj:[]};
+    var isSvc = p ? (p.type==="service" || (!inventory[name] && (p.cat==="Treatment"||p.cat==="Membership"))) : false;
+    setInvType(isSvc ? "service" : "inventory");
+    $("invFormTitle").textContent = name ? ("Edit "+name) : "New item";
     $("ivCompany").value = invEditEntity;
     $("ivName").value = p?p.name:"";
-    $("ivCat").value = (p&&p.cat) ? p.cat : "Supplement";
+    $("ivCat").value = (p&&p.cat) ? p.cat : (isSvc?"Treatment":"Supplement");
     $("ivVendor").value = (p&&p.vendor)||"";
     $("ivSku").value = (p&&p.sku)||"";
     $("ivCost").value = p?(p.cost||0):"";
     $("ivRetail").value = p?(p.price||0):"";
+    $("ivStartQty").value = name?r.startQty:"";
     $("ivQty").value = name?r.qty:"";
     $("ivReorder").value = name?r.reorderAt:5;
+    $("ivAdjust").value=""; $("ivAdjustReason").value="";
     $("ivNotes").value = (p&&p.invNotes)||"";
+    // adjustment history
+    var hist=(r.adj||[]).slice(-6).reverse();
+    $("ivAdjHistory").innerHTML = hist.length ? '<div class="iv-adj-h-lbl">Recent adjustments</div>'+hist.map(function(x){ return '<div class="iv-adj-row"><span>'+esc(x.reason||"adjustment")+'</span><span class="'+(x.delta<0?"neg":"")+'">'+(x.delta>=0?"+":"")+x.delta+'</span><span class="iv-adj-date">'+(x.date?fmtDate(parseISO(x.date)):"")+'</span></div>'; }).join("") : "";
     $("ivDelete").style.display = name ? "inline-block" : "none";
-    $("invForm").style.display="block";
-    $("invAddBtn").style.display="none";
+    $("invFormScrim").style.display="block"; $("invForm").style.display="block"; $("invForm").setAttribute("aria-hidden","false");
     try{ $("ivName").focus(); }catch(e){}
   }
-  function closeInvForm(){ $("invForm").style.display="none"; $("invAddBtn").style.display=""; invEditName=null; invEditEntity=null; }
+  function closeInvForm(){ $("invForm").style.display="none"; $("invFormScrim").style.display="none"; $("invForm").setAttribute("aria-hidden","true"); invEditName=null; invEditEntity=null; }
   function saveInvItem(){
     ensureRegProducts();
     var name=($("ivName").value||"").trim(); if(!name){ $("ivName").focus(); return; }
     var target=$("ivCompany").value||"alpha";
+    var isSvc = invFormType==="service";
     var cat=$("ivCat").value||"Other";
     var vendor=($("ivVendor").value||"").trim(), sku=($("ivSku").value||"").trim(), notes=($("ivNotes").value||"").trim();
     var cost=Math.max(0,parseFloat($("ivCost").value)||0);
     var retail=Math.max(0,parseFloat($("ivRetail").value)||0);
-    var qty=Math.max(0,Math.round(parseFloat($("ivQty").value)||0));
-    var reorderAt=Math.max(0,Math.round(parseFloat($("ivReorder").value)||0));
     if(!regProducts[target]) regProducts[target]=[];
     var dup=(regProducts[target]||[]).filter(function(x){ return x.name.toLowerCase()===name.toLowerCase() && x.name!==invEditName; })[0];
     if(dup){ $("ivName").focus(); toast("An item with that name already exists in "+entityName(target)); return; }
+    var fields={ price:retail, cost:cost, cat:cat, vendor:vendor, sku:sku, invNotes:notes, type:(isSvc?"service":"inventory") };
+    var finalName=name;
     if(invEditName){
       var oldEntity=invEditEntity, p=prodInEntity(invEditName, oldEntity);
       if(oldEntity!==target){
-        // moved company: remove from old, add to new
         if(p) regProducts[oldEntity]=(regProducts[oldEntity]||[]).filter(function(x){return x!==p;});
-        regProducts[target].push({ id:pid(), name:name, price:retail, cost:cost, cat:cat, vendor:vendor, sku:sku, invNotes:notes });
+        var np={id:pid(),name:name}; for(var k in fields) np[k]=fields[k]; regProducts[target].push(np);
       } else if(p){
-        var oldName=p.name; p.name=name; p.cat=cat; p.vendor=vendor; p.sku=sku; p.cost=cost; p.price=retail; p.invNotes=notes;
+        var oldName=p.name; p.name=name; for(var k2 in fields) p[k2]=fields[k2];
         if(oldName!==name && inventory[oldName]){ inventory[name]=inventory[oldName]; delete inventory[oldName]; }
       }
     } else {
-      regProducts[target].push({ id:pid(), name:name, price:retail, cost:cost, cat:cat, vendor:vendor, sku:sku, invNotes:notes });
+      var np2={id:pid(),name:name}; for(var k3 in fields) np2[k3]=fields[k3]; regProducts[target].push(np2);
     }
     saveRegProducts();
-    invSet(name, qty, reorderAt);      // retail is the register price for that company; kept in one place
+    var wasTreatment = invEditName && treatments.indexOf(invEditName)>=0;
+    if(cat==="Treatment" || wasTreatment){ syncTreatmentFromItem(invEditName, finalName, retail, cost, cat==="Treatment"); }
+    if(isSvc){ if(inventory[finalName]) delete inventory[finalName]; saveInventory(); }
+    else {
+      var startQ=Math.max(0,Math.round(parseFloat($("ivStartQty").value)||0));
+      var curQ=Math.max(0,Math.round(parseFloat($("ivQty").value)||0));
+      var reorderAt=Math.max(0,Math.round(parseFloat($("ivReorder").value)||0));
+      var adjVal=Math.round(parseFloat($("ivAdjust").value)||0);
+      var rec=invRec(finalName);
+      rec.startQty = ($("ivStartQty").value!=="") ? startQ : rec.startQty;
+      rec.reorderAt = reorderAt;
+      rec.qty = curQ;
+      if(adjVal){ rec.qty=Math.max(0, rec.qty+adjVal); rec.adj=(rec.adj||[]).concat([{date:todayISO(), delta:adjVal, reason:($("ivAdjustReason").value||"").trim()||"manual"}]); }
+      invSetFull(finalName, rec);
+    }
     if(typeof fillPosSelects==="function") fillPosSelects();
     closeInvForm(); paintInventory();
     toast(invEditName?"Item updated":"Item added");
@@ -3397,7 +3564,7 @@ window.startClinicApp = function(){
   function deleteInvItem(){
     if(!invEditName) return; var nm=invEditName, ent=invEditEntity;
     askConfirm({ title:"Delete "+nm+"?", message:"Remove this item from the "+entityName(ent)+" catalog and inventory.", okLabel:"Delete item",
-      onConfirm:function(){ regProducts[ent]=(regProducts[ent]||[]).filter(function(x){return x.name!==nm;}); if(inventory[nm]) delete inventory[nm]; saveRegProducts(); saveInventory(); if(typeof fillPosSelects==="function") fillPosSelects(); closeInvForm(); paintInventory(); toast("Item deleted"); } });
+      onConfirm:function(){ regProducts[ent]=(regProducts[ent]||[]).filter(function(x){return x.name!==nm;}); if(inventory[nm]) delete inventory[nm]; var ti=treatments.indexOf(nm); if(ti>=0){ treatments.splice(ti,1); saveTreatments(); } saveRegProducts(); saveInventory(); if(typeof fillPosSelects==="function") fillPosSelects(); closeInvForm(); paintInventory(); toast("Item deleted"); } });
   }
   function renderInventory(){
     if(!invWired){
@@ -3419,6 +3586,9 @@ window.startClinicApp = function(){
       $("ivCancel").onclick=closeInvForm;
       $("ivSave").onclick=saveInvItem;
       $("ivDelete").onclick=deleteInvItem;
+      if($("ivClose")) $("ivClose").onclick=closeInvForm;
+      if($("invFormScrim")) $("invFormScrim").onclick=closeInvForm;
+      Array.prototype.forEach.call(document.querySelectorAll("#ivType [data-ivtype]"),function(b){ b.onclick=function(){ setInvType(b.getAttribute("data-ivtype")); }; });
     }
     closeInvForm(); paintInventory();
   }
@@ -3556,15 +3726,16 @@ window.startClinicApp = function(){
     s.onerror=function(){ cb(null); };
     document.head.appendChild(s);
   }  var STOCK_CATS={Supplement:1, Supply:1, Medication:1, Equipment:1};
-  function invIsTracked(p){ return !!inventory[p.name] || !!STOCK_CATS[p.cat]; }
+  function isServiceItem(p){ return p.type==="service" || (!inventory[p.name] && (p.cat==="Treatment"||p.cat==="Membership")); }
+  function invIsTracked(p){ return !!inventory[p.name] || (!!STOCK_CATS[p.cat] && !isServiceItem(p)); }
   function paintInventory(){
     var base=invRows();
-    if($("invTrackedOnly").checked) base=base.filter(function(x){ return invIsTracked(x.p); });
+    if($("invTrackedOnly").checked) base=base.filter(function(x){ return invIsTracked(x.p) || isServiceItem(x.p); });
     var q=($("invSearch").value||"").trim().toLowerCase();
     var lowOnly=$("invLowOnly").checked;
     var showCo = invEntity==="all";
     var items=0, low=0, out=0, value=0;
-    base.forEach(function(x){ var r=invRec(x.p.name); items++; value+=r.qty*(+x.p.cost||0); if(r.qty<=0) out++; else if(r.qty<=r.reorderAt) low++; });
+    base.forEach(function(x){ if(isServiceItem(x.p)) return; var r=invRec(x.p.name); items++; value+=r.qty*(+x.p.cost||0); if(r.qty<=0) out++; else if(r.qty<=r.reorderAt) low++; });
     $("invStats").innerHTML=
       statCell("Products", items, "") + statCell("Low stock", low, low?"warn":"") + statCell("Out of stock", out, out?"bad":"") + statCell("Stock value", "$"+money(value), "");
     var rows=base.filter(function(x){ if(q && x.p.name.toLowerCase().indexOf(q)<0) return false; if(lowOnly){ var r=invRec(x.p.name); return r.qty<=r.reorderAt; } return true; })
@@ -3572,21 +3743,28 @@ window.startClinicApp = function(){
     if(!rows.length){ $("invList").innerHTML='<div class="rep-empty">No products'+(q?" match your search":"")+'.</div>'; return; }
     $("invList").innerHTML=rows.map(function(x){
       var p=x.p, r=invRec(p.name);
+      var isSvc = p.type==="service" || (!inventory[p.name] && (p.cat==="Treatment"||p.cat==="Membership"));
       var state = r.qty<=0 ? "out" : (r.qty<=r.reorderAt ? "low" : "ok");
-      var badge = state==="out" ? '<span class="inv-badge b-out">Out</span>' : state==="low" ? '<span class="inv-badge b-low">Low</span>' : '<span class="inv-badge b-ok">In stock</span>';
-      var tag = p.cat==="Supplement" ? '<span class="inv-tag">Supplement</span>' : (p.cat&&p.cat!=="Membership" ? '<span class="inv-tag t-other">'+esc(p.cat)+'</span>' : '');
+      var badge = isSvc ? '<span class="inv-badge b-svc">Service</span>' : (state==="out" ? '<span class="inv-badge b-out">Out</span>' : state==="low" ? '<span class="inv-badge b-low">Low</span>' : '<span class="inv-badge b-ok">In stock</span>');
+      var tag = p.cat==="Supplement" ? '<span class="inv-tag">Supplement</span>' : (p.cat ? '<span class="inv-tag t-other">'+esc(p.cat)+'</span>' : '');
       var coTag = showCo ? '<span class="inv-co inv-co-'+x.entity+'">'+(x.entity==="alpha"?"Alpha":"MJS")+'</span>' : '';
       var meta=[]; if(p.vendor) meta.push(esc(p.vendor)); if(p.sku) meta.push("#"+esc(p.sku));
       var metaLine = meta.length ? '<span class="inv-vendor">'+meta.join(" \u00b7 ")+'</span>' : '';
-      return '<div class="inv-row '+state+'">'+
-        '<div class="inv-name">'+coTag+esc(p.name)+tag+'<div class="inv-sub">$'+money(p.price)+' retail \u00b7 $'+money(p.cost)+' cost'+(metaLine?' \u00b7 '+metaLine:'')+'</div></div>'+
-        '<div class="inv-ctrls">'+
+      var ctrls = isSvc ?
+        ('<div class="inv-ctrls"><span class="inv-svc-price">$'+money(p.price)+'</span>'+badge+
+          '<button type="button" class="inv-edit" data-invedit="'+esc(p.name)+'" data-invent="'+x.entity+'" aria-label="Edit item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4z"/></svg></button></div>') :
+        ('<div class="inv-ctrls">'+
           '<div class="inv-stepper"><button type="button" class="inv-step" data-invdec="'+esc(p.name)+'">\u2212</button>'+
           '<input type="number" class="inv-qty" data-invqty="'+esc(p.name)+'" value="'+r.qty+'" min="0" inputmode="numeric">'+
           '<button type="button" class="inv-step" data-invinc="'+esc(p.name)+'">+</button></div>'+
           '<div class="inv-reorder">Reorder at <input type="number" class="inv-ro" data-invro="'+esc(p.name)+'" value="'+r.reorderAt+'" min="0" inputmode="numeric"></div>'+
           badge+
           '<button type="button" class="inv-edit" data-invedit="'+esc(p.name)+'" data-invent="'+x.entity+'" aria-label="Edit item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4z"/></svg></button>'+
+        '</div>');
+      return '<div class="inv-row '+(isSvc?"is-svc":state)+'">'+
+        '<div class="inv-name">'+coTag+esc(p.name)+(isSvc?'':tag)+'<div class="inv-sub">$'+money(p.price)+' retail \u00b7 $'+money(p.cost)+' cost'+(metaLine?' \u00b7 '+metaLine:'')+'</div></div>'+
+        ctrls+
+      '</div>';
         '</div>'+
       '</div>';
     }).join("");
@@ -3617,10 +3795,15 @@ window.startClinicApp = function(){
     if(activeView==="register") renderRegSub();
     else if(ACCT_VIEWS[activeView]) renderAccounting(activeView);
   }
+  function paymentLabel(t){
+    var s = (t.payments && t.payments.length) ? t.payments.map(function(pm){ return pm.method+" $"+money(pm.amount); }).join(" \u00b7 ") : (t.payment||"");
+    if((t.arAmount||0)>0){ s += t.paid ? " \u00b7 paid" : " \u00b7 on account"; }
+    return s;
+  }
   function ledgerRowHTML(t){
     var sale=t.type==="sale";
     var title=sale?(t.clientName||"Walk-in"):(t.name||"Expense");
-    var sub=sale?(((t.items||[]).map(function(i){return i.name;}).join(", "))+" · "+(t.payment||"")):(t.category||"Expense");
+    var sub=sale?(((t.items||[]).map(function(i){return i.name;}).join(", "))+" \u00b7 "+paymentLabel(t)):(t.category||"Expense");
     var amt=sale?t.total:t.amount;
     return '<div class="ledger-row">'+
       '<div class="ledger-ic '+(sale?"sale":"expense")+'">'+(sale?"$":"−")+'</div>'+
@@ -3680,23 +3863,27 @@ window.startClinicApp = function(){
     }
     return (POS_PERIODS.filter(function(p){return p[1]===posPeriod;})[0]||["",""])[0].toLowerCase();
   }
+  function allPosProducts(){
+    ensureRegProducts();
+    var NONSELL={Supply:1,Equipment:1,Other:1}, out=[];
+    ["mjs","alpha"].forEach(function(e){ (regProducts[e]||[]).forEach(function(p){ if(p.type==="service" || !NONSELL[p.cat]) out.push({p:p, entity:e}); }); });
+    return out;
+  }
   function fillPosSelects(){
     ensureRegProducts();
-    Array.prototype.forEach.call($("regEntityBar").querySelectorAll(".ent-btn"),function(b){ b.classList.toggle("on", b.getAttribute("data-regentity")===regEntity); });
-    var NONSELL={Supply:1,Equipment:1,Other:1};
-    var prods=curProducts().slice().filter(function(p){ return !NONSELL[p.cat]; }).sort(function(a,b){return (a.name||"").localeCompare(b.name||"");});
-    var groups={}; var order=[];
-    prods.forEach(function(p){ var g=p.cat|| (/^Membership/.test(p.name)?"Membership":"Products"); if(!groups[g]){ groups[g]=[]; order.push(g); } groups[g].push(p); });
+    var rows=allPosProducts();
+    var groups={}, order=[];
+    rows.forEach(function(x){ var p=x.p; var g=p.cat|| (/^Membership/.test(p.name)?"Membership":"Products"); if(!groups[g]){groups[g]=[];order.push(g);} groups[g].push(x); });
     var prefer=["Supplement","Treatment","Membership","Products"];
     order.sort(function(a,b){ var ia=prefer.indexOf(a), ib=prefer.indexOf(b); return (ia<0?99:ia)-(ib<0?99:ib) || a.localeCompare(b); });
-    var opts='<option value="">Add product…</option>'+order.map(function(g){
+    var abbr={mjs:"MJS", alpha:"Alpha"};
+    var opts='<option value="">Add item…</option>'+order.map(function(g){
       var label=g==="Supplement"?"Supplements":g==="Treatment"?"Treatments":g;
-      return '<optgroup label="'+esc(label)+'">'+groups[g].map(function(p){return '<option value="'+p.id+'">'+esc(p.name)+' · $'+money(p.price)+'</option>';}).join("")+'</optgroup>';
+      var items=groups[g].slice().sort(function(a,b){return (a.p.name||"").localeCompare(b.p.name||"");});
+      return '<optgroup label="'+esc(label)+'">'+items.map(function(x){ return '<option value="'+x.entity+'|'+x.p.id+'">['+abbr[x.entity]+'] '+esc(x.p.name)+' \u00b7 $'+money(x.p.price)+'</option>'; }).join("")+'</optgroup>';
     }).join("");
     $("posProd").innerHTML=opts;
     $("posDiscount").innerHTML='<option value="">No discount</option>'+discounts.map(function(d){return '<option value="'+esc(d.name)+'">'+esc(d.name)+' ('+d.percent+'%)</option>';}).join("");
-    $("posNewForm").style.display="none";
-    if($("posEditForm")) $("posEditForm").style.display="none";
     setPosClient(posClientId);
   }
   function setRegEntity(k){
@@ -3743,7 +3930,7 @@ window.startClinicApp = function(){
   }
   function updateDuesRow(){
     var p=findPatient(posClientId);
-    if(regEntity==="alpha" && p && p.isMember && p.tier){ $("posDuesRow").style.display="flex"; $("posAddDues").textContent="+ Add membership dues — "+p.tier+" ($"+money(tierPrice(p.tier))+")"; }
+    if(p && p.isMember && p.tier){ $("posDuesRow").style.display="flex"; $("posAddDues").textContent="+ Add membership dues — "+p.tier+" ($"+money(tierPrice(p.tier))+")"; }
     else $("posDuesRow").style.display="none";
     renderPosClientInfo();
   }
@@ -3768,9 +3955,10 @@ window.startClinicApp = function(){
     setPosClient(id||"");
   }
   function addProdToCart(){
-    var id=$("posProd").value; if(!id) return;
-    var p=curProducts().filter(function(x){return x.id===id;})[0]; if(!p) return;
-    posCart.push({ name:p.name, retail:+p.price||0, cost:+p.cost||0, qty:1, cat:p.cat||"" });
+    var v=$("posProd").value; if(!v) return;
+    var parts=v.split("|"), ent=parts[0], id=parts[1];
+    var p=(regProducts[ent]||[]).filter(function(x){return x.id===id;})[0]; if(!p) return;
+    posCart.push({ name:p.name, retail:+p.price||0, cost:+p.cost||0, qty:1, cat:p.cat||"", entity:ent });
     $("posProd").value="";
     renderCart();
   }
@@ -3809,21 +3997,97 @@ window.startClinicApp = function(){
   function addCustomToCart(){
     var nm=($("posCustomName").value||"").trim(); var px=Math.max(0,parseFloat($("posCustomPrice").value)||0);
     if(!nm){ $("posCustomName").focus(); return; }
-    posCart.push({ name:nm, retail:px, cost:0, qty:1 });
+    var ent=($("posCustomEntity")&&$("posCustomEntity").value)||"mjs";
+    posCart.push({ name:nm, retail:px, cost:0, qty:1, entity:ent });
     $("posCustomName").value=""; $("posCustomPrice").value="";
     renderCart();
   }
   function addDuesToCart(){
     var p=findPatient(posClientId); if(!p||!p.tier) return;
-    posCart.push({ name:"Membership dues — "+p.tier, retail:tierPrice(p.tier), cost:0, qty:1 });
+    posCart.push({ name:"Membership dues — "+p.tier, retail:tierPrice(p.tier), cost:0, qty:1, entity:"alpha" });
     renderCart();
+  }
+  var PAY_METHODS=["Cash","Card","Zelle","Check","Invoice (unpaid)","Other"];
+  var posSplitActive=false, posSplitLines=[], posSplitMode="item";
+  function invMethodStr(m){ return /invoice|account|unpaid/i.test(m||""); }
+  function cartTotalNow(){
+    var sub=posCart.reduce(function(s,l){return s+l.retail*l.qty;},0);
+    var pct=discountByName($("posDiscount").value); var disc=sub*pct/100;
+    var damt=Math.max(0, parseFloat($("posDiscountAmt").value)||0); damt=Math.min(damt, Math.max(0, sub-disc));
+    return Math.round((sub-disc-damt)*100)/100;
+  }
+  function cartSubNow(){ return posCart.reduce(function(s,l){return s+l.retail*l.qty;},0); }
+  function toggleSplit(on){
+    posSplitActive=on;
+    $("posSplit").style.display = on?"block":"none";
+    $("posPayRow").style.display = on?"none":"flex";
+    $("posSplitToggle").textContent = on?"Use single payment":"Split payment";
+    if(on){ posSplitLines=[{method:"Cash", amount:cartTotalNow()}]; posCart.forEach(function(l){ if(!l.payMethod) l.payMethod="Cash"; }); renderSplit(); }
+    else { posSplitLines=[]; }
+  }
+  function setSplitMode(m){
+    posSplitMode=m;
+    Array.prototype.forEach.call(document.querySelectorAll("#posSplitMode [data-spmode]"),function(b){ b.classList.toggle("on", b.getAttribute("data-spmode")===m); });
+    renderSplit();
+  }
+  function itemMethodTotals(){
+    // per-method $ from item assignments, scaled to the discounted total
+    var sub=cartSubNow(), total=cartTotalNow(), scale=sub>0?total/sub:1, byM={};
+    posCart.forEach(function(l){ var m=l.payMethod||"Cash"; byM[m]=(byM[m]||0)+l.retail*l.qty; });
+    var out={}; Object.keys(byM).forEach(function(m){ out[m]=Math.round(byM[m]*scale*100)/100; });
+    return out;
+  }
+  function renderSplit(){
+    var byItem = posSplitMode==="item";
+    $("posSplitItems").style.display = byItem?"block":"none";
+    $("posSplitAmount").style.display = byItem?"none":"block";
+    if(byItem){
+      $("posSplitItems").innerHTML = posCart.length ? posCart.map(function(l,i){
+        return '<div class="pos-split-item"><span class="psi-name">'+esc(l.name)+' <span class="psi-amt">$'+money(l.retail*l.qty)+'</span></span>'+
+          '<select data-spim="'+i+'">'+PAY_METHODS.map(function(m){return '<option'+((l.payMethod||"Cash")===m?" selected":"")+'>'+m+'</option>';}).join("")+'</select></div>';
+      }).join("") : '<div class="pos-cart-empty" style="padding:10px">Add items to assign payment.</div>';
+      Array.prototype.forEach.call($("posSplitItems").querySelectorAll("[data-spim]"),function(s){ s.onchange=function(){ posCart[+s.getAttribute("data-spim")].payMethod=s.value; renderSplitSummary(); }; });
+    } else {
+      $("posSplitRows").innerHTML=posSplitLines.map(function(l,i){
+        return '<div class="pos-split-row">'+
+          '<select data-spm="'+i+'">'+PAY_METHODS.map(function(m){return '<option'+(m===l.method?" selected":"")+'>'+m+'</option>';}).join("")+'</select>'+
+          '<input type="number" data-spa="'+i+'" value="'+(l.amount||"")+'" min="0" step="0.01" inputmode="decimal" placeholder="0.00">'+
+          (posSplitLines.length>1?'<button class="cart-del" data-sprm="'+i+'" aria-label="Remove"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>':'<span style="width:36px"></span>')+
+        '</div>';
+      }).join("");
+      var el=$("posSplitRows");
+      Array.prototype.forEach.call(el.querySelectorAll("[data-spm]"),function(s){ s.onchange=function(){ posSplitLines[+s.getAttribute("data-spm")].method=s.value; }; });
+      Array.prototype.forEach.call(el.querySelectorAll("[data-spa]"),function(inp){ inp.oninput=function(){ posSplitLines[+inp.getAttribute("data-spa")].amount=Math.max(0,parseFloat(inp.value)||0); renderSplitSummary(); }; });
+      Array.prototype.forEach.call(el.querySelectorAll("[data-sprm]"),function(b){ b.onclick=function(){ posSplitLines.splice(+b.getAttribute("data-sprm"),1); renderSplit(); }; });
+    }
+    renderSplitSummary();
+  }
+  function renderSplitSummary(){
+    var total=cartTotalNow();
+    if(posSplitMode==="item"){
+      var t=itemMethodTotals(), rows=Object.keys(t).sort(function(a,b){return t[b]-t[a];}).map(function(m){ return '<span class="psum-chip">'+esc(m)+': <b>$'+money(t[m])+'</b></span>'; }).join("");
+      $("posSplitSummary").innerHTML = rows;
+      $("posSplitRemain").innerHTML="";
+    } else {
+      var sum=posSplitLines.reduce(function(s,l){return s+(+l.amount||0);},0), remain=Math.round((total-sum)*100)/100;
+      $("posSplitRemain").innerHTML = Math.abs(remain)<0.005 ? '<span class="sp-ok">\u2713 Balanced</span>' : (remain>0?'$'+money(remain)+' left':'$'+money(-remain)+' over');
+      $("posSplitRemain").className = "pos-split-remain "+(Math.abs(remain)<0.005?"sp-good":"sp-bad");
+      $("posSplitSummary").innerHTML="";
+    }
+  }
+  function addSplitLine(){
+    var total=cartTotalNow(), sum=posSplitLines.reduce(function(s,l){return s+(+l.amount||0);},0), remain=Math.max(0,Math.round((total-sum)*100)/100);
+    var used={}; posSplitLines.forEach(function(l){used[l.method]=1;});
+    var next=PAY_METHODS.filter(function(m){return !used[m];})[0]||"Card";
+    posSplitLines.push({method:next, amount:remain}); renderSplit();
   }
   function renderCart(){
     var el=$("posCart");
     if(!posCart.length){ el.innerHTML='<div class="pos-cart-empty">No items yet — add treatments or an item above.</div>'; }
     else {
       el.innerHTML=posCart.map(function(l,i){
-        return '<div class="cart-line"><span class="cart-name">'+esc(l.name)+'</span>'+
+        var etag = l.entity ? '<span class="cart-ent cart-ent-'+l.entity+'">'+(l.entity==="alpha"?"Alpha":"MJS")+'</span>' : '';
+        return '<div class="cart-line"><span class="cart-name">'+etag+esc(l.name)+'</span>'+
           '<span class="cart-qty"><button data-cq="'+i+'|-">−</button><span>'+l.qty+'</span><button data-cq="'+i+'|+">+</button></span>'+
           '<span class="cart-price">$'+money(l.retail*l.qty)+'</span>'+
           '<button class="cart-del" data-crm="'+i+'" aria-label="Remove"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>';
@@ -3842,37 +4106,69 @@ window.startClinicApp = function(){
       (damt?'<div class="pos-tot-row"><span>Discount ($ off)</span><span>−$'+money(damt)+'</span></div>':'')+
       '<div class="pos-tot-row"><span>Cost / profit</span><span>$'+money(cost)+' / $'+money(total-cost)+'</span></div>'+
       '<div class="pos-tot-row grand"><span>Total</span><span>$'+money(total)+'</span></div>';
+    if(posSplitActive){ if(posSplitMode==="item") renderSplit(); else renderSplitSummary(); }
   }
   function completeSale(){
     if(!posCart.length){ toast("Add items first"); return; }
     var p=findPatient(posClientId);
     var sub=posCart.reduce(function(s,l){return s+l.retail*l.qty;},0);
-    var cost=posCart.reduce(function(s,l){return s+l.cost*l.qty;},0);
     var dn=$("posDiscount").value, pct=discountByName(dn); var pdisc=sub*pct/100;
     var damt=Math.max(0, parseFloat($("posDiscountAmt").value)||0); damt=Math.min(damt, Math.max(0, sub-pdisc));
     var total=sub-pdisc-damt;
-    var saleId=txId();
-    txns.push({ id:saleId, date:todayISO(), type:"sale", clientId:p?p.id:"", clientName:p?p.name:"Walk-in",
-      items:posCart.slice(), subtotal:sub, discountName:dn, discountPct:pct, discountAmt:damt, total:total, cost:cost, profit:total-cost,
-      payment:$("posPay").value, source:"pos", entity:regEntity });
+    var pay=$("posPay").value, payments=null, paySummary=pay, byItem=false;
+    if(posSplitActive){
+      if(posSplitMode==="item"){
+        byItem=true; paySummary="Split by item";
+      } else {
+        var lines=posSplitLines.filter(function(l){return (+l.amount||0)>0;});
+        var sumPay=lines.reduce(function(s,l){return s+(+l.amount||0);},0);
+        if(Math.abs(sumPay-total)>0.01){ toast("Split must total $"+money(total)+" (off by $"+money(Math.abs(sumPay-total))+")"); return; }
+        if(!lines.length){ toast("Add a payment amount"); return; }
+        payments=lines.map(function(l){return {method:l.method, amount:Math.round((+l.amount)*100)/100};});
+        paySummary = "Split: "+payments.map(function(pm){return pm.method+" $"+money(pm.amount);}).join(", ");
+      }
+    }
+    function invMethod(m){ return /invoice|account|unpaid/i.test(m||""); }
+    function itemPaymentsFor(items, eTotal, eSub){
+      var byM={}, order=[];
+      items.forEach(function(l){ var m=l.payMethod||"Cash"; if(byM[m]==null){byM[m]=0;order.push(m);} byM[m]+=l.retail*l.qty; });
+      var scale=eSub>0?eTotal/eSub:1, alloc=0, pays=[];
+      order.forEach(function(m, idx){ var amt = (idx===order.length-1) ? Math.round((eTotal-alloc)*100)/100 : Math.round(byM[m]*scale*100)/100; alloc+=amt; pays.push({method:m, amount:amt}); });
+      return pays;
+    }
+    var arTotal = (!byItem) ? (payments ? payments.filter(function(pm){return invMethod(pm.method);}).reduce(function(s,pm){return s+pm.amount;},0) : (invMethod(pay)?total:0)) : 0;
+    // group cart by entity; one txn per entity, proportioning discount/total/payments/AR
+    var byEnt={}, entKeys=[];
+    posCart.forEach(function(l){ var e=l.entity||"mjs"; if(!byEnt[e]){ byEnt[e]={items:[],sub:0,cost:0}; entKeys.push(e); } byEnt[e].items.push(l); byEnt[e].sub+=l.retail*l.qty; byEnt[e].cost+=l.cost*l.qty; });
+    var saleGroup=txId(), allocT=0, allocD=0, allocAr=0;
+    entKeys.forEach(function(e, idx){
+      var g=byEnt[e], last=(idx===entKeys.length-1), share=sub>0?g.sub/sub:(1/entKeys.length), eTotal, eDisc, eAr, ePayments=null;
+      if(last){ eTotal=Math.round((total-allocT)*100)/100; eDisc=Math.round((damt-allocD)*100)/100; }
+      else { eTotal=Math.round(total*share*100)/100; eDisc=Math.round(damt*share*100)/100; allocT+=eTotal; allocD+=eDisc; }
+      if(byItem){
+        ePayments=itemPaymentsFor(g.items, eTotal, g.sub);
+        eAr=ePayments.filter(function(pm){return invMethod(pm.method);}).reduce(function(s,pm){return s+pm.amount;},0);
+      } else {
+        if(last){ eAr=Math.round((arTotal-allocAr)*100)/100; } else { eAr=Math.round(arTotal*share*100)/100; allocAr+=eAr; }
+        if(payments){ var eShare=total>0?eTotal/total:(1/entKeys.length); ePayments=payments.map(function(pm){return {method:pm.method, amount:Math.round(pm.amount*eShare*100)/100};}); var ps=ePayments.reduce(function(a,b){return a+b.amount;},0); var d=Math.round((eTotal-ps)*100)/100; if(ePayments.length) ePayments[ePayments.length-1].amount=Math.round((ePayments[ePayments.length-1].amount+d)*100)/100; }
+      }
+      eAr=Math.max(0, Math.min(eAr, eTotal));
+      txns.push({ id:txId(), date:todayISO(), type:"sale", clientId:p?p.id:"", clientName:p?p.name:"Walk-in",
+        items:g.items.slice(), subtotal:g.sub, discountName:dn, discountPct:pct, discountAmt:eDisc, total:eTotal, cost:g.cost, profit:eTotal-g.cost,
+        payment:paySummary, payments:ePayments, arAmount:eAr, source:"pos", entity:e, saleGroup:saleGroup });
+    });
     saveTxns();
-    // Link the sale to the client's record: log it as a purchase visit for today
     if(p){
       var itemNames=posCart.map(function(l){ return l.qty>1 ? (l.name+" \u00d7"+l.qty) : l.name; });
       p.visitLog = p.visitLog || [];
-      p.visitLog.push({
-        id:"v"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),
-        date: todayISO(), type:"Purchase", treatments:[], retail:0, cost:0,
-        note: itemNames.join(", ")+" \u00b7 $"+money(total)+" ("+entityName(regEntity)+")",
-        saleId: saleId
-      });
+      p.visitLog.push({ id:"v"+Date.now().toString(36)+Math.random().toString(36).slice(2,5), date: todayISO(), type:"Purchase", treatments:[], retail:0, cost:0, note: itemNames.join(", ")+" \u00b7 $"+money(total), saleId: saleGroup });
       savePatients();
     }
     if(window.__hipAudit) window.__hipAudit("sale", p?p.id:"walk-in");
     decrementInventoryForSale(posCart);
-    posCart=[]; $("posDiscount").value=""; $("posDiscountAmt").value=""; setPosClient(""); renderCart();
+    posCart=[]; $("posDiscount").value=""; $("posDiscountAmt").value=""; if(posSplitActive) toggleSplit(false); setPosClient(""); renderCart();
     if(p) renderAll();
-    toast("Sale recorded · $"+money(total));
+    toast("Sale recorded \u00b7 $"+money(total));
   }
 
   function posRange(){
@@ -3990,7 +4286,7 @@ window.startClinicApp = function(){
   }
   function renderAR(){
     var both=isCombined();
-    var open=txns.filter(function(t){ return isReceivable(t) && (both || (t.entity||"mjs")===acctEntity); });
+    var open=txns.filter(function(t){ return arOpen(t)>0 && (both || (t.entity||"mjs")===acctEntity); });
     if(!open.length){ $("fsAR").innerHTML='<div class="fs-none">No open invoices. In the Register, set a sale\u2019s payment to \u201cInvoice (unpaid)\u201d to track it here.</div>'; return; }
     var today=new Date(); today.setHours(0,0,0,0);
     function ageDays(iso){ var d=parseISO(iso); if(!d) return 0; return Math.max(0,Math.floor((today-d)/86400000)); }
@@ -3998,7 +4294,7 @@ window.startClinicApp = function(){
     function bucketOf(days){ return days<=30?"Current":days<=60?"31-60":days<=90?"61-90":"90+"; }
     var byCust={}, totals={Current:0,"31-60":0,"61-90":0,"90+":0}, grand=0;
     open.forEach(function(t){ var c=t.clientName||"Walk-in"; if(!byCust[c]) byCust[c]={Current:0,"31-60":0,"61-90":0,"90+":0,total:0};
-      var b=bucketOf(ageDays(t.date)); byCust[c][b]+=t.total; byCust[c].total+=t.total; totals[b]+=t.total; grand+=t.total; });
+      var amt=arOpen(t); var b=bucketOf(ageDays(t.date)); byCust[c][b]+=amt; byCust[c].total+=amt; totals[b]+=amt; grand+=amt; });
     var names=Object.keys(byCust).sort(function(a,b){return byCust[b].total-byCust[a].total;});
     var head='<thead><tr><th>Customer</th>'+BK.map(function(b){return '<th class="num">'+b+'</th>';}).join("")+'<th class="num">Total</th></tr></thead>';
     var body=names.map(function(c){ var r=byCust[c]; return '<tr><td>'+esc(c)+'</td>'+BK.map(function(b){return '<td class="num">'+(r[b]?"$"+money(r[b]):"—")+'</td>';}).join("")+'<td class="num"><b>$'+money(r.total)+'</b></td></tr>'; }).join("");
@@ -4007,7 +4303,7 @@ window.startClinicApp = function(){
     var list=open.slice().sort(function(a,b){return (a.date||"").localeCompare(b.date||"");}).map(function(t){
       var days=ageDays(t.date), od=days>90?"ar-over":days>30?"ar-late":"";
       return '<div class="ar-inv '+od+'"><div class="ar-inv-main"><span class="ar-inv-cust">'+esc(t.clientName||"Walk-in")+'</span>'+
-        '<span class="ar-inv-meta">'+fmtDate(parseISO(t.date))+' \u00b7 '+days+'d \u00b7 $'+money(t.total)+(both?' \u00b7 '+entityName(t.entity||"mjs"):"")+'</span></div>'+
+        '<span class="ar-inv-meta">'+fmtDate(parseISO(t.date))+' \u00b7 '+days+'d \u00b7 $'+money(arOpen(t))+(both?' \u00b7 '+entityName(t.entity||"mjs"):"")+'</span></div>'+
         '<button class="btn-ghost ar-paid" data-arpaid="'+t.id+'">Mark paid</button></div>';
     }).join("");
     $("fsAR").innerHTML=summary+'<div class="ar-list-h">Open invoices ('+open.length+')</div>'+list;
@@ -4198,13 +4494,13 @@ window.startClinicApp = function(){
     var totEq=totEqAcct+netInc;
     // AR
     var both=isCombined();
-    var open=txns.filter(function(t){ return isReceivable(t) && (both||(t.entity||"mjs")===acctEntity); });
+    var open=txns.filter(function(t){ return arOpen(t)>0 && (both||(t.entity||"mjs")===acctEntity); });
     var today=new Date(); today.setHours(0,0,0,0);
     function ageDays(iso){ var d=parseISO(iso); if(!d) return 0; return Math.max(0,Math.floor((today-d)/86400000)); }
     function bkt(days){ return days<=30?"Current":days<=60?"31-60":days<=90?"61-90":"90+"; }
     var byCust={}, arTot={Current:0,"31-60":0,"61-90":0,"90+":0}, arGrand=0, BK=["Current","31-60","61-90","90+"];
     open.forEach(function(t){ var c=t.clientName||"Walk-in"; if(!byCust[c]) byCust[c]={Current:0,"31-60":0,"61-90":0,"90+":0,total:0};
-      var b=bkt(ageDays(t.date)); byCust[c][b]+=t.total; byCust[c].total+=t.total; arTot[b]+=t.total; arGrand+=t.total; });
+      var amt=arOpen(t); var b=bkt(ageDays(t.date)); byCust[c][b]+=amt; byCust[c].total+=amt; arTot[b]+=amt; arGrand+=amt; });
     // Monthly
     var mo=computeMonthly(moYear);
     var expNames=Object.keys(mo.expAccts).sort();
@@ -4530,14 +4826,16 @@ window.startClinicApp = function(){
       else if(e.key==="Escape"){ $("posClientDrop").style.display="none"; }
     });
     $("posAddProd").onclick=addProdToCart;
-    $("posNewToggle").onclick=function(){ var f=$("posNewForm"); f.style.display=(f.style.display==="none"?"block":"none"); $("posEditForm").style.display="none"; };
-    $("posNewSave").onclick=saveNewProduct;
-    $("posEditToggle").onclick=function(){ var f=$("posEditForm"); var show=f.style.display==="none"; f.style.display=show?"block":"none"; $("posNewForm").style.display="none"; if(show) renderPosEdit(); };
+    if($("posNewToggle")) $("posNewToggle").onclick=function(){ var f=$("posNewForm"); if(f) f.style.display=(f.style.display==="none"?"block":"none"); };
+    if($("posNewSave")) $("posNewSave").onclick=saveNewProduct;
+    if($("posEditToggle")) $("posEditToggle").onclick=function(){ var f=$("posEditForm"); if(!f) return; var show=f.style.display==="none"; f.style.display=show?"block":"none"; if(show) renderPosEdit(); };
     $("posAddCustom").onclick=addCustomToCart;
     $("posAddDues").onclick=addDuesToCart;
-    Array.prototype.forEach.call(document.querySelectorAll("#regEntityBar .ent-btn"),function(b){ b.onclick=function(){ setRegEntity(b.getAttribute("data-regentity")); }; });
     $("posDiscount").onchange=renderCart;
     $("posDiscountAmt").oninput=renderCart;
+    if($("posSplitToggle")) $("posSplitToggle").onclick=function(){ toggleSplit(!posSplitActive); };
+    if($("posSplitAdd")) $("posSplitAdd").onclick=addSplitLine;
+    Array.prototype.forEach.call(document.querySelectorAll("#posSplitMode [data-spmode]"),function(b){ b.onclick=function(){ setSplitMode(b.getAttribute("data-spmode")); }; });
     $("posComplete").onclick=completeSale;
     $("posImportBtn").onclick=importVisits;
     $("posExportBtn").onclick=exportTxns;
@@ -5072,7 +5370,7 @@ window.startClinicApp = function(){
       ? list.slice(0,8).map(function(t){
           var items=(t.items||[]).map(function(i){return i.name+(i.qty>1?" ×"+i.qty:"");}).join(", ");
           return '<div class="purch-row"><div class="purch-main"><div class="purch-t1">'+esc(items||"Sale")+'</div>'+
-            '<div class="purch-t2">'+fmtDate(parseISO(t.date))+' · '+esc(t.payment||"")+'</div></div>'+
+            '<div class="purch-t2">'+fmtDate(parseISO(t.date))+' \u00b7 '+esc(paymentLabel(t))+'</div></div>'+
             '<div class="purch-amt">$'+money(t.total)+'</div></div>';
         }).join("")
       : '<div class="purch-empty">No purchases yet.</div>';
@@ -5239,9 +5537,10 @@ window.startClinicApp = function(){
     $("setSbUrl").value = settings.supabaseUrl||"";
     $("setSbKey").value = settings.supabaseKey||"";
     $("setFollowup").value = settings.followupDays||60;
+    if($("setSqOn")){ $("setSqOn").checked = settings.squareFeeOn!==false; $("setSqPct").value = (settings.squareFeePct!=null?settings.squareFeePct:2.6); $("setSqFixed").value = (settings.squareFeeFixed!=null?settings.squareFeeFixed:0.10); }
     refreshCloudUI();
     renderTierEditor();
-    renderTreatmentEditor();
+    /* treatments now managed in Items */
     renderVisitTypeEditor();
     renderDiscountEditor();
     renderLocationEditor();
@@ -5377,21 +5676,13 @@ window.startClinicApp = function(){
     var url=$("setSbUrl").value.trim().replace(/\/+$/,""), key=$("setSbKey").value.trim();
     settings.supabaseUrl=url; settings.supabaseKey=key;
     settings.followupDays=Math.max(1, Math.min(365, parseInt($("setFollowup").value,10)||60));
+    if($("setSqOn")){ settings.squareFeeOn = $("setSqOn").checked; settings.squareFeePct = Math.max(0, parseFloat($("setSqPct").value)||0); settings.squareFeeFixed = Math.max(0, parseFloat($("setSqFixed").value)||0); }
     saveSettings(); applyTheme();
     tiers = draftTiers.filter(function(t){return t.name.trim();}).map(function(t){return {name:t.name.trim(),price:+t.price||0};});
     if(tiers.length===0) tiers=clone(DEFAULT_TIERS);
     saveTiers();
     var validT = draftTreatments.filter(function(d){return (""+d.name).trim();});
-    treatments = validT.map(function(d){return (""+d.name).trim();});
-    if(treatments.length===0) treatments=clone(DEFAULT_TREATMENTS);
-    saveTreatments();
-    validT.forEach(function(d){
-      if(d.dose) return;
-      var nm=(""+d.name).trim();
-      var r=+d.retail||0, c=+d.cost||0;
-      if(r||c) treatmentPricing[nm]={cost:c, retail:r};
-    });
-    saveTreatmentPricing();
+    // Treatments are managed in the Items tab now; do not overwrite the list/pricing from Settings.
     visitTypes = draftVisitTypes.map(function(t){return (""+t).trim();}).filter(function(t){return t;});
     if(visitTypes.length===0) visitTypes=clone(DEFAULT_VISIT_TYPES);
     saveVisitTypes();
@@ -5945,7 +6236,7 @@ window.startClinicApp = function(){
   $("setAccent").oninput=function(e){ setDraftAccent(e.target.value,"color"); };
   $("setAccentHex").oninput=function(e){ var n=normHex(e.target.value); if(n) setDraftAccent(n,"hex"); };
   $("addTierBtn").onclick=function(){ draftTiers.push({name:"",price:0}); paintTiers(); };
-  $("addTreatmentBtn").onclick=function(){ draftTreatments.push({name:"",dose:false,retail:"",cost:""}); paintTreatments(); };
+  if($("addTreatmentBtn")) $("addTreatmentBtn").onclick=function(){ draftTreatments.push({name:"",dose:false,retail:"",cost:""}); if(typeof paintTreatments==="function") paintTreatments(); };
   $("addVisitTypeBtn").onclick=function(){ draftVisitTypes.push(""); paintVisitTypes(); };
   $("addDiscountBtn").onclick=function(){ draftDiscounts.push({name:"",percent:0}); paintDiscounts(); };
   $("addLocationBtn").onclick=function(){ draftLocations.push(""); paintLocations(); };
@@ -5972,6 +6263,7 @@ window.startClinicApp = function(){
   applyTheme();
   applyBrand();
   applyThorneSupps();
+  try{ ensureTreatmentsInItems(); }catch(e){}
   switchView("patients");
   renderAll();
 };
