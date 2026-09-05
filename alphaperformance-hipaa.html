@@ -599,6 +599,10 @@
   .disc-badge{background:var(--amber-soft);color:#946400}
   .due-badge{background:var(--red-soft);color:#a5352f}
   .inactive-badge{background:#E5E7EB;color:#4B5563}
+  .seen-today-badge{background:#E7F6EF;color:#0a7d53}
+  .seen-today-meta{color:#0a7d53!important;font-weight:600}
+  .seen-today-meta svg{stroke:#0a7d53}
+  .pm-autobill{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin:10px 0 4px;color:var(--ink)}
   .inv-statgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
   .inv-stat{background:var(--canvas);border:1px solid var(--line);border-radius:12px;padding:12px}
   .inv-stat-val{font-size:22px;font-weight:700;font-family:var(--font-display,inherit)}
@@ -1751,6 +1755,7 @@
             </select>
           </div>
         </div>
+        <label class="pm-autobill"><input type="checkbox" id="pmAutoBill" checked> Auto‑bill dues every cycle from the start date</label>
         <div class="renew-preview" id="pmRenewPreview" style="display:none">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
           <span>Next renewal: <b id="pmRenewText"></b></span>
@@ -2244,7 +2249,8 @@ window.startClinicApp = function(){
     return tierPrice(m.tier) / cycleMonths(m.cycle);
   }
   function money(n){
-    return n.toLocaleString("en-US",{maximumFractionDigits:0});
+    n = (typeof n==="number" && isFinite(n)) ? n : (parseFloat(n)||0);
+    return n.toLocaleString("en-US",{minimumFractionDigits:2, maximumFractionDigits:2});
   }
 
   // ---------- filtering / sorting ----------
@@ -3100,6 +3106,7 @@ window.startClinicApp = function(){
   var ACCT_VIEWS={fhome:1,expenses:1,gl:1,coa:1,freports:1};
   function switchView(v){
     activeView=v;
+    if(v==="members"||v==="reports"||ACCT_VIEWS[v]){ try{ runMembershipBilling(); }catch(e){} }
     $("membersView").style.display = v==="members" ? "block" : "none";
     $("patientsView").style.display = v==="patients" ? "block" : "none";
     $("reportsView").style.display = v==="reports" ? "block" : "none";
@@ -3299,7 +3306,9 @@ window.startClinicApp = function(){
     if(key!=="both"){ var e=loadEntity(key); accounts=e.accounts; journals=e.journals; }
   }
   function mergedAccounts(){
-    var m=load("alphaperf_accounts_mjs",[])||[], a=load("alphaperf_accounts_alpha",[])||[], seen={}, out=[];
+    var m=load("alphaperf_accounts_mjs",null); if(!m||!m.length) m=clone(DEFAULT_ACCOUNTS_MJS);
+    var a=load("alphaperf_accounts_alpha",null); if(!a||!a.length) a=clone(DEFAULT_ACCOUNTS_ALPHA);
+    var seen={}, out=[];
     m.concat(a).forEach(function(x){ if(x&&!seen[x.code]){ seen[x.code]=1; out.push(x); } });
     return out.sort(function(p,q){return (p.code||"").localeCompare(q.code||"");});
   }
@@ -3425,6 +3434,7 @@ window.startClinicApp = function(){
     var accts=load("alphaperf_accounts_alpha", null);
     if(!accts) return; // fresh seed already includes 4200
     var changed=false;
+    if(!accts.some(function(a){return a.code==="4100";})){ accts.push({code:"4100",name:"Membership Dues",type:"Income",id:"4100"}); changed=true; }
     if(!accts.some(function(a){return a.code==="4200";})){ accts.push({code:"4200",name:"Product & Supplement Sales",type:"Income",id:"4200"}); changed=true; }
     if(!accts.some(function(a){return a.code==="5650";})){ accts.push({code:"5650",name:"Card Processing (Square)",type:"Expense",id:"5650"}); changed=true; }
     if(changed){
@@ -4108,6 +4118,65 @@ window.startClinicApp = function(){
       '<div class="pos-tot-row grand"><span>Total</span><span>$'+money(total)+'</span></div>';
     if(posSplitActive){ if(posSplitMode==="item") renderSplit(); else renderSplitSummary(); }
   }
+  function runMembershipBilling(){
+    var today=new Date(); today.setHours(0,0,0,0);
+    if(!settings.membBillingStart){ settings.membBillingStart=todayISO(); saveSettings(); }
+    var floor=parseISO(settings.membBillingStart)||today; floor.setHours(0,0,0,0);
+    var newTx=[], added=0, patientsChanged=false;
+    patients.forEach(function(p){
+      if(!p.isMember || p.status!=="active" || p.autoBill===false) return;
+      var start=parseISO(p.startDate||p.joinedAt); if(!start) return; start.setHours(0,0,0,0);
+      var cyc=cycleMonths(p.cycle||"monthly")||1;
+      var price=tierPrice(p.tier)||0; if(price<=0) return;
+      p.autoBilledKeys = p.autoBilledKeys || {};
+      var existing=txns.filter(function(t){ return t.type==="sale" && t.clientId===p.id && (t.items||[]).some(function(i){return /membership|dues/i.test(i.name);}); });
+      var d=new Date(start.getFullYear(), start.getMonth(), start.getDate()); d.setHours(0,0,0,0);
+      var guard=0;
+      while(d<=today && guard<800){
+        guard++;
+        if(d>=floor){
+          var periodEnd=new Date(d.getFullYear(), d.getMonth()+cyc, d.getDate());
+          var key=d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();
+          var hasReal=existing.some(function(t){ var td=parseISO(t.date); return td && td>=d && td<periodEnd; });
+          if(!p.autoBilledKeys[key] && !hasReal){
+            var id=txId();
+            newTx.push({ id:id, date:d.toISOString().slice(0,10), type:"sale", clientId:p.id, clientName:p.name,
+              items:[{name:"Membership dues \u2014 "+p.tier, retail:price, cost:0, qty:1, cat:"Membership", entity:"alpha"}],
+              subtotal:price, discountName:"", discountPct:0, discountAmt:0, total:price, cost:0, profit:price,
+              payment:"Card", payments:[{method:"Card", amount:price}], arAmount:0, source:"auto", entity:"alpha", recur:true, memberId:p.id });
+            p.autoBilledKeys[key]=id; patientsChanged=true; added++;
+          } else if(hasReal && !p.autoBilledKeys[key]){ p.autoBilledKeys[key]="real"; patientsChanged=true; }
+        }
+        d=new Date(d.getFullYear(), d.getMonth()+cyc, start.getDate()); d.setHours(0,0,0,0);
+      }
+    });
+    if(added){ txns=txns.concat(newTx); saveTxns(); }
+    if(patientsChanged) savePatients();
+    return added;
+  }
+  function backfillClientLinks(){
+    if(settings.clientLinksBackfilled) return;
+    var changed=false, byClient={};
+    patients.forEach(function(p){ byClient[p.id]=p; });
+    txns.forEach(function(t){
+      if(t.type!=="sale" || !t.clientId) return;
+      var p=byClient[t.clientId]; if(!p) return;
+      (t.items||[]).forEach(function(l){
+        var isTreat = l.cat==="Treatment" || treatments.indexOf(l.name)>=0;
+        if(isTreat){ p.treatments=p.treatments||[]; if(p.treatments.indexOf(l.name)<0){ p.treatments.push(l.name); changed=true; } }
+        var isMemb = l.cat==="Membership" || /membership|dues/i.test(l.name);
+        if(isMemb && !p.isMember){ p.isMember=true; p.tier=p.tier||tierFromItemName(l.name); p.cycle=p.cycle||"monthly"; p.startDate=p.startDate||t.date; p.status=p.status||"active"; if(typeof p.visits!=="number") p.visits=0; if(!p.joinedAt) p.joinedAt=t.date; if(p.autoBill==null) p.autoBill=true; changed=true; }
+      });
+    });
+    settings.clientLinksBackfilled=true; saveSettings();
+    if(changed) savePatients();
+  }
+  function tierFromItemName(nm){
+    var m=(nm||"").match(/[\u2014-]\s*(.+)$/);
+    if(m){ var t=m[1].trim(); return t; }
+    var found=tiers.filter(function(x){ return nm.indexOf(x.name)>=0; })[0];
+    return found?found.name:((tiers[0]&&tiers[0].name)||"General");
+  }
   function completeSale(){
     if(!posCart.length){ toast("Add items first"); return; }
     var p=findPatient(posClientId);
@@ -4162,7 +4231,27 @@ window.startClinicApp = function(){
       var itemNames=posCart.map(function(l){ return l.qty>1 ? (l.name+" \u00d7"+l.qty) : l.name; });
       p.visitLog = p.visitLog || [];
       p.visitLog.push({ id:"v"+Date.now().toString(36)+Math.random().toString(36).slice(2,5), date: todayISO(), type:"Purchase", treatments:[], retail:0, cost:0, note: itemNames.join(", ")+" \u00b7 $"+money(total), saleId: saleGroup });
+      // Link what was sold to the client's record
+      var enrolled=false, txAdded=[];
+      posCart.forEach(function(l){
+        var isTreat = l.cat==="Treatment" || treatments.indexOf(l.name)>=0;
+        if(isTreat){ p.treatments=p.treatments||[]; if(p.treatments.indexOf(l.name)<0){ p.treatments.push(l.name); txAdded.push(l.name); } }
+        var isMemb = l.cat==="Membership" || /membership|dues/i.test(l.name);
+        if(isMemb && !p.isMember){
+          p.isMember=true;
+          p.tier = p.tier || tierFromItemName(l.name);
+          p.cycle = p.cycle || "monthly";
+          p.startDate = p.startDate || todayISO();
+          p.status = p.status || "active";
+          if(typeof p.visits!=="number") p.visits=0;
+          if(!p.joinedAt) p.joinedAt=todayISO();
+          if(p.autoBill==null) p.autoBill=true;
+          enrolled=true;
+        }
+      });
       savePatients();
+      var extra=[]; if(txAdded.length) extra.push("added "+txAdded.join(", ")); if(enrolled) extra.push("enrolled as "+(p.tier||"member"));
+      if(extra.length) setTimeout(function(){ toast(p.name.split(" ")[0]+": "+extra.join(" \u00b7 ")); }, 900);
     }
     if(window.__hipAudit) window.__hipAudit("sale", p?p.id:"walk-in");
     decrementInventoryForSale(posCart);
@@ -4903,13 +4992,15 @@ window.startClinicApp = function(){
   }
   function findPatient(id){ for(var i=0;i<patients.length;i++) if(patients[i].id===id) return patients[i]; return null; }
 
+  function seenToday(p){ var ls=lastSeenDate(p); if(!ls) return false; var t=new Date(); t.setHours(0,0,0,0); return daysBetween(t, parseISO(ls))<=0; }
   function pCounts(){
-    var c={all:patients.length, lead:0, consult:0, bloodwork:0, treatment:0, due:0, notx:0, inactive:0};
+    var c={all:patients.length, lead:0, consult:0, bloodwork:0, treatment:0, due:0, notx:0, inactive:0, today:0};
     patients.forEach(function(p){
       if(p.active===false){ c.inactive++; return; }
       c[pStage(p)]++;
       if(isDue(p)) c.due++;
       if(!(p.treatments&&p.treatments.length)) c.notx++;
+      if(seenToday(p)) c.today++;
     });
     return c;
   }
@@ -4947,7 +5038,7 @@ window.startClinicApp = function(){
   }
   function renderPatientChips(){
     var c=pCounts();
-    var defs=[["all","All",c.all],["due","Follow-up",c.due],["lead","New lead",c.lead],["consult","Consult",c.consult],
+    var defs=[["all","All",c.all],["today","Seen today",c.today],["due","Follow-up",c.due],["lead","New lead",c.lead],["consult","Consult",c.consult],
       ["bloodwork","Blood work",c.bloodwork],["treatment","On treatment",c.treatment],["notx","Not on treatment",c.notx],["inactive","Inactive",c.inactive]];
     $("pChips").innerHTML=defs.map(function(d){
       return '<button class="chip'+(pFilter===d[0]?" on":"")+(d[0]==="due"&&d[2]>0?" chip-due":"")+'" data-pfilter="'+d[0]+'">'+d[1]+
@@ -4966,6 +5057,7 @@ window.startClinicApp = function(){
       if(pFilter==="all") return true;
       if(inactive) return false;
       if(pFilter==="due") return isDue(p);
+      if(pFilter==="today") return seenToday(p);
       if(pFilter==="notx") return !(p.treatments&&p.treatments.length);
       return pStage(p)===pFilter;
     });
@@ -5001,6 +5093,11 @@ window.startClinicApp = function(){
       dates.push('<span>'+ICON.drop+"Blood work "+(lb?fmtDate(parseISO(lb.date)):"—")+'</span>');
       var vc=(p.visitLog||[]).length;
       if(vc) dates.push('<span>'+ICON.clock+vc+" visit"+(vc===1?"":"s")+'</span>');
+      var _ls=lastSeenDate(p);
+      var _today=new Date(); _today.setHours(0,0,0,0);
+      var _lsDays = _ls ? daysBetween(_today, parseISO(_ls)) : null;
+      var lastVisitTxt = (_lsDays==null) ? "\u2014" : (_lsDays<=0?"today":_lsDays===1?"yesterday":(_lsDays+"d ago"));
+      dates.push('<span'+(_lsDays!=null&&_lsDays<=0?' class="seen-today-meta"':'')+'>'+ICON.clock+"Last visit "+lastVisitTxt+'</span>');
       var treatB = (p.treatments&&p.treatments.length)
         ? '<div class="m-meta"><span class="treat-badges">'+p.treatments.map(function(tn){var dl=(p.doses&&p.doses[tn])?" "+p.doses[tn]:"";return '<span class="badge treat-badge">'+esc(tn+dl)+'</span>';}).join("")+'</span></div>' : '';
       var memberB = p.isMember ? '<span class="badge tier-badge">Member'+(p.tier?" · "+esc(p.tier):"")+'</span>' : '';
@@ -5009,6 +5106,7 @@ window.startClinicApp = function(){
       var dueB = isDue(p) ? '<span class="badge due-badge">'+dsn+'d no visit</span>' : '';
       var inact = p.active===false;
       var inactB = inact ? '<span class="badge inactive-badge">Inactive'+(p.inactiveReason?' · '+esc(p.inactiveReason):'')+'</span>' : '';
+      var seenTodayB = (_lsDays!=null && _lsDays<=0) ? '<span class="badge seen-today-badge">Seen today</span>' : '';
       return '<article class="member'+(inact?' is-inactive':'')+'" data-pid="'+p.id+'">'+
         '<div class="pulse '+st+'"></div>'+
         '<div class="m-body">'+
@@ -5018,6 +5116,7 @@ window.startClinicApp = function(){
             discB+
             memberB+
             '<span class="badge status-badge sb-'+st+'"><span class="d"></span>'+PSTAGES[st]+'</span>'+
+            seenTodayB+
             dueB+
           '</div>'+
           (contact.length?'<div class="m-meta">'+contact.join("")+'</div>':'')+
@@ -5322,7 +5421,7 @@ window.startClinicApp = function(){
     $("pvDate").value=todayISO(); fillVisitTypeSelect("Blood work"); $("pvTypeAddRow").style.display="none"; $("pvNote").value="";
     fillDiscountSelect(settings.lastDiscount||"");
     fillMembTierSelect(tiers[0]&&tiers[0].name); setMembCycle("monthly");
-    $("pmStart").value=todayISO(); $("pmStatus").value="active";
+    $("pmStart").value=todayISO(); $("pmStatus").value="active"; if($("pmAutoBill")) $("pmAutoBill").checked=true;
     setMembOn(!!withMemb);
     setActiveOn(true); $("pInactiveReason").value=""; $("pInactiveDetail").value=""; syncInactiveDetail();
     renderStageTrack();
@@ -5354,6 +5453,7 @@ window.startClinicApp = function(){
     setMembCycle(p.cycle || "monthly");
     $("pmStart").value = p.startDate || todayISO();
     $("pmStatus").value = p.status || "active";
+    if($("pmAutoBill")) $("pmAutoBill").checked = (p.autoBill!==false);
     setMembOn(!!p.isMember);
     setActiveOn(p.active!==false); $("pInactiveReason").value=p.inactiveReason||""; $("pInactiveDetail").value=p.inactiveDetail||""; syncInactiveDetail();
     renderStageTrack();
@@ -5405,6 +5505,7 @@ window.startClinicApp = function(){
       var tierVal=$("pmTier").value; if(tierVal==="__add_tier__") tierVal=prevMembTier||(tiers[0]&&tiers[0].name)||"General";
       data.tier=tierVal; data.cycle=formMembCycle;
       data.startDate=$("pmStart").value||todayISO(); data.status=$("pmStatus").value;
+      data.autoBill = $("pmAutoBill") ? $("pmAutoBill").checked : true;
     }
     if(pEditingId){
       if(window.__hipAudit) window.__hipAudit("patient_edit", pEditingId);
@@ -6264,6 +6365,8 @@ window.startClinicApp = function(){
   applyBrand();
   applyThorneSupps();
   try{ ensureTreatmentsInItems(); }catch(e){}
+  try{ backfillClientLinks(); }catch(e){}
+  try{ runMembershipBilling(); }catch(e){}
   switchView("patients");
   renderAll();
 };
