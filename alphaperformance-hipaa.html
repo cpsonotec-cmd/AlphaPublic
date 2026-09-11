@@ -653,6 +653,15 @@
   .cart-ent{display:inline-block;font-size:9px;font-weight:700;padding:1px 6px;border-radius:20px;margin-right:7px;vertical-align:middle}
   .cart-ent-alpha{background:#FCE7E6;color:#B42318}
   .cart-ent-mjs{background:#E5EDFB;color:#1D4ED8}
+  .pos-disc-mode-row{align-items:center}
+  .pos-disc-seg{width:auto;margin:0}
+  .pos-disc-seg button{padding:7px 12px;font-size:12px}
+  .pos-disc-item-hint{font-size:12px;color:var(--muted);margin:2px 0 6px}
+  .cart-disc{display:flex;align-items:center;gap:8px;padding:0 0 8px 2px;margin-top:-4px}
+  .cart-disc select{flex:1;max-width:170px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);font-size:12.5px}
+  .cart-disc-amt{width:90px;padding:8px;border:1px solid var(--line);border-radius:8px;text-align:right;font-size:12.5px;background:var(--card)}
+  .cart-disc-tag{font-size:12px;font-weight:700;color:#B45309}
+  .cart-gross{color:var(--muted);font-weight:400;margin-right:5px}
   .settings-note{font-size:13px;color:var(--muted);line-height:1.55;background:var(--canvas);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:8px}
   .pos-split-line{justify-content:flex-end!important}
   .pos-split-toggle{background:none;border:none;color:var(--red);font-weight:600;font-size:13px;cursor:pointer;padding:2px 0}
@@ -1315,8 +1324,17 @@
       <div id="posCart" class="pos-cart"></div>
 
       <div class="pos-foot">
-        <div class="pos-line"><span>Discount %</span><select id="posDiscount"></select></div>
-        <div class="pos-line"><span>$ off</span><input type="number" id="posDiscountAmt" min="0" step="0.01" placeholder="0.00" inputmode="decimal"></div>
+        <div class="pos-line pos-disc-mode-row"><span>Discount</span>
+          <div class="ivseg pos-disc-seg" id="posDiscMode">
+            <button type="button" class="on" data-dmode="order">Whole order</button>
+            <button type="button" data-dmode="item">Per item</button>
+          </div>
+        </div>
+        <div id="posDiscOrder">
+          <div class="pos-line"><span>Discount %</span><select id="posDiscount"></select></div>
+          <div class="pos-line"><span>$ off</span><input type="number" id="posDiscountAmt" min="0" step="0.01" placeholder="0.00" inputmode="decimal"></div>
+        </div>
+        <div class="pos-disc-item-hint" id="posDiscItemHint" style="display:none">Set a % or $ off on each line above.</div>
         <div class="pos-line" id="posPayRow"><span>Payment</span>
           <select id="posPay"><option>Cash</option><option>Card</option><option>Zelle</option><option>Check</option><option>Invoice (unpaid)</option><option>Other</option></select>
         </div>
@@ -4019,9 +4037,21 @@ window.startClinicApp = function(){
   }
   var PAY_METHODS=["Cash","Card","Zelle","Check","Invoice (unpaid)","Other"];
   var posSplitActive=false, posSplitLines=[], posSplitMode="item";
+  var posDiscMode="order";
+  function lineDisc(l){ var gross=l.retail*l.qty; var pct=+l.discPct||0, amt=+l.discAmt||0; return Math.min(gross, Math.max(0, Math.round((gross*pct/100+amt)*100)/100)); }
+  function lineNet(l){ return Math.round((l.retail*l.qty - lineDisc(l))*100)/100; }
+  function discPctOpts(sel){ return '<option value="0">No %</option>'+discounts.map(function(d){return '<option value="'+d.percent+'"'+(+sel===+d.percent?" selected":"")+'>'+d.percent+'% '+esc(d.name)+'</option>';}).join(""); }
+  function setDiscMode(m){
+    posDiscMode=m;
+    Array.prototype.forEach.call(document.querySelectorAll("#posDiscMode [data-dmode]"),function(b){ b.classList.toggle("on", b.getAttribute("data-dmode")===m); });
+    if($("posDiscOrder")) $("posDiscOrder").style.display = m==="item"?"none":"block";
+    if($("posDiscItemHint")) $("posDiscItemHint").style.display = m==="item"?"block":"none";
+    renderCart();
+  }
   function invMethodStr(m){ return /invoice|account|unpaid/i.test(m||""); }
   function cartTotalNow(){
     var sub=posCart.reduce(function(s,l){return s+l.retail*l.qty;},0);
+    if(posDiscMode==="item"){ return Math.round(posCart.reduce(function(s,l){return s+lineNet(l);},0)*100)/100; }
     var pct=discountByName($("posDiscount").value); var disc=sub*pct/100;
     var damt=Math.max(0, parseFloat($("posDiscountAmt").value)||0); damt=Math.min(damt, Math.max(0, sub-disc));
     return Math.round((sub-disc-damt)*100)/100;
@@ -4093,27 +4123,47 @@ window.startClinicApp = function(){
   }
   function renderCart(){
     var el=$("posCart");
+    var perItem = posDiscMode==="item";
     if(!posCart.length){ el.innerHTML='<div class="pos-cart-empty">No items yet — add treatments or an item above.</div>'; }
     else {
       el.innerHTML=posCart.map(function(l,i){
         var etag = l.entity ? '<span class="cart-ent cart-ent-'+l.entity+'">'+(l.entity==="alpha"?"Alpha":"MJS")+'</span>' : '';
-        return '<div class="cart-line"><span class="cart-name">'+etag+esc(l.name)+'</span>'+
+        var d=lineDisc(l);
+        var priceCell = (perItem && d>0)
+          ? '<span class="cart-price"><s class="cart-gross">$'+money(l.retail*l.qty)+'</s> $'+money(lineNet(l))+'</span>'
+          : '<span class="cart-price">$'+money(l.retail*l.qty)+'</span>';
+        var discRow = perItem
+          ? '<div class="cart-disc"><select data-cdpct="'+i+'">'+discPctOpts(l.discPct)+'</select>'+
+            '<input type="number" class="cart-disc-amt" data-cdamt="'+i+'" value="'+(l.discAmt||"")+'" placeholder="$ off" min="0" step="0.01" inputmode="decimal">'+
+            (d>0?'<span class="cart-disc-tag">−$'+money(d)+'</span>':'')+'</div>'
+          : '';
+        return '<div class="cart-wrap"><div class="cart-line"><span class="cart-name">'+etag+esc(l.name)+'</span>'+
           '<span class="cart-qty"><button data-cq="'+i+'|-">−</button><span>'+l.qty+'</span><button data-cq="'+i+'|+">+</button></span>'+
-          '<span class="cart-price">$'+money(l.retail*l.qty)+'</span>'+
-          '<button class="cart-del" data-crm="'+i+'" aria-label="Remove"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>';
+          priceCell+
+          '<button class="cart-del" data-crm="'+i+'" aria-label="Remove"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>'+discRow+'</div>';
       }).join("");
       Array.prototype.forEach.call(el.querySelectorAll("[data-cq]"),function(b){ b.onclick=function(){ var p=b.getAttribute("data-cq").split("|"); var i=+p[0]; posCart[i].qty=Math.max(1, posCart[i].qty+(p[1]==="+"?1:-1)); renderCart(); }; });
       Array.prototype.forEach.call(el.querySelectorAll("[data-crm]"),function(b){ b.onclick=function(){ posCart.splice(+b.getAttribute("data-crm"),1); renderCart(); }; });
+      Array.prototype.forEach.call(el.querySelectorAll("[data-cdpct]"),function(s){ s.onchange=function(){ posCart[+s.getAttribute("data-cdpct")].discPct=+s.value||0; renderCart(); }; });
+      Array.prototype.forEach.call(el.querySelectorAll("[data-cdamt]"),function(inp){ inp.onchange=function(){ posCart[+inp.getAttribute("data-cdamt")].discAmt=Math.max(0,parseFloat(inp.value)||0); renderCart(); }; });
     }
     var sub=posCart.reduce(function(s,l){return s+l.retail*l.qty;},0);
     var cost=posCart.reduce(function(s,l){return s+l.cost*l.qty;},0);
-    var pct=discountByName($("posDiscount").value); var disc=sub*pct/100;
-    var damt=Math.max(0, parseFloat($("posDiscountAmt").value)||0); damt=Math.min(damt, Math.max(0, sub-disc));
-    var total=sub-disc-damt;
+    var total, discRows="";
+    if(perItem){
+      var itemDisc=posCart.reduce(function(s,l){return s+lineDisc(l);},0);
+      total=Math.round((sub-itemDisc)*100)/100;
+      if(itemDisc>0) discRows='<div class="pos-tot-row"><span>Item discounts</span><span>−$'+money(itemDisc)+'</span></div>';
+    } else {
+      var pct=discountByName($("posDiscount").value); var disc=sub*pct/100;
+      var damt=Math.max(0, parseFloat($("posDiscountAmt").value)||0); damt=Math.min(damt, Math.max(0, sub-disc));
+      total=sub-disc-damt;
+      discRows=(pct?'<div class="pos-tot-row"><span>Discount ('+pct+'%)</span><span>−$'+money(disc)+'</span></div>':'')+
+        (damt?'<div class="pos-tot-row"><span>Discount ($ off)</span><span>−$'+money(damt)+'</span></div>':'');
+    }
     $("posTotals").innerHTML=
       '<div class="pos-tot-row"><span>Subtotal</span><span>$'+money(sub)+'</span></div>'+
-      (pct?'<div class="pos-tot-row"><span>Discount ('+pct+'%)</span><span>−$'+money(disc)+'</span></div>':'')+
-      (damt?'<div class="pos-tot-row"><span>Discount ($ off)</span><span>−$'+money(damt)+'</span></div>':'')+
+      discRows+
       '<div class="pos-tot-row"><span>Cost / profit</span><span>$'+money(cost)+' / $'+money(total-cost)+'</span></div>'+
       '<div class="pos-tot-row grand"><span>Total</span><span>$'+money(total)+'</span></div>';
     if(posSplitActive){ if(posSplitMode==="item") renderSplit(); else renderSplitSummary(); }
@@ -4180,10 +4230,18 @@ window.startClinicApp = function(){
   function completeSale(){
     if(!posCart.length){ toast("Add items first"); return; }
     var p=findPatient(posClientId);
+    var perItemDisc = posDiscMode==="item";
     var sub=posCart.reduce(function(s,l){return s+l.retail*l.qty;},0);
-    var dn=$("posDiscount").value, pct=discountByName(dn); var pdisc=sub*pct/100;
-    var damt=Math.max(0, parseFloat($("posDiscountAmt").value)||0); damt=Math.min(damt, Math.max(0, sub-pdisc));
-    var total=sub-pdisc-damt;
+    var dn, pct, damt, total;
+    if(perItemDisc){
+      dn=""; pct=0;
+      total=Math.round(posCart.reduce(function(s,l){return s+lineNet(l);},0)*100)/100;
+      damt=Math.round((sub-total)*100)/100;
+    } else {
+      dn=$("posDiscount").value; pct=discountByName(dn); var pdisc=sub*pct/100;
+      damt=Math.max(0, parseFloat($("posDiscountAmt").value)||0); damt=Math.min(damt, Math.max(0, sub-pdisc));
+      total=sub-pdisc-damt;
+    }
     var pay=$("posPay").value, payments=null, paySummary=pay, byItem=false;
     if(posSplitActive){
       if(posSplitMode==="item"){
@@ -4198,24 +4256,25 @@ window.startClinicApp = function(){
       }
     }
     function invMethod(m){ return /invoice|account|unpaid/i.test(m||""); }
-    function itemPaymentsFor(items, eTotal, eSub){
-      var byM={}, order=[];
-      items.forEach(function(l){ var m=l.payMethod||"Cash"; if(byM[m]==null){byM[m]=0;order.push(m);} byM[m]+=l.retail*l.qty; });
-      var scale=eSub>0?eTotal/eSub:1, alloc=0, pays=[];
+    function itemPaymentsFor(items, eTotal){
+      var byM={}, order=[], gsum=0;
+      items.forEach(function(l){ var v=lineNet(l); var m=l.payMethod||"Cash"; if(byM[m]==null){byM[m]=0;order.push(m);} byM[m]+=v; gsum+=v; });
+      var scale=gsum>0?eTotal/gsum:1, alloc=0, pays=[];
       order.forEach(function(m, idx){ var amt = (idx===order.length-1) ? Math.round((eTotal-alloc)*100)/100 : Math.round(byM[m]*scale*100)/100; alloc+=amt; pays.push({method:m, amount:amt}); });
       return pays;
     }
     var arTotal = (!byItem) ? (payments ? payments.filter(function(pm){return invMethod(pm.method);}).reduce(function(s,pm){return s+pm.amount;},0) : (invMethod(pay)?total:0)) : 0;
-    // group cart by entity; one txn per entity, proportioning discount/total/payments/AR
+    // group cart by entity; one txn per entity
     var byEnt={}, entKeys=[];
-    posCart.forEach(function(l){ var e=l.entity||"mjs"; if(!byEnt[e]){ byEnt[e]={items:[],sub:0,cost:0}; entKeys.push(e); } byEnt[e].items.push(l); byEnt[e].sub+=l.retail*l.qty; byEnt[e].cost+=l.cost*l.qty; });
+    posCart.forEach(function(l){ var e=l.entity||"mjs"; if(!byEnt[e]){ byEnt[e]={items:[],sub:0,cost:0,net:0}; entKeys.push(e); } byEnt[e].items.push(l); byEnt[e].sub+=l.retail*l.qty; byEnt[e].cost+=l.cost*l.qty; byEnt[e].net+=lineNet(l); });
     var saleGroup=txId(), allocT=0, allocD=0, allocAr=0;
     entKeys.forEach(function(e, idx){
       var g=byEnt[e], last=(idx===entKeys.length-1), share=sub>0?g.sub/sub:(1/entKeys.length), eTotal, eDisc, eAr, ePayments=null;
-      if(last){ eTotal=Math.round((total-allocT)*100)/100; eDisc=Math.round((damt-allocD)*100)/100; }
+      if(perItemDisc){ eTotal=Math.round(g.net*100)/100; eDisc=Math.round((g.sub-g.net)*100)/100; }
+      else if(last){ eTotal=Math.round((total-allocT)*100)/100; eDisc=Math.round((damt-allocD)*100)/100; }
       else { eTotal=Math.round(total*share*100)/100; eDisc=Math.round(damt*share*100)/100; allocT+=eTotal; allocD+=eDisc; }
       if(byItem){
-        ePayments=itemPaymentsFor(g.items, eTotal, g.sub);
+        ePayments=itemPaymentsFor(g.items, eTotal);
         eAr=ePayments.filter(function(pm){return invMethod(pm.method);}).reduce(function(s,pm){return s+pm.amount;},0);
       } else {
         if(last){ eAr=Math.round((arTotal-allocAr)*100)/100; } else { eAr=Math.round(arTotal*share*100)/100; allocAr+=eAr; }
@@ -4255,7 +4314,7 @@ window.startClinicApp = function(){
     }
     if(window.__hipAudit) window.__hipAudit("sale", p?p.id:"walk-in");
     decrementInventoryForSale(posCart);
-    posCart=[]; $("posDiscount").value=""; $("posDiscountAmt").value=""; if(posSplitActive) toggleSplit(false); setPosClient(""); renderCart();
+    posCart=[]; $("posDiscount").value=""; $("posDiscountAmt").value=""; if(posSplitActive) toggleSplit(false); if(posDiscMode==="item") setDiscMode("order"); setPosClient(""); renderCart();
     if(p) renderAll();
     toast("Sale recorded \u00b7 $"+money(total));
   }
@@ -4924,6 +4983,7 @@ window.startClinicApp = function(){
     $("posDiscountAmt").oninput=renderCart;
     if($("posSplitToggle")) $("posSplitToggle").onclick=function(){ toggleSplit(!posSplitActive); };
     if($("posSplitAdd")) $("posSplitAdd").onclick=addSplitLine;
+    Array.prototype.forEach.call(document.querySelectorAll("#posDiscMode [data-dmode]"),function(b){ b.onclick=function(){ setDiscMode(b.getAttribute("data-dmode")); }; });
     Array.prototype.forEach.call(document.querySelectorAll("#posSplitMode [data-spmode]"),function(b){ b.onclick=function(){ setSplitMode(b.getAttribute("data-spmode")); }; });
     $("posComplete").onclick=completeSale;
     $("posImportBtn").onclick=importVisits;
@@ -6437,19 +6497,25 @@ window.startClinicApp = function(){
     try{ var r=await fetch(SYNC_URL+"/rest/v1/workspace_sync?id=eq."+SYNC_ID+"&select=*", {headers:syncHeaders()});
       if(!r.ok) return null; var rows=await r.json(); return (rows&&rows[0])?rows[0]:null; }catch(e){ return null; }
   }
-  async function syncPush(){
+  async function syncPush(isRetry){
     if(!syncEnabled || !accounts.length) return;
     syncState="syncing"; refreshSyncUI();
     var stamp=new Date().toISOString();
     var payload={ id:SYNC_ID, accounts:accounts, vault:lsGet("vault",null), audit:lsGet("audit",[]), updated_at:stamp };
     try{
       var r=await fetch(SYNC_URL+"/rest/v1/workspace_sync?on_conflict=id", {method:"POST", headers:syncHeaders({"Content-Type":"application/json", Prefer:"resolution=merge-duplicates,return=minimal"}), body:JSON.stringify(payload)});
-      if(r.ok){ lsSet("synced", stamp); syncState="ok"; } else { syncState="error"; }
-    }catch(e){ syncState="error"; }
+      if(r.ok){ lsSet("synced", stamp); syncState="ok"; }
+      else if(r.status===409){ syncState="error"; }            // guard block = real conflict, never retry
+      else if(!isRetry){ syncState="syncing"; refreshSyncUI(); setTimeout(function(){ syncPush(true); }, 2500); return; }
+      else { syncState="error"; }
+    }catch(e){
+      if(!isRetry){ setTimeout(function(){ syncPush(true); }, 2500); return; } // transient network error: one retry
+      syncState="error";
+    }
     refreshSyncUI();
   }
   var pushTimer=null;
-  function pushSoon(){ if(!syncEnabled) return; clearTimeout(pushTimer); pushTimer=setTimeout(syncPush, 1200); }
+  function pushSoon(){ if(!syncEnabled) return; clearTimeout(pushTimer); pushTimer=setTimeout(function(){ syncPush(false); }, 1200); }
   function adoptRemote(remote){
     accounts = remote.accounts || [];
     lsSet("accounts", accounts);
@@ -6479,7 +6545,7 @@ window.startClinicApp = function(){
     el.style.color = syncState==="error"?"#B42318":"#5B6472";
   }
   function timeAgo(iso){ if(!iso) return "never"; var s=Math.max(0,(Date.now()-new Date(iso).getTime())/1000); if(s<60)return "just now"; if(s<3600)return Math.floor(s/60)+" min ago"; if(s<86400)return Math.floor(s/3600)+" hr ago"; return new Date(iso).toLocaleDateString(); }
-  async function syncNow(){ await syncPush(); toast(syncState==="ok"?"Synced":"Sync failed \u2014 check connection"); }
+  async function syncNow(){ await syncPush(true); toast(syncState==="ok"?"Synced":"Sync failed \u2014 check connection"); }
 
   function saveAccounts(){ lsSet("accounts", accounts); pushSoon(); }
   function findAcct(e){ e=(e||"").trim().toLowerCase(); return accounts.filter(function(a){return a.email===e;})[0]; }
@@ -7043,11 +7109,22 @@ window.startClinicApp = function(){
 
       return originalFetch(input, init).then(function (res) {
         if (res.ok) {
-          try {
-            var row = JSON.parse(opts.body);
-            if (Array.isArray(row)) row = row[0];
-            if (row && row.updated_at) writeSeen(row.updated_at);
-          } catch (e) {}
+          // Adopt the cloud's ACTUAL post-write timestamp, not the value we
+          // sent. The server may set updated_at itself (column default or a
+          // moddatetime trigger), so the payload stamp isn't authoritative.
+          // Without this, our own successful push advances the cloud past our
+          // session stamp and the very next save trips the guard on itself
+          // (false positive). Re-reading keeps the cross-session protection:
+          // a change made by ANOTHER tab/device still advances cloud past our
+          // freshly-adopted stamp and is still blocked.
+          return remoteStamp(url, opts.headers).then(function (after) {
+            if (after) { writeSeen(after); }
+            else { try { var row = JSON.parse(opts.body); if (Array.isArray(row)) row = row[0]; if (row && row.updated_at) writeSeen(row.updated_at); } catch (e) {} }
+            return res;
+          }).catch(function () {
+            try { var r2 = JSON.parse(opts.body); if (Array.isArray(r2)) r2 = r2[0]; if (r2 && r2.updated_at) writeSeen(r2.updated_at); } catch (e) {}
+            return res;
+          });
         }
         return res;
       });
@@ -7069,7 +7146,7 @@ window.startClinicApp = function(){
     };
   } catch (e) {}
 
-  console.log('[sync-guard v1.1] active - pushes checked against cloud updated_at');
+  console.log('[sync-guard v1.2] active - pushes checked against cloud updated_at (self-trip fixed)');
 })();
 </script>
 </body>
