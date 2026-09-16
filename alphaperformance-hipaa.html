@@ -172,7 +172,7 @@
   }
   .search input:focus{border-color:var(--emerald);box-shadow:0 0 0 3px var(--emerald-soft)}
   .tool-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-  .chips{display:flex;gap:7px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;flex:1;padding-bottom:2px}
+  .chips{display:flex;gap:7px;flex-wrap:wrap;flex:1;padding-bottom:2px}
   .chips::-webkit-scrollbar{display:none}
   .chip{
     padding:8px 13px;border-radius:999px;border:1px solid var(--line);background:var(--card);
@@ -494,6 +494,12 @@
   .pos-complete-row{display:flex;gap:10px;align-items:stretch}
   .pos-complete-row .pos-complete{flex:1;width:auto}
   .pos-cancel{flex:0 0 auto;padding:15px 22px;font-size:15px}
+  .pos-memb-alert{border:1px solid #F0C36B;background:linear-gradient(180deg,#FEF6E3,#FDF0D2);border-radius:12px;padding:13px 15px;margin:4px 0 12px}
+  .pma-head{font-weight:700;font-size:14px;color:#8A5A00;display:flex;align-items:center;gap:8px}
+  .pma-ico{color:#D9820B}
+  .pma-script{font-size:13px;color:#6B4E12;margin:7px 0 10px;line-height:1.5}
+  .pma-decline{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:600;color:#7A4E00;cursor:pointer}
+  .pma-decline input{width:17px;height:17px;cursor:pointer}
   .pos-actions{display:flex;gap:9px;flex-wrap:wrap}
   .pos-actions .btn-ghost{flex:1;min-width:120px;justify-content:center}
   .pos-expense-form{margin-top:12px;display:flex;flex-direction:column;gap:9px}
@@ -1409,6 +1415,11 @@
           <div id="posSplitSummary" class="pos-split-summary"></div>
         </div>
         <div class="pos-totals" id="posTotals"></div>
+        <div class="pos-memb-alert" id="posMembAlert" style="display:none">
+          <div class="pma-head"><span class="pma-ico">★</span> Order over $500 — put them on the membership</div>
+          <div class="pma-script">Say to the client: <em>&ldquo;I&rsquo;m putting you on the membership because you&rsquo;ll save 10% on your order.&rdquo;</em></div>
+          <label class="pma-decline"><input type="checkbox" id="posMembDecline"> The customer declined the membership</label>
+        </div>
         <div class="pos-complete-row">
           <button class="btn-ghost pos-cancel" id="posCancel">Cancel</button>
           <button class="btn-primary pos-complete" id="posComplete">Complete sale</button>
@@ -4272,7 +4283,20 @@ window.startClinicApp = function(){
       discRows+
       '<div class="pos-tot-row"><span>Cost / profit</span><span>$'+money(cost)+' / $'+money(total-cost)+'</span></div>'+
       '<div class="pos-tot-row grand"><span>Total</span><span>$'+money(total)+'</span></div>';
+    updateMembAlert();
     if(posSplitActive){ if(posSplitMode==="item") renderSplit(); else renderSplitSummary(); }
+  }
+  function hasMembershipInCart(){ return posCart.some(function(l){ return l.cat==="Membership" || /membership|dues/i.test(l.name); }); }
+  function membUpsellDue(){
+    var p=findPatient(posClientId);
+    var isMemb=(p && p.isMember) || hasMembershipInCart();
+    return posCart.length>0 && cartTotalNow()>500 && !isMemb;
+  }
+  function updateMembAlert(){
+    var el=$("posMembAlert"); if(!el) return;
+    var show=membUpsellDue();
+    el.style.display = show ? "block" : "none";
+    if(!show && $("posMembDecline")) $("posMembDecline").checked=false;
   }
   function runMembershipBilling(){
     var today=new Date(); today.setHours(0,0,0,0);
@@ -4352,6 +4376,17 @@ window.startClinicApp = function(){
       dn=$("posDiscount").value; pct=discountByName(dn); var pdisc=sub*pct/100;
       damt=Math.max(0, parseFloat($("posDiscountAmt").value)||0); damt=Math.min(damt, Math.max(0, sub-pdisc));
       total=sub-pdisc-damt;
+    }
+    // Membership upsell: over $500 and not a member -> must offer membership or mark declined
+    if(total>500){
+      var _mp=findPatient(posClientId);
+      var _isMemb=(_mp && _mp.isMember) || hasMembershipInCart();
+      if(!_isMemb && !($("posMembDecline") && $("posMembDecline").checked)){
+        updateMembAlert();
+        toast("Over $500 — offer the membership (10% savings), or check that they declined");
+        try{ $("posMembAlert").scrollIntoView({block:"center"}); }catch(e){}
+        return;
+      }
     }
     var pay=$("posPay").value, payments=null, paySummary=pay, byItem=false;
     if(posSplitActive){
@@ -5166,7 +5201,7 @@ window.startClinicApp = function(){
     return past[past.length-1];
   }
   function nextVisitDate(p){
-    var end=new Date(); end.setHours(23,59,59,999), fut=[];
+    var end=new Date(); end.setHours(23,59,59,999); var fut=[];
     (p.visitLog||[]).forEach(function(v){ if(v.date){ var dt=parseISO(v.date); if(dt && dt>end) fut.push(v.date); } });
     if(!fut.length) return null;
     fut.sort(function(a,b){ return parseISO(a)-parseISO(b); });
