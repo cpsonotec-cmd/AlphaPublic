@@ -673,6 +673,24 @@
   .pd-co-alpha{background:#FCE7E6;color:#B42318}.pd-co-mjs{background:#E5EDFB;color:#1D4ED8}
   .pd-name{flex:1;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .pd-price{font-weight:600;font-variant-numeric:tabular-nums;font-size:13.5px}
+  .recur-badge{background:#E7F6EF;color:#0a7d53}
+  .m-recur{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--ink);margin:8px 0 2px;cursor:pointer;user-select:none}
+  .m-recur input{width:16px;height:16px;cursor:pointer}
+  .m-recur-amt{font-weight:600;color:#0a7d53;font-size:12px}
+  .m-recur-off{font-weight:400;color:var(--muted);font-size:12px}
+  .pos-visit{border:1px solid var(--line);border-left:4px solid var(--red);border-radius:12px;padding:14px;margin-bottom:14px;background:var(--canvas)}
+  .pos-visit-title{font-weight:700;font-size:14px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .pos-visit-req{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#B42318;background:#FCEBEA;padding:2px 8px;border-radius:20px}
+  .pos-visit select,.pos-visit input[type=text]{width:100%;padding:11px;border:1px solid var(--line);border-radius:10px;font-size:15px;background:var(--card);outline:none;margin-bottom:8px}
+  .pos-visit select:focus,.pos-visit input:focus{border-color:var(--red)}
+  .pos-visit-treats{margin:2px 0 8px;display:flex;flex-wrap:wrap;gap:7px;align-items:center}
+  .pos-visit-tlabel{font-size:12px;color:var(--muted);font-weight:600;width:100%;margin-bottom:2px}
+  .pos-visit-none{font-size:12.5px;color:var(--muted)}
+  .pv-chip{padding:6px 12px;border:1px solid var(--line);border-radius:20px;background:var(--card);font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer}
+  .pv-chip.on{background:var(--red);color:#fff;border-color:var(--red)}
+  .pos-visit-row2{display:flex;gap:8px}
+  .pos-visit-row2 input[type=date]{flex:0 0 150px;margin-bottom:8px}
+  .pos-visit-row2 select{flex:1}
   .settings-note{font-size:13px;color:var(--muted);line-height:1.55;background:var(--canvas);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:8px}
   .pos-split-line{justify-content:flex-end!important}
   .pos-split-toggle{background:none;border:none;color:var(--red);font-weight:600;font-size:13px;cursor:pointer;padding:2px 0}
@@ -1314,6 +1332,16 @@
         </div>
       </div>
       <div class="pos-client-info" id="posClientInfo" style="display:none"></div>
+
+      <div class="pos-visit" id="posVisitSection" style="display:none">
+        <div class="pos-visit-title">Patient visit <span class="pos-visit-req">required</span></div>
+        <div class="pos-add-row pos-visit-row2">
+          <input type="date" id="posVisitDate">
+          <select id="posVisitType"></select>
+        </div>
+        <div class="pos-visit-treats" id="posVisitTreats"></div>
+        <input type="text" id="posVisitNote" placeholder="Visit note — labs, dose, weight… (optional)">
+      </div>
 
       <div class="pos-add">
         <div class="pos-add-row pos-prod-search">
@@ -2429,6 +2457,13 @@ window.startClinicApp = function(){
       var treatBadges = (m.treatments&&m.treatments.length)
         ? '<span class="treat-badges">'+m.treatments.map(function(tn){return '<span class="badge treat-badge">'+esc(tn)+'</span>';}).join("")+'</span>' : '';
       var visitsNote = m.visits? '<div class="visits-note">'+m.visits+' visit'+(m.visits===1?"":"s")+'</div>':'';
+      var recurOn = m.autoBill!==false && m.status==="active";
+      var cyc = m.cycle==="annual"?"yr" : m.cycle==="quarterly"?"qtr" : "mo";
+      var recurBadge = recurOn ? '<span class="badge recur-badge">Recurring</span>' : '';
+      var recurRow = (m.status==="active")
+        ? '<label class="m-recur"><input type="checkbox" data-recur="'+m.id+'"'+(recurOn?' checked':'')+'> <span>Recurring billing</span>'+
+          (recurOn?' <span class="m-recur-amt">$'+money(tierPrice(m.tier))+'/'+cyc+' \u2192 auto-posts to ledger</span>':' <span class="m-recur-off">(off — no auto charge)</span>')+'</label>'
+        : '';
 
       return '<article class="member" data-cid="'+m.id+'">'+
         '<div class="pulse '+h+'"></div>'+
@@ -2439,9 +2474,11 @@ window.startClinicApp = function(){
             (m.tier?'<span class="badge tier-badge">'+esc(m.tier)+'</span>':'')+
             '<span class="badge status-badge sb-'+h+'"><span class="d"></span>'+statusLbl+'</span>'+
             (isDue(m)?'<span class="badge due-badge">'+daysSinceSeen(m)+'d no visit</span>':'')+
+            recurBadge+
           '</div>'+
           (contact.length?'<div class="m-meta">'+contact.join("")+'</div>':'')+
           (treatBadges?'<div class="m-meta">'+treatBadges+'</div>':'')+
+          recurRow+
           renewLine+
         '</div>'+
         '<div class="m-actions">'+
@@ -2479,8 +2516,12 @@ window.startClinicApp = function(){
     Array.prototype.forEach.call(document.querySelectorAll("[data-checkin]"),function(b){
       b.onclick=function(){ checkIn(b.getAttribute("data-checkin")); };
     });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-recur]"),function(cb){
+      cb.onclick=function(e){ e.stopPropagation(); };
+      cb.onchange=function(){ var p=findPatient(cb.getAttribute("data-recur")); if(!p) return; p.autoBill=cb.checked; savePatients(); if(cb.checked){ try{ runMembershipBilling(); }catch(e){} } renderAll(); toast(p.name.split(" ")[0]+(cb.checked?": recurring billing on":": recurring billing off")); };
+    });
     Array.prototype.forEach.call(document.querySelectorAll("#memberList .member"),function(a){
-      a.onclick=function(e){ if(e.target.closest(".act")||e.target.closest("a")) return; openEditClient(a.getAttribute("data-cid")); };
+      a.onclick=function(e){ if(e.target.closest(".act")||e.target.closest("a")||e.target.closest(".m-recur")) return; openEditClient(a.getAttribute("data-cid")); };
     });
   }
 
@@ -3958,7 +3999,30 @@ window.startClinicApp = function(){
       ds.value = has ? want : "";
     }
     updateDuesRow();
+    renderPosVisit(p);
     if(typeof renderCart==="function") renderCart();
+  }
+  var posVisitTreats={};
+  function renderPosVisit(p){
+    var sec=$("posVisitSection"); if(!sec) return;
+    if(!p){ sec.style.display="none"; posVisitTreats={}; return; }
+    sec.style.display="block";
+    $("posVisitType").innerHTML='<option value="">Select visit type…</option>'+visitTypes.map(function(t){ return '<option>'+esc(t)+'</option>'; }).join("");
+    $("posVisitType").value="";
+    if($("posVisitDate")) $("posVisitDate").value=todayISO();
+    $("posVisitNote").value="";
+    // treatments done this visit: default to the client's current protocol, all pre-selected
+    posVisitTreats={}; (p.treatments||[]).forEach(function(t){ posVisitTreats[t]=true; });
+    paintPosVisitTreats(p);
+  }
+  function paintPosVisitTreats(p){
+    var box=$("posVisitTreats"); if(!box) return;
+    var ts=(p&&p.treatments)||[];
+    if(!ts.length){ box.innerHTML='<span class="pos-visit-none">No treatments on file — add items below or leave as a visit note.</span>'; return; }
+    box.innerHTML='<span class="pos-visit-tlabel">Treatments this visit:</span>'+ts.map(function(t){
+      return '<button type="button" class="pv-chip'+(posVisitTreats[t]?" on":"")+'" data-pvt="'+esc(t)+'">'+esc(t)+'</button>';
+    }).join("");
+    Array.prototype.forEach.call(box.querySelectorAll("[data-pvt]"),function(b){ b.onclick=function(){ var t=b.getAttribute("data-pvt"); posVisitTreats[t]=!posVisitTreats[t]; b.classList.toggle("on"); }; });
   }
   function renderClientDrop(q){
     q=(q||"").trim().toLowerCase();
@@ -4255,6 +4319,11 @@ window.startClinicApp = function(){
   function completeSale(){
     if(!posCart.length){ toast("Add items first"); return; }
     var p=findPatient(posClientId);
+    if(p){
+      var vType=($("posVisitType")&&$("posVisitType").value)||"";
+      if(!vType){ toast("Fill out the patient visit (select a visit type) first"); try{ $("posVisitType").focus(); $("posVisitSection").scrollIntoView({block:"center"}); }catch(e){} return; }
+    }
+    var saleDate = (p && $("posVisitDate") && $("posVisitDate").value) ? $("posVisitDate").value : todayISO();
     var perItemDisc = posDiscMode==="item";
     var sub=posCart.reduce(function(s,l){return s+l.retail*l.qty;},0);
     var dn, pct, damt, total;
@@ -4306,15 +4375,19 @@ window.startClinicApp = function(){
         if(payments){ var eShare=total>0?eTotal/total:(1/entKeys.length); ePayments=payments.map(function(pm){return {method:pm.method, amount:Math.round(pm.amount*eShare*100)/100};}); var ps=ePayments.reduce(function(a,b){return a+b.amount;},0); var d=Math.round((eTotal-ps)*100)/100; if(ePayments.length) ePayments[ePayments.length-1].amount=Math.round((ePayments[ePayments.length-1].amount+d)*100)/100; }
       }
       eAr=Math.max(0, Math.min(eAr, eTotal));
-      txns.push({ id:txId(), date:todayISO(), type:"sale", clientId:p?p.id:"", clientName:p?p.name:"Walk-in",
+      txns.push({ id:txId(), date:saleDate, type:"sale", clientId:p?p.id:"", clientName:p?p.name:"Walk-in",
         items:g.items.slice(), subtotal:g.sub, discountName:dn, discountPct:pct, discountAmt:eDisc, total:eTotal, cost:g.cost, profit:eTotal-g.cost,
         payment:paySummary, payments:ePayments, arAmount:eAr, source:"pos", entity:e, saleGroup:saleGroup });
     });
     saveTxns();
     if(p){
       var itemNames=posCart.map(function(l){ return l.qty>1 ? (l.name+" \u00d7"+l.qty) : l.name; });
+      var vType=($("posVisitType")&&$("posVisitType").value)||"Visit";
+      var vNote=($("posVisitNote")&&$("posVisitNote").value||"").trim();
+      var vTreats=Object.keys(posVisitTreats).filter(function(t){return posVisitTreats[t];});
+      var vNoteFull=(vNote?vNote+" \u00b7 ":"")+itemNames.join(", ")+" \u00b7 $"+money(total);
       p.visitLog = p.visitLog || [];
-      p.visitLog.push({ id:"v"+Date.now().toString(36)+Math.random().toString(36).slice(2,5), date: todayISO(), type:"Purchase", treatments:[], retail:0, cost:0, note: itemNames.join(", ")+" \u00b7 $"+money(total), saleId: saleGroup });
+      p.visitLog.push({ id:"v"+Date.now().toString(36)+Math.random().toString(36).slice(2,5), date: saleDate, type:vType, treatments:vTreats, retail:0, cost:0, note: vNoteFull, saleId: saleGroup, fromRegister:true });
       // Link what was sold to the client's record
       var enrolled=false, txAdded=[];
       posCart.forEach(function(l){
