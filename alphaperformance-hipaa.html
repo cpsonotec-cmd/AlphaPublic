@@ -491,6 +491,9 @@
   .pos-tot-row{display:flex;justify-content:space-between;font-size:14px;padding:4px 0;color:var(--muted)}
   .pos-tot-row.grand{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:22px;color:var(--text);border-top:1px solid var(--line);padding-top:10px;margin-top:4px}
   .pos-complete{width:100%;justify-content:center;padding:15px;font-size:16px}
+  .pos-complete-row{display:flex;gap:10px;align-items:stretch}
+  .pos-complete-row .pos-complete{flex:1;width:auto}
+  .pos-cancel{flex:0 0 auto;padding:15px 22px;font-size:15px}
   .pos-actions{display:flex;gap:9px;flex-wrap:wrap}
   .pos-actions .btn-ghost{flex:1;min-width:120px;justify-content:center}
   .pos-expense-form{margin-top:12px;display:flex;flex-direction:column;gap:9px}
@@ -602,6 +605,8 @@
   .seen-today-badge{background:#E7F6EF;color:#0a7d53}
   .seen-today-meta{color:#0a7d53!important;font-weight:600}
   .seen-today-meta svg{stroke:#0a7d53}
+  .upcoming-meta{color:#1D4ED8!important;font-weight:600}
+  .upcoming-meta svg{stroke:#1D4ED8}
   .pm-autobill{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin:10px 0 4px;color:var(--ink)}
   .inv-statgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
   .inv-stat{background:var(--canvas);border:1px solid var(--line);border-radius:12px;padding:12px}
@@ -688,6 +693,8 @@
   .pos-visit-none{font-size:12.5px;color:var(--muted)}
   .pv-chip{padding:6px 12px;border:1px solid var(--line);border-radius:20px;background:var(--card);font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer}
   .pv-chip.on{background:var(--red);color:#fff;border-color:var(--red)}
+  .pv-chip-ref{background:var(--card);color:var(--ink);cursor:default}
+  .pos-visit-hint2{display:block;width:100%;font-size:11.5px;color:var(--muted);margin-top:6px}
   .pos-visit-row2{display:flex;gap:8px}
   .pos-visit-row2 input[type=date]{flex:0 0 150px;margin-bottom:8px}
   .pos-visit-row2 select{flex:1}
@@ -1402,7 +1409,10 @@
           <div id="posSplitSummary" class="pos-split-summary"></div>
         </div>
         <div class="pos-totals" id="posTotals"></div>
-        <button class="btn-primary pos-complete" id="posComplete">Complete sale</button>
+        <div class="pos-complete-row">
+          <button class="btn-ghost pos-cancel" id="posCancel">Cancel</button>
+          <button class="btn-primary pos-complete" id="posComplete">Complete sale</button>
+        </div>
       </div>
     </div>
     </div><!-- /regSale -->
@@ -4026,11 +4036,10 @@ window.startClinicApp = function(){
   function paintPosVisitTreats(p){
     var box=$("posVisitTreats"); if(!box) return;
     var ts=(p&&p.treatments)||[];
-    if(!ts.length){ box.innerHTML='<span class="pos-visit-none">No treatments on file — add items below or leave as a visit note.</span>'; return; }
-    box.innerHTML='<span class="pos-visit-tlabel">Treatments this visit:</span>'+ts.map(function(t){
-      return '<button type="button" class="pv-chip'+(posVisitTreats[t]?" on":"")+'" data-pvt="'+esc(t)+'">'+esc(t)+'</button>';
-    }).join("");
-    Array.prototype.forEach.call(box.querySelectorAll("[data-pvt]"),function(b){ b.onclick=function(){ var t=b.getAttribute("data-pvt"); posVisitTreats[t]=!posVisitTreats[t]; b.classList.toggle("on"); }; });
+    if(!ts.length){ box.innerHTML='<span class="pos-visit-none">No treatments on file yet — this visit\u2019s treatments come from what you ring up below.</span>'; return; }
+    box.innerHTML='<span class="pos-visit-tlabel">Past treatments (for reference):</span>'+ts.map(function(t){
+      return '<span class="pv-chip pv-chip-ref">'+esc(t)+'</span>';
+    }).join("")+'<span class="pos-visit-hint2">This visit\u2019s treatments are taken from the items rung up at checkout.</span>';
   }
   function renderClientDrop(q){
     q=(q||"").trim().toLowerCase();
@@ -4392,7 +4401,7 @@ window.startClinicApp = function(){
       var itemNames=posCart.map(function(l){ return l.qty>1 ? (l.name+" \u00d7"+l.qty) : l.name; });
       var vType=($("posVisitType")&&$("posVisitType").value)||"Visit";
       var vNote=($("posVisitNote")&&$("posVisitNote").value||"").trim();
-      var vTreats=Object.keys(posVisitTreats).filter(function(t){return posVisitTreats[t];});
+      var vTreats=posCart.filter(function(l){ return l.cat==="Treatment" || treatments.indexOf(l.name)>=0; }).map(function(l){ return l.name; });
       var vNoteFull=(vNote?vNote+" \u00b7 ":"")+itemNames.join(", ")+" \u00b7 $"+money(total);
       p.visitLog = p.visitLog || [];
       p.visitLog.push({ id:"v"+Date.now().toString(36)+Math.random().toString(36).slice(2,5), date: saleDate, type:vType, treatments:vTreats, retail:0, cost:0, note: vNoteFull, saleId: saleGroup, fromRegister:true });
@@ -5100,6 +5109,14 @@ window.startClinicApp = function(){
     Array.prototype.forEach.call(document.querySelectorAll("#posDiscMode [data-dmode]"),function(b){ b.onclick=function(){ setDiscMode(b.getAttribute("data-dmode")); }; });
     Array.prototype.forEach.call(document.querySelectorAll("#posSplitMode [data-spmode]"),function(b){ b.onclick=function(){ setSplitMode(b.getAttribute("data-spmode")); }; });
     $("posComplete").onclick=completeSale;
+    if($("posCancel")) $("posCancel").onclick=function(){
+      if(!posCart.length && !posClientId){ toast("Nothing to cancel"); return; }
+      posCart=[]; $("posDiscount").value=""; $("posDiscountAmt").value="";
+      if(posSplitActive) toggleSplit(false);
+      if(posDiscMode==="item") setDiscMode("order");
+      setPosClient(""); renderCart();
+      toast("Transaction cleared");
+    };
     $("posImportBtn").onclick=importVisits;
     $("posExportBtn").onclick=exportTxns;
     $("posExpSave").onclick=saveExpense;
@@ -5147,6 +5164,13 @@ window.startClinicApp = function(){
     if(!past.length) return null;
     past.sort(function(a,b){ return (parseISO(a)-parseISO(b)); });
     return past[past.length-1];
+  }
+  function nextVisitDate(p){
+    var end=new Date(); end.setHours(23,59,59,999), fut=[];
+    (p.visitLog||[]).forEach(function(v){ if(v.date){ var dt=parseISO(v.date); if(dt && dt>end) fut.push(v.date); } });
+    if(!fut.length) return null;
+    fut.sort(function(a,b){ return parseISO(a)-parseISO(b); });
+    return fut[0];
   }
   function followupDays(){ return Math.max(1, +settings.followupDays || 60); }
   function daysSinceSeen(p){
@@ -5319,8 +5343,10 @@ window.startClinicApp = function(){
       var _ls=lastSeenDate(p);
       var _today=new Date(); _today.setHours(0,0,0,0);
       var _lsDays = _ls ? daysBetween(_today, parseISO(_ls)) : null;
-      var lastVisitTxt = (_lsDays==null) ? "\u2014" : (_lsDays<=0?"today":_lsDays===1?"yesterday":(_lsDays+"d ago"));
-      dates.push('<span'+(_lsDays!=null&&_lsDays<=0?' class="seen-today-meta"':'')+'>'+ICON.clock+"Last visit "+lastVisitTxt+'</span>');
+      var lastVisitTxt = (_lsDays==null) ? "\u2014" : (_lsDays===0?"today":_lsDays===1?"yesterday":(_lsDays+"d ago"));
+      dates.push('<span'+(_lsDays===0?' class="seen-today-meta"':'')+'>'+ICON.clock+"Last visit "+lastVisitTxt+'</span>');
+      var _nv=nextVisitDate(p);
+      if(_nv) dates.push('<span class="upcoming-meta">'+ICON.clock+"Next "+fmtDate(parseISO(_nv))+'</span>');
       var treatB = (p.treatments&&p.treatments.length)
         ? '<div class="m-meta"><span class="treat-badges">'+p.treatments.map(function(tn){var dl=(p.doses&&p.doses[tn])?" "+p.doses[tn]:"";return '<span class="badge treat-badge">'+esc(tn+dl)+'</span>';}).join("")+'</span></div>' : '';
       var memberB = p.isMember ? '<span class="badge tier-badge">Member'+(p.tier?" · "+esc(p.tier):"")+'</span>' : '';
