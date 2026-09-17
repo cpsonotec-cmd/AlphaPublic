@@ -500,6 +500,24 @@
   .pma-script{font-size:13px;color:#6B4E12;margin:7px 0 10px;line-height:1.5}
   .pma-decline{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:600;color:#7A4E00;cursor:pointer}
   .pma-decline input{width:17px;height:17px;cursor:pointer}
+  .email-modal .ivf{font-size:12px;color:var(--muted);font-weight:600}
+  .email-modal .ivf input,.email-modal .ivf textarea{width:100%;padding:11px;border:1px solid var(--line);border-radius:10px;font-size:14px;background:var(--card);color:var(--ink);outline:none;font-weight:400;margin-top:4px;font-family:inherit}
+  .email-modal .ivf input:focus,.email-modal .ivf textarea:focus{border-color:var(--red)}
+  .email-modal .ivf textarea{resize:vertical;line-height:1.5}
+  .email-recip{font-size:13.5px;margin-bottom:12px;padding:10px 12px;background:var(--canvas);border-radius:10px}
+  .email-skip{color:var(--muted)}
+  .email-note{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5}
+  .contacted-meta{color:#7C3AED!important;font-weight:600}
+  .contacted-meta svg{stroke:#7C3AED}
+  .lc-row{display:flex;gap:8px;align-items:center}
+  .lc-row input[type=date]{flex:1}
+  .lc-clear{padding:9px 14px}
+  .readonly-banner{position:fixed;bottom:0;left:0;right:0;z-index:200;display:flex;align-items:center;justify-content:center;gap:14px;background:#1D4ED8;color:#fff;padding:9px 16px;font-size:13px;box-shadow:0 -2px 10px rgba(0,0,0,.18);flex-wrap:wrap}
+  .rob-txt b{font-weight:800}
+  .rob-btn{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.55);color:#fff;border-radius:8px;padding:6px 14px;font-weight:700;font-size:12.5px;cursor:pointer;white-space:nowrap}
+  .rob-btn:hover{background:rgba(255,255,255,.28)}
+  .hip-ro{display:flex;gap:9px;align-items:flex-start;font-size:12.5px;color:#5B6472;margin-top:12px;line-height:1.5;cursor:pointer}
+  .hip-ro input{width:16px;height:16px;margin-top:2px;flex-shrink:0;cursor:pointer}
   .pos-actions{display:flex;gap:9px;flex-wrap:wrap}
   .pos-actions .btn-ghost{flex:1;min-width:120px;justify-content:center}
   .pos-expense-form{margin-top:12px;display:flex;flex-direction:column;gap:9px}
@@ -1236,6 +1254,10 @@
             <option value="consult">Consult date</option>
             <option value="treatment">Treatment</option>
           </select>
+          <button class="btn-ghost" id="pEmailBtn" title="Email the clients in this list">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 6L2 7"/></svg>
+            <span>Email list</span>
+          </button>
           <button class="btn-ghost" id="pLeadsBtn" title="Export new leads with sign-up date and contact info">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
             <span>New leads</span>
@@ -1738,6 +1760,14 @@
       <input type="date" id="pConsult">
     </div>
     <div class="field">
+      <label for="pLastContact">Last attempted contact <span class="opt">· outreach follow-up</span></label>
+      <div class="lc-row">
+        <input type="date" id="pLastContact">
+        <button type="button" class="vc-add" id="pLastContactToday">Today</button>
+        <button type="button" class="btn-ghost lc-clear" id="pLastContactClear">Clear</button>
+      </div>
+    </div>
+    <div class="field">
       <label>Treatments <span class="opt">· select any</span></label>
       <div class="treat-chips" id="pTreatChips"></div>
       <div class="treat-add-row" id="pTreatAddRow" style="display:none">
@@ -1990,6 +2020,27 @@
 
 <!-- Confirm dialog -->
 <div class="confirm-scrim" id="confirmScrim"></div>
+<div class="readonly-banner" id="readonlyBanner" style="display:none">
+  <span class="rob-txt"><b>Read-only mode</b> — changes on this device won&rsquo;t save to the cloud, so it can&rsquo;t overwrite another device.</span>
+  <button class="rob-btn" id="readonlyExit">Enable editing</button>
+</div>
+<div class="scrim" id="emailScrim" style="display:none"></div>
+<div class="inv-modal email-modal" id="emailModal" style="display:none" role="dialog" aria-hidden="true">
+  <div class="inv-modal-head"><span class="inv-modal-title">Email client list</span><button class="inv-import-x" id="emailClose" aria-label="Close">&times;</button></div>
+  <div class="inv-modal-body">
+    <div class="email-recip" id="emailRecip"></div>
+    <label class="ivf ivf-full">Subject<input id="emailSubject" autocomplete="off"></label>
+    <label class="ivf ivf-full">Message<textarea id="emailBody" rows="10"></textarea></label>
+    <div class="email-note" id="emailNote"></div>
+  </div>
+  <div class="inv-modal-foot">
+    <button class="btn-ghost" id="emailCopyAddr">Copy emails</button>
+    <button class="btn-ghost" id="emailCopyMsg">Copy message</button>
+    <div class="iv-foot-spacer"></div>
+    <button class="btn-primary" id="emailOpen">Open in email app</button>
+  </div>
+</div>
+
 <div class="scrim" id="invImportScrim" style="display:none"></div>
 <div class="inv-import" id="invImport" style="display:none" role="dialog" aria-hidden="true">
   <div class="inv-import-head">
@@ -5232,10 +5283,10 @@ window.startClinicApp = function(){
       if(!XLSX){ toast("Excel export needs internet — try again online"); return; }
       var aoa=[["Re-engagement list — clients not seen in 60+ days"],
         ["Generated "+fmtDate(new Date())+"  ·  "+list.length+" client"+(list.length===1?"":"s")],[],
-        ["Name","Phone","Email","Last visit","Days since seen","Treatments","Preferred location","Referral source","Stage"]];
+        ["Name","Phone","Email","Last visit","Days since seen","Last contacted","Treatments","Preferred location","Referral source","Stage"]];
       list.forEach(function(p){
         var ls=lastSeenDate(p);
-        aoa.push([ p.name||"", p.phone||"", p.email||"", ls?fmtDate(parseISO(ls)):"never seen", daysSinceSeen(p),
+        aoa.push([ p.name||"", p.phone||"", p.email||"", ls?fmtDate(parseISO(ls)):"never seen", daysSinceSeen(p), (p.lastContact?fmtDate(parseISO(p.lastContact)):""),
           (p.treatments||[]).join(", "), p.location||"", (p.refSource||"")+(p.refDetail?" — "+p.refDetail:""), (PSTAGES&&PSTAGES[pStage(p)])||pStage(p) ]);
       });
       var wb=XLSX.utils.book_new();
@@ -5244,6 +5295,42 @@ window.startClinicApp = function(){
         if(window.__hipAudit) window.__hipAudit("report_export","reengage_60d"); toast("Exported "+list.length+" clients"); }
       catch(e){ toast("Could not build the workbook"); }
     });
+  }
+  var _emailRecips=[];
+  function emailBodyDefault(clinic){
+    return "Hi,\n\nIt has been a little while since your last visit to "+clinic+", and we wanted to check in. Staying consistent with your wellness and proactive care goals makes a real difference, and we would love to help you pick back up where you left off.\n\nIf you would like to schedule a visit or have any questions, just reply to this email or give us a call.\n\nWe look forward to seeing you soon.\n\nWarm regards,\nThe "+clinic+" Team";
+  }
+  function openEmailList(){
+    var vis=visiblePatients();
+    var withEmail=vis.filter(function(p){ return p.email && /@/.test(p.email); });
+    var seen={}, uniq=[];
+    withEmail.forEach(function(p){ var e=(p.email||"").trim(), k=e.toLowerCase(); if(e && !seen[k]){ seen[k]=1; uniq.push(e); } });
+    _emailRecips=uniq;
+    var clinic=(settings&&settings.name)||"Alpha Performance";
+    var skipped=vis.length-withEmail.length;
+    $("emailRecip").innerHTML='<b>'+uniq.length+'</b> recipient'+(uniq.length===1?"":"s")+' with an email in this view'+(skipped>0?' <span class="email-skip">('+skipped+' without an email skipped)</span>':'');
+    if(!$("emailSubject").value) $("emailSubject").value="Checking in from "+clinic;
+    if(!$("emailBody").value) $("emailBody").value=emailBodyDefault(clinic);
+    var mailtoOk = uniq.length>0 && uniq.length<=80;
+    $("emailNote").innerHTML = uniq.length===0 ? "No clients in this view have an email address." :
+      (mailtoOk ? "\u201cOpen in email app\u201d puts these addresses in BCC and fills the subject and message, so clients don\u2019t see each other." :
+      "This list is large for one email. Use <b>Copy emails</b> and paste into your email tool\u2019s BCC field, then <b>Copy message</b> for the text.");
+    $("emailOpen").disabled = !mailtoOk;
+    $("emailOpen").style.opacity = mailtoOk ? "1" : ".5";
+    $("emailScrim").style.display="block"; $("emailModal").style.display="block"; $("emailModal").setAttribute("aria-hidden","false");
+  }
+  function closeEmailList(){ $("emailScrim").style.display="none"; $("emailModal").style.display="none"; $("emailModal").setAttribute("aria-hidden","true"); }
+  function copyText(txt, okMsg){
+    try{ if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(function(){ toast(okMsg); },function(){ fallbackCopy(txt, okMsg); }); } else fallbackCopy(txt, okMsg); }
+    catch(e){ fallbackCopy(txt, okMsg); }
+  }
+  function fallbackCopy(txt, okMsg){ try{ var ta=document.createElement("textarea"); ta.value=txt; ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); toast(okMsg); }catch(e){ toast("Copy not supported here"); } }
+  function emailOpenApp(){
+    if(!_emailRecips.length) return;
+    var subj=encodeURIComponent($("emailSubject").value||"");
+    var body=encodeURIComponent($("emailBody").value||"");
+    var bcc=encodeURIComponent(_emailRecips.join(","));
+    try{ window.location.href="mailto:?bcc="+bcc+"&subject="+subj+"&body="+body; if(window.__hipAudit) window.__hipAudit("email_list", _emailRecips.length+" recipients"); }catch(e){ toast("Could not open email app"); }
   }
   function newLeadsExport(){
     var list=patients.filter(function(p){ return p.active!==false && pStage(p)==="lead"; })
@@ -5380,6 +5467,7 @@ window.startClinicApp = function(){
       var _lsDays = _ls ? daysBetween(_today, parseISO(_ls)) : null;
       var lastVisitTxt = (_lsDays==null) ? "\u2014" : (_lsDays===0?"today":_lsDays===1?"yesterday":(_lsDays+"d ago"));
       dates.push('<span'+(_lsDays===0?' class="seen-today-meta"':'')+'>'+ICON.clock+"Last visit "+lastVisitTxt+'</span>');
+      if(p.lastContact){ var _lc=parseISO(p.lastContact); if(_lc) dates.push('<span class="contacted-meta">'+ICON.phone+"Contacted "+fmtDate(_lc)+'</span>'); }
       var _nv=nextVisitDate(p);
       if(_nv) dates.push('<span class="upcoming-meta">'+ICON.clock+"Next "+fmtDate(parseISO(_nv))+'</span>');
       var treatB = (p.treatments&&p.treatments.length)
@@ -5408,6 +5496,8 @@ window.startClinicApp = function(){
           treatB+
         '</div>'+
         '<div class="m-actions">'+
+          '<button class="act" data-pcontact="'+p.id+'" title="Mark contacted today" aria-label="Mark contacted today">'+
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/></svg></button>'+
           '<button class="act" data-pedit="'+p.id+'" title="Edit" aria-label="Edit client">'+
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg></button>'+
           '<button class="act del" data-pdel="'+p.id+'" title="Delete" aria-label="Delete client">'+
@@ -5433,6 +5523,9 @@ window.startClinicApp = function(){
   function wirePatients(){
     var ea=$("pEmptyAdd"); if(ea) ea.onclick=function(){ openAddClient(false); };
     var cf=$("pClearFilters"); if(cf) cf.onclick=function(){ pFilter="all"; pQuery=""; $("pSearchInput").value=""; renderPatientChips(); renderPatientList(); };
+    Array.prototype.forEach.call(document.querySelectorAll("[data-pcontact]"),function(b){
+      b.onclick=function(e){ e.stopPropagation(); var p=findPatient(b.getAttribute("data-pcontact")); if(!p) return; p.lastContact=todayISO(); savePatients(); if(window.__hipAudit) window.__hipAudit("client_contacted", p.id); renderList(); toast(p.name.split(" ")[0]+" marked contacted today"); };
+    });
     Array.prototype.forEach.call(document.querySelectorAll("[data-pedit]"),function(b){
       b.onclick=function(){ openEditClient(b.getAttribute("data-pedit")); };
     });
@@ -5696,7 +5789,7 @@ window.startClinicApp = function(){
     $("pSaveBtn").textContent = withMemb ? "Save member" : "Save client";
     $("pDeleteBtn").style.display="none";
     $("pName").value=""; $("pPhone").value=""; $("pEmail").value="";
-    $("pConsult").value=""; $("pNotes").value="";
+    $("pConsult").value=""; if($("pLastContact")) $("pLastContact").value=""; $("pNotes").value="";
     $("pSex").value=""; $("pDob").value="";
     $("pRefSource").value=""; $("pRefBy").value=""; $("pRefDetail").value=""; fillRefByList(null); $("pRefSource").onchange=syncRefFields; syncRefFields();
     fillLocationSelect("");
@@ -5722,7 +5815,7 @@ window.startClinicApp = function(){
     $("pSaveBtn").textContent="Save changes";
     $("pDeleteBtn").style.display="block";
     $("pName").value=p.name; $("pPhone").value=p.phone||""; $("pEmail").value=p.email||"";
-    $("pConsult").value=p.consultDate||""; $("pNotes").value=p.notes||"";
+    $("pConsult").value=p.consultDate||""; if($("pLastContact")) $("pLastContact").value=p.lastContact||""; $("pNotes").value=p.notes||"";
     $("pSex").value=p.sex||""; $("pDob").value=p.dob||"";
     $("pRefSource").value=p.refSource||""; $("pRefBy").value=p.refByName||""; $("pRefDetail").value=p.refDetail||""; fillRefByList(id); $("pRefSource").onchange=syncRefFields; syncRefFields();
     fillLocationSelect(p.location||"");
@@ -5779,7 +5872,7 @@ window.startClinicApp = function(){
     var inactiveDetail = (!isActive && inactiveReason==="Other") ? ($("pInactiveDetail").value||"").trim() : "";
     var data={
       name:name, phone:$("pPhone").value.trim(), email:$("pEmail").value.trim(),
-      consultDate:$("pConsult").value||"", sex:$("pSex").value||"", dob:$("pDob").value||"", location:$("pLocation").value||"", visitLog: formVisits.slice(),
+      consultDate:$("pConsult").value||"", lastContact:($("pLastContact")?$("pLastContact").value:"")||"", sex:$("pSex").value||"", dob:$("pDob").value||"", location:$("pLocation").value||"", visitLog: formVisits.slice(),
       refSource:refSrc, refByName:refByName, refBy: refMatch?refMatch.id:"", refDetail:refDetail,
       active:isActive, inactiveReason:inactiveReason, inactiveDetail:inactiveDetail,
       treatments: formTreatments.slice(), doses:doses, discount:disc, notes:$("pNotes").value.trim(),
@@ -6296,12 +6389,15 @@ window.startClinicApp = function(){
     p.className="cloud-pill"+(state?" "+state:"");
     $("cloudLbl").textContent=label;
   }
+  try{ window.__alphaReadOnly = (localStorage.getItem("alphahipaa_readonly_device")==="1"); }catch(e){}
   function schedulePush(){
+    if(window.__alphaReadOnly) return;
     if(!cloudReady) return;
     clearTimeout(pushTimer);
     pushTimer=setTimeout(cloudPush, 800);
   }
   function cloudPush(){
+    if(window.__alphaReadOnly) return;
     if(!sb || !sbUser) return;
     var data=serializeState();
     lastWriteToken = Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -6347,6 +6443,7 @@ window.startClinicApp = function(){
         }
       });
   }
+  window.__cloudPull=function(){ try{ if(sb&&sbUser) cloudPull(); }catch(e){} };
   function subscribeRealtime(){
     if(sbChannel){ try{ sb.removeChannel(sbChannel); }catch(e){} }
     sbChannel = sb.channel("app_state_"+sbUser.id)
@@ -6533,6 +6630,7 @@ window.startClinicApp = function(){
 
   // ---------- events ----------
   $("addBtn").onclick=function(){ if(activeView==="members") openAddMember(); else openAddClient(false); };
+  if($("readonlyExit")) $("readonlyExit").onclick=function(){ if(window.__setReadOnly) window.__setReadOnly(false); };
   Array.prototype.forEach.call(document.querySelectorAll(".nav-link"),function(b){
     b.onclick=function(){ switchView(b.getAttribute("data-view")); };
   });
@@ -6551,6 +6649,8 @@ window.startClinicApp = function(){
   // client panel controls
   $("pPanelClose").onclick=closePPanel;
   $("pSaveBtn").onclick=saveClient;
+  if($("pLastContactToday")) $("pLastContactToday").onclick=function(){ $("pLastContact").value=todayISO(); };
+  if($("pLastContactClear")) $("pLastContactClear").onclick=function(){ $("pLastContact").value=""; };
   $("pDeleteBtn").onclick=deleteClient;
   $("pName").oninput=function(){ $("pName").style.borderColor=""; };
   $("pConsult").onchange=renderStageTrack;
@@ -6588,6 +6688,12 @@ window.startClinicApp = function(){
   $("pExportBtn").onclick=exportPatientsCSV;
     if($("pReengageBtn")) $("pReengageBtn").onclick=reengageExport;
     if($("pLeadsBtn")) $("pLeadsBtn").onclick=newLeadsExport;
+    if($("pEmailBtn")) $("pEmailBtn").onclick=openEmailList;
+    if($("emailClose")) $("emailClose").onclick=closeEmailList;
+    if($("emailScrim")) $("emailScrim").onclick=closeEmailList;
+    if($("emailCopyAddr")) $("emailCopyAddr").onclick=function(){ if(!_emailRecips.length){ toast("No emails to copy"); return; } copyText(_emailRecips.join("; "), _emailRecips.length+" emails copied"); };
+    if($("emailCopyMsg")) $("emailCopyMsg").onclick=function(){ copyText(("Subject: "+($("emailSubject").value||"")+"\n\n"+($("emailBody").value||"")), "Message copied"); };
+    if($("emailOpen")) $("emailOpen").onclick=emailOpenApp;
   $("exportDbBtn").onclick=exportDatabase;
   $("setBooksPassBtn").onclick=function(){
     var v=($("setBooksPass").value||"").trim();
@@ -6724,6 +6830,7 @@ window.startClinicApp = function(){
       if(!r.ok) return null; var rows=await r.json(); return (rows&&rows[0])?rows[0]:null; }catch(e){ return null; }
   }
   async function syncPush(isRetry){
+    if(window.__alphaReadOnly) return;
     if(!syncEnabled || !accounts.length) return;
     syncState="syncing"; refreshSyncUI();
     var stamp=new Date().toISOString();
@@ -6741,7 +6848,27 @@ window.startClinicApp = function(){
     refreshSyncUI();
   }
   var pushTimer=null;
-  function pushSoon(){ if(!syncEnabled) return; clearTimeout(pushTimer); pushTimer=setTimeout(function(){ syncPush(false); }, 1200); }
+  function pushSoon(){ if(window.__alphaReadOnly) return; if(!syncEnabled) return; clearTimeout(pushTimer); pushTimer=setTimeout(function(){ syncPush(false); }, 1200); }
+  function updateReadOnlyUI(){
+    var b=$("readonlyBanner"); if(b) b.style.display = window.__alphaReadOnly ? "flex" : "none";
+    var cb=$("hipReadOnly"); if(cb) cb.checked = window.__alphaReadOnly;
+    try{ document.body.classList.toggle("is-readonly", window.__alphaReadOnly); }catch(e){}
+  }
+  function setReadOnly(on){
+    window.__alphaReadOnly=!!on;
+    try{ localStorage.setItem("alphahipaa_readonly_device", on?"1":"0"); }catch(e){}
+    updateReadOnlyUI();
+    if(!on){
+      try{ if(typeof window.__cloudPull==="function") window.__cloudPull(); }catch(e){}
+      try{ if(typeof syncBoot==="function") syncBoot(); }catch(e){}
+      toast("Editing enabled on this device");
+    } else {
+      toast("Read-only on — this device won't change cloud data");
+    }
+  }
+  window.__setReadOnly=setReadOnly; window.__updateReadOnlyUI=updateReadOnlyUI;
+  try{ window.__alphaReadOnly=(localStorage.getItem("alphahipaa_readonly_device")==="1"); }catch(e){}
+  try{ updateReadOnlyUI(); }catch(e){}
   function adoptRemote(remote){
     accounts = remote.accounts || [];
     lsSet("accounts", accounts);
@@ -7007,7 +7134,7 @@ window.startClinicApp = function(){
       '<div class="hipsec"><h4>Session security</h4>'+
       '<div class="hipfld"><label>Auto sign-out after inactivity (minutes)</label><input id="hipTimeout" type="number" min="1" max="60" value="'+(secset.timeoutMin||15)+'"'+(isAdmin()?"":" disabled")+'></div>'+
       (isAdmin()?'<button class="hipbtn ghost sm" id="hipSaveTimeout">Save</button>':'<div class="hiphint">Only an administrator can change this.</div>')+'</div>'+
-      '<div class="hipsec"><h4>Multi-device sync</h4><div class="hiphint" style="margin-bottom:10px">Accounts and encrypted data sync to your cloud project so you can sign in from any device. Only encrypted data leaves this device. <b>Test data only</b> until the HIPAA project &amp; BAA are in place.</div><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span id="hipSyncState" style="font-size:12.5px;color:#5B6472;font-weight:600">\u2014</span><button class="hipbtn ghost sm" id="hipSyncNow">Sync now</button></div></div>'+
+      '<div class="hipsec"><h4>Multi-device sync</h4><div class="hiphint" style="margin-bottom:10px">Accounts and encrypted data sync to your cloud project so you can sign in from any device. Only encrypted data leaves this device. <b>Test data only</b> until the HIPAA project &amp; BAA are in place.</div><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span id="hipSyncState" style="font-size:12.5px;color:#5B6472;font-weight:600">\u2014</span><button class="hipbtn ghost sm" id="hipSyncNow">Sync now</button></div><label class="hip-ro"><input type="checkbox" id="hipReadOnly"> <span><b>Read-only mode</b> on this device. It can view and print but won\u2019t save changes to the cloud, so it can\u2019t overwrite another device. Turn this on for front-desk lookup devices; keep it off on the one device doing the editing.</span></label></div>'+
       '<div class="hipsec"><h4>This workspace</h4><div class="hiphint">Its own encrypted vault, unique logins. All records are encrypted with AES-256-GCM; keys derived with PBKDF2-SHA256 ('+ITERS.toLocaleString()+' iterations). <b>Backup:</b> <span id="hipExpLink" style="color:#DC2626;font-weight:600;cursor:pointer">export encrypted backup</span>.</div></div>'+
       (isAdmin()?'<div class="hipsec"><h4>Import from standard app</h4><div class="hiphint" style="margin-bottom:12px">Load a backup exported from the standard AlphaPerformance app (its <b>Settings \u2192 Export</b>). This <b>replaces</b> this workspace\u2019s clients, memberships, product catalog, and books with the uploaded data, then reloads. Use test / non-identifiable data until your BAA and risk analysis are complete.</div><button class="hipbtn ghost sm" id="hipImport">Choose export file\u2026</button></div>':'');
   }
@@ -7083,6 +7210,7 @@ window.startClinicApp = function(){
     if($("hipSaveTimeout")) $("hipSaveTimeout").onclick=function(){ var v=Math.max(1,Math.min(60,parseInt($("hipTimeout").value)||15)); secset.timeoutMin=v; lsSet("secset",secset); audit("settings_update","timeout="+v); resetIdle(); toast("Saved"); };
     if($("hipExpLink")) $("hipExpLink").onclick=exportBackup;
     if($("hipSyncNow")) $("hipSyncNow").onclick=syncNow;
+    if($("hipReadOnly")){ $("hipReadOnly").checked=window.__alphaReadOnly; $("hipReadOnly").onchange=function(){ setReadOnly($("hipReadOnly").checked); }; }
     refreshSyncUI();
     if($("hipImport")) $("hipImport").onclick=pickImportFile;
     if($("hipExpAud")) $("hipExpAud").onclick=exportAudit;
