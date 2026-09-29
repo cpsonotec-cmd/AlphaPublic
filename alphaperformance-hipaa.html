@@ -508,6 +508,17 @@
   .email-skip{color:var(--muted)}
   .email-note{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5}
   .contacted-meta{color:#7C3AED!important;font-weight:600}
+  .cold-badge{background:#EEF1F4;color:#475467}
+  .ref-edit{border:1px solid var(--line);border-radius:11px;padding:9px;margin-bottom:8px;background:var(--card)}
+  .ref-edit-row{display:flex;gap:8px;align-items:center}
+  .ref-edit-row input{flex:1;min-width:0;padding:10px;border:1px solid var(--line);border-radius:9px;font-size:14px;background:var(--card);color:var(--ink)}
+  .ref-edit-row select{flex:0 0 190px;padding:10px;border:1px solid var(--line);border-radius:9px;font-size:13px;background:var(--card)}
+  .ref-sub{display:block;width:100%;margin-top:7px;padding:9px 10px;border:1px solid var(--line);border-radius:9px;font-size:13px;background:var(--canvas);color:var(--ink)}
+  #pRefDetailSel{width:100%;padding:12px;border:1px solid var(--line);border-radius:11px;background:var(--card);font-size:15px}
+  .cold-toggle{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-top:10px;cursor:pointer}
+  .cold-toggle input{width:16px;height:16px}
+  #pColdReason{margin-top:8px;width:100%;padding:11px;border:1px solid var(--line);border-radius:10px;background:var(--card);font-size:14px}
+  .act.cold-act{color:#667085}
   .contacted-meta svg{stroke:#7C3AED}
   .lc-row{display:flex;gap:8px;align-items:center}
   .lc-row input[type=date]{flex:1}
@@ -717,6 +728,15 @@
   .pos-visit-none{font-size:12.5px;color:var(--muted)}
   .pv-chip{padding:6px 12px;border:1px solid var(--line);border-radius:20px;background:var(--card);font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer}
   .pv-chip.on{background:var(--red);color:#fff;border-color:var(--red)}
+  .pos-ref{margin-top:10px;border:1px solid #F0C36B;background:#FEF8EA;border-radius:10px;padding:11px 12px}
+  .pos-ref.pos-ref-err{border-color:var(--red);background:#FCEBEA;box-shadow:0 0 0 3px rgba(220,38,38,.12)}
+  .pos-ref-head{font-weight:700;font-size:13.5px;display:flex;align-items:center;gap:8px}
+  .pos-ref-note{font-size:12px;color:#7A5A12;margin:4px 0 9px}
+  .pos-ref-row{align-items:flex-start}
+  .pos-ref-row select,.pos-ref-detail input,.pos-ref-detail select{width:100%;padding:11px;border:1px solid var(--line);border-radius:10px;font-size:15px;background:var(--card);outline:none}
+  .pos-ref-row > select{flex:1}
+  .pos-ref-detail{flex:1}
+  .pos-ref-done{margin-top:8px;font-size:12.5px;color:var(--muted)}
   .pv-chip-ref{background:var(--card);color:var(--ink);cursor:default}
   .pos-visit-hint2{display:block;width:100%;font-size:11.5px;color:var(--muted);margin-top:6px}
   .pos-visit-row2{display:flex;gap:8px}
@@ -1384,6 +1404,21 @@
         </div>
         <div class="pos-visit-treats" id="posVisitTreats"></div>
         <input type="text" id="posVisitNote" placeholder="Visit note — labs, dose, weight… (optional)">
+        <div class="pos-ref" id="posRefBox" style="display:none">
+          <div class="pos-ref-head">How did they hear about us? <span class="pos-visit-req">required</span></div>
+          <div class="pos-ref-note">This client has no referral source on file. Fill it in to continue; it saves to their record.</div>
+          <div class="pos-visit-row2 pos-ref-row">
+            <select id="posRefSource"></select>
+            <div class="pos-ref-detail" id="posRefDetailWrap" style="display:none">
+              <input type="text" id="posRefDetail" list="posRefDetailList" autocomplete="off">
+              <datalist id="posRefDetailList"></datalist>
+              <select id="posRefDetailSel" style="display:none"></select>
+              <input type="text" id="posRefBy" list="posRefByList" autocomplete="off" placeholder="Start typing a client name" style="display:none">
+              <datalist id="posRefByList"></datalist>
+            </div>
+          </div>
+        </div>
+        <div class="pos-ref-done" id="posRefDone" style="display:none"></div>
       </div>
 
       <div class="pos-add">
@@ -1726,21 +1761,7 @@
     <div class="row2">
       <div class="field">
         <label for="pRefSource">Referral source</label>
-        <select id="pRefSource">
-          <option value="">—</option>
-          <option>Existing patient</option>
-          <option>Influencer</option>
-          <option>Instagram</option>
-          <option>Website</option>
-          <option>Sign</option>
-          <option>Friend / family</option>
-          <option>Google / web search</option>
-          <option>Social media</option>
-          <option>Provider / doctor</option>
-          <option>Event / community</option>
-          <option>Advertising</option>
-          <option>Other</option>
-        </select>
+        <select id="pRefSource"></select>
       </div>
       <div class="field">
         <div id="pRefByWrap">
@@ -1750,7 +1771,9 @@
         </div>
         <div id="pRefDetailWrap" style="display:none">
           <label for="pRefDetail" id="pRefDetailLbl">Detail</label>
-          <input id="pRefDetail" autocomplete="off" placeholder="">
+          <input id="pRefDetail" list="pRefDetailList" autocomplete="off" placeholder="">
+          <datalist id="pRefDetailList"></datalist>
+          <select id="pRefDetailSel" style="display:none"></select>
         </div>
       </div>
     </div>
@@ -1766,6 +1789,10 @@
         <button type="button" class="vc-add" id="pLastContactToday">Today</button>
         <button type="button" class="btn-ghost lc-clear" id="pLastContactClear">Clear</button>
       </div>
+      <label class="cold-toggle"><input type="checkbox" id="pColdLead"> Inactive lead <span class="opt">· tried to reach them, no response (removes from Follow-up)</span></label>
+      <select id="pColdReason" style="display:none">
+        <option>No response</option><option>Wrong number / bad email</option><option>Not interested</option><option>Asked not to be contacted</option><option>Other</option>
+      </select>
     </div>
     <div class="field">
       <label>Treatments <span class="opt">· select any</span></label>
@@ -1979,6 +2006,13 @@
     <button class="add-tier" id="addLocationBtn">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
       Add location
+    </button>
+    <div class="settings-label">Referral sources</div>
+    <p style="font-size:13px;color:var(--muted);margin:0 0 10px;line-height:1.45">The "How did they hear about us" choices on the client form. For each one, choose what to ask next: nothing, pick an existing client, type a name (suggests names used before), or pick from a list you set here.</p>
+    <div id="refSourceList"></div>
+    <button class="add-tier" id="addRefSourceBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Add referral source
     </button>
     <div class="settings-label">Accounting passcode</div>
     <p style="font-size:13px;color:var(--muted);margin:0 0 12px;line-height:1.45">Require a passcode to open the Accounting section (Expenses, General Ledger, Chart of Accounts, Reports). The rest of the app — Clients, Memberships, Register — stays open. <span id="booksLockState" style="font-weight:600"></span></p>
@@ -4083,8 +4117,63 @@ window.startClinicApp = function(){
     if(typeof renderCart==="function") renderCart();
   }
   var posVisitTreats={};
+  // ---- referral source capture in the register ----
+  function refComplete(src, detail, byName){
+    if(!src) return false;
+    var c=refCfg(src); if(!c) return true;            // legacy/unlisted value on file: accept
+    if(c.type==="list"||c.type==="text") return !!(detail&&(""+detail).trim());
+    if(c.type==="patient") return !!(byName&&(""+byName).trim());
+    return true;
+  }
+  function clientRefComplete(p){ return !!p && refComplete(p.refSource, p.refDetail, p.refByName||(p.refBy?"linked":"")); }
+  var posRefNeeded=false;
+  function renderPosRef(p){
+    var box=$("posRefBox"), done=$("posRefDone"); if(!box) return;
+    posRefNeeded = !!p && !clientRefComplete(p);
+    if(!p){ box.style.display="none"; done.style.display="none"; return; }
+    if(!posRefNeeded){
+      box.style.display="none";
+      var bits=[p.refSource]; if(p.refDetail) bits.push(p.refDetail); if(p.refByName) bits.push(p.refByName);
+      done.innerHTML='Referral on file: <b>'+esc(bits.filter(Boolean).join(" \u00b7 "))+'</b>';
+      done.style.display="block"; return;
+    }
+    done.style.display="none"; box.style.display="block";
+    var list=refSources(), cur=p.refSource||"";
+    $("posRefSource").innerHTML='<option value="">Select a referral source\u2026</option>'+list.map(function(x){ return '<option value="'+esc(x.name)+'">'+esc(x.name)+'</option>'; }).join("");
+    $("posRefSource").value = list.some(function(x){return x.name===cur;}) ? cur : "";
+    $("posRefDetail").value = p.refDetail||""; $("posRefBy").value = p.refByName||"";
+    $("posRefSource").onchange=function(){ $("posRefDetail").value=""; $("posRefBy").value=""; syncPosRefFields(); box.classList.remove("pos-ref-err"); };
+    syncPosRefFields();
+  }
+  function syncPosRefFields(){
+    var src=$("posRefSource").value, c=refCfg(src), t=c?c.type:"none", wrap=$("posRefDetailWrap");
+    var sel=$("posRefDetailSel"), inp=$("posRefDetail"), by=$("posRefBy");
+    sel.style.display="none"; inp.style.display="none"; by.style.display="none";
+    if(t==="none"){ wrap.style.display="none"; return; }
+    wrap.style.display="block";
+    if(t==="list"){
+      sel.innerHTML='<option value="">'+esc((c.label||"Select")+"\u2026")+'</option>'+(c.options||[]).map(function(o){ return '<option value="'+esc(o)+'">'+esc(o)+'</option>'; }).join("");
+      sel.value=inp.value||""; sel.style.display="block";
+      sel.onchange=function(){ inp.value=this.value; $("posRefBox").classList.remove("pos-ref-err"); };
+    } else if(t==="text"){
+      inp.placeholder=(c.label||"Name")+" (start typing for past names)";
+      $("posRefDetailList").innerHTML=refHistory(src).map(function(v){ return '<option value="'+esc(v)+'"></option>'; }).join("");
+      inp.style.display="block"; inp.oninput=function(){ $("posRefBox").classList.remove("pos-ref-err"); };
+    } else if(t==="patient"){
+      var seen={}; $("posRefByList").innerHTML=patients.filter(function(x){ return x.id!==posClientId && x.name && !seen[x.name] && (seen[x.name]=1); })
+        .sort(function(a,b){return a.name.localeCompare(b.name);}).map(function(x){ return '<option value="'+esc(x.name)+'"></option>'; }).join("");
+      by.style.display="block"; by.oninput=function(){ $("posRefBox").classList.remove("pos-ref-err"); };
+    }
+  }
+  function posRefValues(){
+    var src=$("posRefSource").value, c=refCfg(src), t=c?c.type:"none";
+    return { src:src, type:t,
+      detail:(t==="list"||t==="text") ? ($("posRefDetail").value||"").trim() : "",
+      byName:(t==="patient") ? ($("posRefBy").value||"").trim() : "" };
+  }
   function renderPosVisit(p){
     var sec=$("posVisitSection"); if(!sec) return;
+    renderPosRef(p);
     if(!p){ sec.style.display="none"; posVisitTreats={}; return; }
     sec.style.display="block";
     $("posVisitType").innerHTML='<option value="">Select visit type…</option>'+visitTypes.map(function(t){ return '<option>'+esc(t)+'</option>'; }).join("");
@@ -4414,6 +4503,15 @@ window.startClinicApp = function(){
     if(p){
       var vType=($("posVisitType")&&$("posVisitType").value)||"";
       if(!vType){ toast("Fill out the patient visit (select a visit type) first"); try{ $("posVisitType").focus(); $("posVisitSection").scrollIntoView({block:"center"}); }catch(e){} return; }
+      if(posRefNeeded){
+        var _rv=posRefValues();
+        if(!refComplete(_rv.src, _rv.detail, _rv.byName)){
+          var _msg = !_rv.src ? "Select how this client heard about us before completing the sale"
+            : (_rv.type==="list" ? "Pick "+((refCfg(_rv.src)||{}).label||"an option").toLowerCase()+" for the referral" : "Enter the referral name before completing the sale");
+          toast(_msg); $("posRefBox").classList.add("pos-ref-err");
+          try{ $("posRefBox").scrollIntoView({block:"center"}); }catch(e){} return;
+        }
+      }
     }
     var saleDate = (p && $("posVisitDate") && $("posVisitDate").value) ? $("posVisitDate").value : todayISO();
     var perItemDisc = posDiscMode==="item";
@@ -4491,6 +4589,12 @@ window.startClinicApp = function(){
       var vNoteFull=(vNote?vNote+" \u00b7 ":"")+itemNames.join(", ")+" \u00b7 $"+money(total);
       p.visitLog = p.visitLog || [];
       p.visitLog.push({ id:"v"+Date.now().toString(36)+Math.random().toString(36).slice(2,5), date: saleDate, type:vType, treatments:vTreats, retail:0, cost:0, note: vNoteFull, saleId: saleGroup, fromRegister:true });
+      if(posRefNeeded){
+        var _r=posRefValues(); p.refSource=_r.src; p.refDetail=_r.detail; p.refByName=_r.byName;
+        var _m=_r.byName ? patients.filter(function(x){ return x.id!==p.id && x.name && x.name.toLowerCase()===_r.byName.toLowerCase(); })[0] : null;
+        p.refBy=_m?_m.id:"";
+        posRefNeeded=false;
+      }
       // Link what was sold to the client's record
       var enrolled=false, txAdded=[];
       posCart.forEach(function(l){
@@ -5266,14 +5370,36 @@ window.startClinicApp = function(){
     var t=new Date(); t.setHours(0,0,0,0);
     return daysBetween(t, d);
   }
+  function isColdLead(p){
+    if(!p || !p.coldLead) return false;
+    // auto-return: a visit after they were moved brings them back to active follow-up
+    var ls=lastSeenDate(p);
+    if(ls && p.coldDate && ls>p.coldDate) return false;
+    return true;
+  }
   function isDue(p){
+    if(p.active===false || isColdLead(p)) return false;
     if(p.isMember && p.status==="cancelled") return false;
     var ds=daysSinceSeen(p);
     return ds!=null && ds>=followupDays();
   }
+  function moveToColdLead(id){
+    var p=findPatient(id); if(!p) return;
+    askConfirm({ title:"Move "+p.name.split(" ")[0]+" to Inactive lead?", message:"Logs today as a contact attempt and takes them off Follow-up and the 60-day list. If they come back for a visit, they return automatically.", okLabel:"Move to Inactive lead",
+      onConfirm:function(){
+        p.coldLead=true; p.coldDate=todayISO(); p.coldReason=p.coldReason||"No response"; p.lastContact=todayISO();
+        savePatients(); if(window.__hipAudit) window.__hipAudit("client_cold_lead", p.id);
+        renderAll(); toast(p.name.split(" ")[0]+" moved to Inactive lead");
+      } });
+  }
+  function restoreFromCold(id){
+    var p=findPatient(id); if(!p) return;
+    p.coldLead=false; p.coldDate=""; p.coldReason="";
+    savePatients(); renderAll(); toast(p.name.split(" ")[0]+" back in active follow-up");
+  }
   function reengageList(days){
     days=days||60;
-    return patients.filter(function(p){ if(p.active===false) return false; var ds=daysSinceSeen(p); return ds!=null && ds>=days; })
+    return patients.filter(function(p){ if(p.active===false || isColdLead(p)) return false; var ds=daysSinceSeen(p); return ds!=null && ds>=days; })
       .sort(function(a,b){ return (daysSinceSeen(b)||0)-(daysSinceSeen(a)||0); });
   }
   function reengageExport(){
@@ -5361,9 +5487,10 @@ window.startClinicApp = function(){
 
   function seenToday(p){ var ls=lastSeenDate(p); if(!ls) return false; var t=new Date(); t.setHours(0,0,0,0); return daysBetween(t, parseISO(ls))===0; }
   function pCounts(){
-    var c={all:patients.length, lead:0, consult:0, bloodwork:0, treatment:0, due:0, notx:0, inactive:0, today:0, reengage:0};
+    var c={all:patients.length, lead:0, consult:0, bloodwork:0, treatment:0, due:0, notx:0, inactive:0, today:0, reengage:0, cold:0};
     patients.forEach(function(p){
       if(p.active===false){ c.inactive++; return; }
+      if(isColdLead(p)){ c.cold++; return; }
       c[pStage(p)]++;
       if(isDue(p)) c.due++;
       if(!(p.treatments&&p.treatments.length)) c.notx++;
@@ -5407,7 +5534,7 @@ window.startClinicApp = function(){
   function renderPatientChips(){
     var c=pCounts();
     var defs=[["all","All",c.all],["today","Seen today",c.today],["reengage","Not seen 60d+",c.reengage],["due","Follow-up",c.due],["lead","New lead",c.lead],["consult","Consult",c.consult],
-      ["bloodwork","Blood work",c.bloodwork],["treatment","On treatment",c.treatment],["notx","Not on treatment",c.notx],["inactive","Inactive",c.inactive]];
+      ["bloodwork","Blood work",c.bloodwork],["treatment","On treatment",c.treatment],["notx","Not on treatment",c.notx],["cold","Inactive lead",c.cold],["inactive","Inactive",c.inactive]];
     $("pChips").innerHTML=defs.map(function(d){
       return '<button class="chip'+(pFilter===d[0]?" on":"")+(d[0]==="due"&&d[2]>0?" chip-due":"")+'" data-pfilter="'+d[0]+'">'+d[1]+
         ' <span class="cnt">'+d[2]+'</span></button>';
@@ -5424,6 +5551,8 @@ window.startClinicApp = function(){
       if(pFilter==="inactive") return inactive;
       if(pFilter==="all") return true;
       if(inactive) return false;
+      if(pFilter==="cold") return isColdLead(p);
+      if(isColdLead(p)) return false;
       if(pFilter==="due") return isDue(p);
       if(pFilter==="today") return seenToday(p);
       if(pFilter==="reengage"){ var rd=daysSinceSeen(p); return rd!=null && rd>=60; }
@@ -5476,6 +5605,8 @@ window.startClinicApp = function(){
       var discB = p.discount ? '<span class="badge disc-badge">'+esc(p.discount)+'</span>' : '';
       var dsn = daysSinceSeen(p);
       var dueB = isDue(p) ? '<span class="badge due-badge">'+dsn+'d no visit</span>' : '';
+      var _cold = isColdLead(p);
+      if(_cold) dueB = '<span class="badge cold-badge">Inactive lead'+(p.coldReason?' · '+esc(p.coldReason):'')+'</span>';
       var inact = p.active===false;
       var inactB = inact ? '<span class="badge inactive-badge">Inactive'+(p.inactiveReason?' · '+esc(p.inactiveReason):'')+'</span>' : '';
       var seenTodayB = (_lsDays!=null && _lsDays<=0) ? '<span class="badge seen-today-badge">Seen today</span>' : '';
@@ -5496,6 +5627,9 @@ window.startClinicApp = function(){
           treatB+
         '</div>'+
         '<div class="m-actions">'+
+          (_cold
+            ? '<button class="act cold-act" data-prestore="'+p.id+'" title="Move back to active follow-up" aria-label="Restore to follow-up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>'
+            : '<button class="act cold-act" data-pcold="'+p.id+'" title="No response: move to Inactive lead" aria-label="No response, move to Inactive lead"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg></button>')+
           '<button class="act" data-pcontact="'+p.id+'" title="Mark contacted today" aria-label="Mark contacted today">'+
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/></svg></button>'+
           '<button class="act" data-pedit="'+p.id+'" title="Edit" aria-label="Edit client">'+
@@ -5523,6 +5657,12 @@ window.startClinicApp = function(){
   function wirePatients(){
     var ea=$("pEmptyAdd"); if(ea) ea.onclick=function(){ openAddClient(false); };
     var cf=$("pClearFilters"); if(cf) cf.onclick=function(){ pFilter="all"; pQuery=""; $("pSearchInput").value=""; renderPatientChips(); renderPatientList(); };
+    Array.prototype.forEach.call(document.querySelectorAll("[data-pcold]"),function(b){
+      b.onclick=function(e){ e.stopPropagation(); moveToColdLead(b.getAttribute("data-pcold")); };
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-prestore]"),function(b){
+      b.onclick=function(e){ e.stopPropagation(); restoreFromCold(b.getAttribute("data-prestore")); };
+    });
     Array.prototype.forEach.call(document.querySelectorAll("[data-pcontact]"),function(b){
       b.onclick=function(e){ e.stopPropagation(); var p=findPatient(b.getAttribute("data-pcontact")); if(!p) return; p.lastContact=todayISO(); savePatients(); if(window.__hipAudit) window.__hipAudit("client_contacted", p.id); renderList(); toast(p.name.split(" ")[0]+" marked contacted today"); };
     });
@@ -5759,18 +5899,62 @@ window.startClinicApp = function(){
       return '<div class="'+(done[s[0]]?"st done":"st")+'">'+s[1]+'</div>';
     }).join("");
   }
-  var REF_DETAIL={
-    "Influencer":{label:"Influencer name", ph:"Who is the influencer?"},
-    "Instagram":{label:"Instagram account", ph:"@handle or account"},
-    "Website":{label:"Which website", ph:"e.g. our site, a directory"},
-    "Sign":{label:"Sign location", ph:"Where is the sign?"}
-  };
-  function syncRefFields(){
-    var src=$("pRefSource").value, cfg=REF_DETAIL[src], isPatient=(src==="Existing patient");
-    $("pRefByWrap").style.display = isPatient ? "" : "none";
-    $("pRefDetailWrap").style.display = cfg ? "" : "none";
-    if(cfg){ $("pRefDetailLbl").textContent=cfg.label; $("pRefDetail").placeholder=cfg.ph; }
+  // Referral sources are configured in Settings. type: none | patient | text | list
+  var DEFAULT_REF_SOURCES=[
+    {name:"Existing patient", type:"patient", label:"Referred by"},
+    {name:"Provider", type:"list", label:"Which provider", options:["Dave","Gina","Rich","Mike","Nichole"]},
+    {name:"Outside Doctor", type:"text", label:"Doctor's name"},
+    {name:"Influencer", type:"text", label:"Influencer name"},
+    {name:"Instagram", type:"text", label:"Instagram account"},
+    {name:"Website", type:"text", label:"Which website"},
+    {name:"Sign", type:"text", label:"Sign location"},
+    {name:"Friend / family", type:"none"},
+    {name:"Google / web search", type:"none"},
+    {name:"Social media", type:"none"},
+    {name:"Event / community", type:"none"},
+    {name:"Advertising", type:"none"},
+    {name:"Other", type:"text", label:"Details"}
+  ];
+  function refSources(){
+    if(!Array.isArray(settings.refSources) || !settings.refSources.length){ settings.refSources=clone(DEFAULT_REF_SOURCES); try{ saveSettings(); }catch(e){} }
+    return settings.refSources;
   }
+  function refCfg(name){ return refSources().filter(function(x){ return x.name===name; })[0] || null; }
+  var REF_DETAIL={}; // legacy shim (kept so older code paths never break)
+  function refHistory(src){
+    var seen={}, out=[];
+    var cfg=refCfg(src); (cfg&&cfg.options||[]).forEach(function(o){ var k=o.toLowerCase(); if(!seen[k]){ seen[k]=1; out.push(o); } });
+    patients.forEach(function(p){ if(p.refSource===src && p.refDetail){ var v=(""+p.refDetail).trim(), k=v.toLowerCase(); if(v && !seen[k]){ seen[k]=1; out.push(v); } } });
+    return out.sort(function(a,b){ return a.localeCompare(b); });
+  }
+  function fillRefSourceSelect(val){
+    var el=$("pRefSource"); if(!el) return;
+    var list=refSources(), has=list.some(function(x){ return x.name===val; });
+    el.innerHTML='<option value="">\u2014</option>'+list.map(function(x){ return '<option value="'+esc(x.name)+'">'+esc(x.name)+'</option>'; }).join("")+
+      ((val && !has) ? '<option value="'+esc(val)+'">'+esc(val)+' (no longer listed)</option>' : '');
+    el.value=val||"";
+  }
+  function syncRefFields(){
+    var src=$("pRefSource").value, cfg=refCfg(src), type=cfg?cfg.type:((src && $("pRefDetail").value)?"text":"none");
+    $("pRefByWrap").style.display = type==="patient" ? "" : "none";
+    var showDetail = (type==="text" || type==="list");
+    $("pRefDetailWrap").style.display = showDetail ? "" : "none";
+    if(!showDetail) return;
+    $("pRefDetailLbl").textContent = (cfg&&cfg.label) || "Detail";
+    var cur=$("pRefDetail").value||"";
+    if(type==="list"){
+      var opts=(cfg.options||[]).slice(); if(cur && opts.indexOf(cur)<0) opts.push(cur);
+      $("pRefDetailSel").innerHTML='<option value="">Select\u2026</option>'+opts.map(function(o){ return '<option value="'+esc(o)+'">'+esc(o)+'</option>'; }).join("");
+      $("pRefDetailSel").value=cur;
+      $("pRefDetailSel").style.display=""; $("pRefDetail").style.display="none";
+      $("pRefDetailSel").onchange=function(){ $("pRefDetail").value=this.value; };
+    } else {
+      $("pRefDetailSel").style.display="none"; $("pRefDetail").style.display="";
+      $("pRefDetail").placeholder = "Start typing, or pick a name used before";
+      $("pRefDetailList").innerHTML = refHistory(src).map(function(v){ return '<option value="'+esc(v)+'"></option>'; }).join("");
+    }
+  }
+  function onRefSourceChange(){ $("pRefDetail").value=""; syncRefFields(); }
   function fillLocationSelect(val){
     var el=$("pLocation"); if(!el) return;
     el.innerHTML='<option value="">—</option>'+locations.map(function(l){ return '<option'+(l===val?' selected':'')+'>'+esc(l)+'</option>'; }).join("");
@@ -5789,9 +5973,9 @@ window.startClinicApp = function(){
     $("pSaveBtn").textContent = withMemb ? "Save member" : "Save client";
     $("pDeleteBtn").style.display="none";
     $("pName").value=""; $("pPhone").value=""; $("pEmail").value="";
-    $("pConsult").value=""; if($("pLastContact")) $("pLastContact").value=""; $("pNotes").value="";
+    $("pConsult").value=""; if($("pLastContact")) $("pLastContact").value=""; if($("pColdLead")){ $("pColdLead").checked=false; $("pColdReason").value="No response"; $("pColdReason").style.display="none"; } $("pNotes").value="";
     $("pSex").value=""; $("pDob").value="";
-    $("pRefSource").value=""; $("pRefBy").value=""; $("pRefDetail").value=""; fillRefByList(null); $("pRefSource").onchange=syncRefFields; syncRefFields();
+    fillRefSourceSelect(""); $("pRefBy").value=""; $("pRefDetail").value=""; fillRefByList(null); $("pRefSource").onchange=onRefSourceChange; syncRefFields();
     fillLocationSelect("");
     formTreatments=[]; formDoses={}; renderTreatChips(); $("pTreatAddRow").style.display="none";
     formVisits=[]; renderVisits();
@@ -5815,9 +5999,9 @@ window.startClinicApp = function(){
     $("pSaveBtn").textContent="Save changes";
     $("pDeleteBtn").style.display="block";
     $("pName").value=p.name; $("pPhone").value=p.phone||""; $("pEmail").value=p.email||"";
-    $("pConsult").value=p.consultDate||""; if($("pLastContact")) $("pLastContact").value=p.lastContact||""; $("pNotes").value=p.notes||"";
+    $("pConsult").value=p.consultDate||""; if($("pLastContact")) $("pLastContact").value=p.lastContact||""; if($("pColdLead")){ var _ic=isColdLead(p); $("pColdLead").checked=_ic; $("pColdReason").value=p.coldReason||"No response"; $("pColdReason").style.display=_ic?"block":"none"; } $("pNotes").value=p.notes||"";
     $("pSex").value=p.sex||""; $("pDob").value=p.dob||"";
-    $("pRefSource").value=p.refSource||""; $("pRefBy").value=p.refByName||""; $("pRefDetail").value=p.refDetail||""; fillRefByList(id); $("pRefSource").onchange=syncRefFields; syncRefFields();
+    fillRefSourceSelect(p.refSource||""); $("pRefBy").value=p.refByName||""; $("pRefDetail").value=p.refDetail||""; fillRefByList(id); $("pRefSource").onchange=onRefSourceChange; syncRefFields();
     fillLocationSelect(p.location||"");
     formTreatments = Array.isArray(p.treatments)? p.treatments.slice() : [];
     formDoses = p.doses ? clone(p.doses) : {};
@@ -5864,9 +6048,10 @@ window.startClinicApp = function(){
     var doses={};
     formTreatments.forEach(function(t){ if(TREATMENT_DOSES[t] && formDoses[t]) doses[t]=formDoses[t]; });
     var refSrc=$("pRefSource").value||"";
-    var refByName=(refSrc==="Existing patient") ? ($("pRefBy").value||"").trim() : "";
+    var _rc=refCfg(refSrc), _rtype=_rc?_rc.type:(refSrc?"text":"none");
+    var refByName=(_rtype==="patient") ? ($("pRefBy").value||"").trim() : "";
     var refMatch = refByName ? patients.filter(function(x){ return x.name && x.name.toLowerCase()===refByName.toLowerCase() && x.id!==pEditingId; })[0] : null;
-    var refDetail = REF_DETAIL[refSrc] ? ($("pRefDetail").value||"").trim() : "";
+    var refDetail = (_rtype==="text"||_rtype==="list") ? ($("pRefDetail").value||"").trim() : "";
     var isActive=activeOn();
     var inactiveReason = isActive ? "" : ($("pInactiveReason").value||"");
     var inactiveDetail = (!isActive && inactiveReason==="Other") ? ($("pInactiveDetail").value||"").trim() : "";
@@ -5878,6 +6063,13 @@ window.startClinicApp = function(){
       treatments: formTreatments.slice(), doses:doses, discount:disc, notes:$("pNotes").value.trim(),
       isMember:isMem
     };
+    if($("pColdLead")){
+      var _wasCold = pEditingId ? isColdLead(findPatient(pEditingId)||{}) : false;
+      var _nowCold = $("pColdLead").checked;
+      data.coldLead=_nowCold;
+      data.coldReason=_nowCold ? ($("pColdReason").value||"No response") : "";
+      data.coldDate=_nowCold ? ((_wasCold && pEditingId && (findPatient(pEditingId)||{}).coldDate) || todayISO()) : "";
+    }
     if(isMem){
       var tierVal=$("pmTier").value; if(tierVal==="__add_tier__") tierVal=prevMembTier||(tiers[0]&&tiers[0].name)||"General";
       data.tier=tierVal; data.cycle=formMembCycle;
@@ -6022,6 +6214,7 @@ window.startClinicApp = function(){
     renderVisitTypeEditor();
     renderDiscountEditor();
     renderLocationEditor();
+    renderRefSourceEditor();
     refreshBooksLockUI();
     closeSidebar();
     $("settingsModal").classList.add("show"); $("scrim").classList.add("show");
@@ -6147,6 +6340,29 @@ window.startClinicApp = function(){
     Array.prototype.forEach.call(document.querySelectorAll("[data-locname]"),function(inp){ inp.oninput=function(){ draftLocations[+inp.getAttribute("data-locname")]=inp.value; }; });
     Array.prototype.forEach.call(document.querySelectorAll("[data-locdel]"),function(b){ b.onclick=function(){ draftLocations.splice(+b.getAttribute("data-locdel"),1); paintLocations(); }; });
   }
+  var draftRefSources=[];
+  function renderRefSourceEditor(){ draftRefSources = clone(refSources()); paintRefSources(); }
+  function paintRefSources(){
+    var TYPES=[["none","No follow-up question"],["patient","Pick an existing client"],["text","Type a name (with history)"],["list","Pick from a list"]];
+    $("refSourceList").innerHTML = draftRefSources.map(function(r,i){
+      var needsLabel = (r.type==="text"||r.type==="list"||r.type==="patient");
+      return '<div class="ref-edit">'+
+        '<div class="ref-edit-row">'+
+          '<input type="text" value="'+esc(r.name||"")+'" data-rsname="'+i+'" placeholder="Source name (e.g. Provider)">'+
+          '<select data-rstype="'+i+'">'+TYPES.map(function(t){ return '<option value="'+t[0]+'"'+(r.type===t[0]?' selected':'')+'>'+t[1]+'</option>'; }).join("")+'</select>'+
+          '<button class="tier-del" data-rsdel="'+i+'" aria-label="Remove source"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>'+
+        '</div>'+
+        (needsLabel ? '<input type="text" class="ref-sub" value="'+esc(r.label||"")+'" data-rslabel="'+i+'" placeholder="Question label (e.g. Which provider)">' : '')+
+        (r.type==="list" ? '<input type="text" class="ref-sub" value="'+esc((r.options||[]).join(", "))+'" data-rsopts="'+i+'" placeholder="Choices, separated by commas (e.g. Dave, Gina, Rich)">' : '')+
+      '</div>';
+    }).join("");
+    var L=$("refSourceList");
+    Array.prototype.forEach.call(L.querySelectorAll("[data-rsname]"),function(el){ el.oninput=function(){ draftRefSources[+el.getAttribute("data-rsname")].name=el.value; }; });
+    Array.prototype.forEach.call(L.querySelectorAll("[data-rslabel]"),function(el){ el.oninput=function(){ draftRefSources[+el.getAttribute("data-rslabel")].label=el.value; }; });
+    Array.prototype.forEach.call(L.querySelectorAll("[data-rsopts]"),function(el){ el.oninput=function(){ draftRefSources[+el.getAttribute("data-rsopts")].options=el.value.split(",").map(function(x){return x.trim();}).filter(function(x){return x;}); }; });
+    Array.prototype.forEach.call(L.querySelectorAll("[data-rstype]"),function(el){ el.onchange=function(){ var r=draftRefSources[+el.getAttribute("data-rstype")]; r.type=el.value; if(r.type==="list" && !r.options) r.options=[]; paintRefSources(); }; });
+    Array.prototype.forEach.call(L.querySelectorAll("[data-rsdel]"),function(b){ b.onclick=function(){ draftRefSources.splice(+b.getAttribute("data-rsdel"),1); paintRefSources(); }; });
+  }
   function saveSettingsChanges(){
     var name=$("setName").value.trim()||"Alpha Performance";
     settings.name=name;
@@ -6154,6 +6370,10 @@ window.startClinicApp = function(){
     var url=$("setSbUrl").value.trim().replace(/\/+$/,""), key=$("setSbKey").value.trim();
     settings.supabaseUrl=url; settings.supabaseKey=key;
     settings.followupDays=Math.max(1, Math.min(365, parseInt($("setFollowup").value,10)||60));
+    (function(){ var seen={}, out=[];
+      draftRefSources.forEach(function(r){ var n=(""+(r.name||"")).trim(); if(!n || seen[n.toLowerCase()]) return; seen[n.toLowerCase()]=1;
+        var o={name:n, type:r.type||"none"}; if(r.label&&(""+r.label).trim()) o.label=(""+r.label).trim(); if(o.type==="list") o.options=(r.options||[]).map(function(x){return (""+x).trim();}).filter(function(x){return x;}); out.push(o); });
+      if(out.length) settings.refSources=out; })();
     if($("setSqOn")){ settings.squareFeeOn = $("setSqOn").checked; settings.squareFeePct = Math.max(0, parseFloat($("setSqPct").value)||0); settings.squareFeeFixed = Math.max(0, parseFloat($("setSqFixed").value)||0); }
     saveSettings(); applyTheme();
     tiers = draftTiers.filter(function(t){return t.name.trim();}).map(function(t){return {name:t.name.trim(),price:+t.price||0};});
@@ -6651,6 +6871,7 @@ window.startClinicApp = function(){
   $("pSaveBtn").onclick=saveClient;
   if($("pLastContactToday")) $("pLastContactToday").onclick=function(){ $("pLastContact").value=todayISO(); };
   if($("pLastContactClear")) $("pLastContactClear").onclick=function(){ $("pLastContact").value=""; };
+  if($("pColdLead")) $("pColdLead").onchange=function(){ $("pColdReason").style.display=this.checked?"block":"none"; if(this.checked && !$("pLastContact").value) $("pLastContact").value=todayISO(); };
   $("pDeleteBtn").onclick=deleteClient;
   $("pName").oninput=function(){ $("pName").style.borderColor=""; };
   $("pConsult").onchange=renderStageTrack;
@@ -6733,6 +6954,7 @@ window.startClinicApp = function(){
   $("addVisitTypeBtn").onclick=function(){ draftVisitTypes.push(""); paintVisitTypes(); };
   $("addDiscountBtn").onclick=function(){ draftDiscounts.push({name:"",percent:0}); paintDiscounts(); };
   $("addLocationBtn").onclick=function(){ draftLocations.push(""); paintLocations(); };
+  if($("addRefSourceBtn")) $("addRefSourceBtn").onclick=function(){ draftRefSources.push({name:"",type:"none"}); paintRefSources(); };
   $("clearAllBtn").onclick=clearAll;
   $("cloudPill").onclick=function(){
     if(sb && sbUser){ openSettings(); }
