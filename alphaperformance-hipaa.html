@@ -7604,7 +7604,7 @@ window.startClinicApp = function(){
 (function () {
   'use strict';
   if (window.__ALPHA_SYNC_GUARD__) return;
-  window.__ALPHA_SYNC_GUARD__ = '1.1';
+  window.__ALPHA_SYNC_GUARD__ = '1.2';
 
   var SYNC_TABLE = 'workspace_sync';
   var SEEN_KEY   = 'alphahipaa_cloud_seen';
@@ -7612,7 +7612,30 @@ window.startClinicApp = function(){
 
   function ts(v) { var t = Date.parse(v || ''); return isNaN(t) ? 0 : t; }
   function readSeen() { try { return sessionStorage.getItem(SEEN_KEY) || ''; } catch (e) { return ''; } }
-  function writeSeen(v) { try { if (v) sessionStorage.setItem(SEEN_KEY, v); } catch (e) {} }
+  // v1.2: the stamp only ever moves forward.
+  // v1.1 re-read the cloud stamp after a push, which fixed the case where the
+  // server sets updated_at itself. But saves are debounced, so two pushes can
+  // be in flight at once and each re-reads independently. If the OLDER push's
+  // re-read resolves last, it writes an older stamp over a newer one, the next
+  // save compares a newer cloud against a stale local stamp, and a perfectly
+  // safe save is blocked. Same for a slow GET response arriving after a push.
+  // Ignoring backwards writes closes both without weakening the guard: a save
+  // from ANOTHER tab or device still advances cloud past this session's stamp
+  // and is still blocked.
+  function writeSeen(v) {
+    try {
+      if (!v) return;
+      var cur = sessionStorage.getItem(SEEN_KEY) || '';
+      if (!cur || ts(v) >= ts(cur)) sessionStorage.setItem(SEEN_KEY, v);
+    } catch (e) {}
+  }
+
+  function hideBanner() {
+    try {
+      var el = document.getElementById('alphaSyncGuardBanner');
+      if (el) el.style.display = 'none';
+    } catch (e) {}
+  }
 
   // Adopt a stamp from any workspace_sync payload we happen to observe.
   function observe(text) {
@@ -7696,6 +7719,7 @@ window.startClinicApp = function(){
           return remoteStamp(url, opts.headers).then(function (after) {
             if (after) { writeSeen(after); }
             else { try { var row = JSON.parse(opts.body); if (Array.isArray(row)) row = row[0]; if (row && row.updated_at) writeSeen(row.updated_at); } catch (e) {} }
+            hideBanner();   // a save got through, so any earlier warning is stale
             return res;
           }).catch(function () {
             try { var r2 = JSON.parse(opts.body); if (Array.isArray(r2)) r2 = r2[0]; if (r2 && r2.updated_at) writeSeen(r2.updated_at); } catch (e) {}
