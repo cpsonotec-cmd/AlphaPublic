@@ -2387,7 +2387,7 @@ window.startClinicApp = function(){
   // ---------- date helpers ----------
   function todayISO(){ var d=new Date(); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
   function pad(n){ return n<10?"0"+n:""+n; }
-  function parseISO(s){ if(!s) return null; var p=s.split("-"); return new Date(+p[0], +p[1]-1, +p[2]); }
+  function parseISO(s){ if(!s) return null; var p=String(s).slice(0,10).split("-"); return new Date(+p[0], +p[1]-1, +p[2]); }
   function isoFrom(d){ return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
   function addMonths(d, n){
     var day=d.getDate();
@@ -2985,7 +2985,7 @@ window.startClinicApp = function(){
       statTile("New clients", r.newClients, "", "#7C6FE0", periodLbl),
       statTile("Visits logged", r.visitsInPeriod, "", "var(--amber)", periodLbl)
     ].join("");
-    renderTrends();
+    try{ renderTrends(); }catch(e){ if(window.console) console.error("trends",e); if($("repTrends")) $("repTrends").innerHTML='<div class="rep-empty">Trends could not be drawn: '+esc(e.message)+'</div>'; }
 
     // Revenue in period (dated events: memberships started + treatment value at visits)
     $("repPeriodLbl").textContent = periodLbl;
