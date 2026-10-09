@@ -633,6 +633,7 @@
   .sb-consult{background:var(--amber-soft);color:#946400} .sb-consult .d{background:var(--amber)}
   .sb-bloodwork{background:#ECE9FB;color:#5344b0} .sb-bloodwork .d{background:#7C6FE0}
   .sb-treatment{background:var(--good-soft);color:var(--good-deep)} .sb-treatment .d{background:var(--good)}
+  .sb-lapsed{background:#EEF2F6;color:#475569} .sb-lapsed .d{background:#94A3B8}
   .treat-badge{background:#ECE9FB;color:#5344b0}
   .disc-badge{background:var(--amber-soft);color:#946400}
   .due-badge{background:var(--red-soft);color:#a5352f}
@@ -2764,7 +2765,7 @@ window.startClinicApp = function(){
     var nameById={}; patients.forEach(function(p){ nameById[p.id]=p.name; });
     patients.forEach(function(p){
       if(p.active===false){ inactive++; inact[p.inactiveReason||"No reason given"]=(inact[p.inactiveReason||"No reason given"]||0)+1; } else active++;
-      if((p.treatments||[]).length) onTx++;
+      if(onTreatmentNow(p)) onTx++;
       if(p.isMember) members++;
       var a=clientAge(p); if(a!=null){ ageSum+=a; ageN++; }
       if(p.sex==="Male")sex.Male++; else if(p.sex==="Female")sex.Female++;
@@ -2859,6 +2860,19 @@ window.startClinicApp = function(){
     if(ds.length) return ds[0];
     return p.consultDate || p.createdAt || null;
   }
+  var TX_LAPSE_DAYS=90;
+  function treatmentDates(p){
+    var T=(p.visitLog||[]).filter(function(v){ return v.treatments&&v.treatments.length; }).map(function(v){ return v.date; }).filter(Boolean);
+    if(!T.length && p.treatments && p.treatments.length){ var f=p.lastVisit||treatmentStartDate(p); if(f) T=[f]; }
+    return T;
+  }
+  function onTreatmentIn(p, r){
+    var rs=r&&r.start?r.start.getTime():null, re=r&&r.end?r.end.getTime():Date.now(), lapse=TX_LAPSE_DAYS*86400000;
+    if(p.coldLead && p.coldDate && rs!=null){ var cd=parseISO(p.coldDate); if(cd && cd.getTime()<rs) return false; }
+    return treatmentDates(p).some(function(iso){ var d=parseISO(iso); if(!d) return false; var t=d.getTime(); return t<=re && (rs==null || t+lapse>=rs); });
+  }
+  function onTreatmentNow(p){ var t=new Date(); t.setHours(0,0,0,0); return onTreatmentIn(p,{start:t,end:null}); }
+  function onTreatmentCount(r){ return patients.filter(function(p){ return onTreatmentIn(p, r); }).length; }
   function reportRange(){
     if(repMode==="custom"){
       var s=repFromISO?parseISO(repFromISO):null;
@@ -2965,7 +2979,7 @@ window.startClinicApp = function(){
       statTile("Total clients", patients.length, "", "#9AA39D", "in your book"),
       statTile("Initial consults", initConsults, "", "#D9820B", periodLbl),
       statTile("Started treatment", startedTx, "", "var(--good)", periodLbl),
-      statTile("On treatment", patients.filter(function(p){return p.treatments&&p.treatments.length;}).length, "", "var(--good)", "active protocols"),
+      statTile("On treatment", onTreatmentCount(r.range), "", "var(--good)", periodLbl),
       statTile("Active members", r.activeMembers.length, "", "var(--emerald-deep)", "enrolled & active"),
       statTile("Monthly revenue", "$"+money(r.mrrNet), "", "var(--emerald)", "after discounts"),
       statTile("New clients", r.newClients, "", "#7C6FE0", periodLbl),
@@ -3007,7 +3021,7 @@ window.startClinicApp = function(){
       ["All clients", patients.length, "#9AA39D"],
       ["Had consult", patients.filter(function(p){return !!p.consultDate || hasBloodwork(p) || (p.treatments&&p.treatments.length);}).length, "var(--amber)"],
       ["Blood work", patients.filter(function(p){return hasBloodwork(p);}).length, "#7C6FE0"],
-      ["On treatment", patients.filter(function(p){return p.treatments&&p.treatments.length;}).length, "var(--good)"],
+      ["On treatment", patients.filter(onTreatmentNow).length, "var(--good)"],
       ["Members", r.ML.length, "var(--emerald-deep)"]
     ];
     $("repFunnel").innerHTML='<div class="funnel">'+stagesF.map(function(s){
@@ -3253,7 +3267,7 @@ window.startClinicApp = function(){
     lines.push(["Treatment cost (range)", "$"+money(pvC)]);
     lines.push(["Treatment profit (range)", "$"+money(pvR-pvC)]);
     lines.push(["Total clients", patients.length]);
-    lines.push(["On treatment", patients.filter(function(p){return p.treatments&&p.treatments.length;}).length]);
+    lines.push(["On treatment (range)", onTreatmentCount(r.range)]);
     lines.push(["Members (total)", r.ML.length]);
     lines.push(["Active members", r.activeMembers.length]);
     lines.push(["Monthly revenue (net)", "$"+money(r.mrrNet)]);
@@ -4874,13 +4888,13 @@ window.startClinicApp = function(){
   function homeMonthlyCard(range, lbl){
     var months=monthlyPL(range);
     var tr=0, te=0; months.forEach(function(b){ tr+=b.rev; te+=b.exp; }); var tn=tr-te;
-    var onTx=patients.filter(function(p){ return p.treatments&&p.treatments.length; }).length;
+    var onTx=onTreatmentCount(range);
     var kpi=function(l,v,c,sub){ return '<div class="hm-kpi"><div class="hm-kpi-l">'+l+'</div><div class="hm-kpi-v" style="color:'+c+'">'+v+'</div><div class="hm-kpi-s">'+sub+'</div></div>'; };
     var kpis='<div class="hm-kpis">'+
       kpi("Revenue","$"+money(tr),"var(--good-deep)",esc(lbl))+
       kpi("Expenses","$"+money(te),"#B45309",esc(lbl))+
       kpi("Profit",sMoney(tn),tn>=0?"#1E3A8A":"var(--red)",esc(lbl))+
-      kpi("Clients on treatment",String(onTx),"var(--good)","current total")+'</div>';
+      kpi("Clients on treatment",String(onTx),"var(--good)",esc(lbl))+'</div>';
     var legend='<div class="hm-legend"><span><i class="hm-sw" style="background:#0E9F6E"></i>Revenue</span><span><i class="hm-sw" style="background:#F59E0B"></i>Expenses</span><span><i class="hm-sw-line" style="background:#1E3A8A"></i>Profit</span></div>';
     var head='<tr><th>Month</th>'+months.map(function(b){return '<th>'+MO_ABBR[b.m]+' '+String(b.y).slice(2)+'</th>';}).join('')+'<th>Total</th></tr>';
     var row=function(nm,f,t){ return '<tr><td>'+nm+'</td>'+months.map(function(b){ var v=f(b); return '<td'+(v<0?' style="color:var(--red)"':'')+'>'+sMoney(v)+'</td>'; }).join('')+'<td style="font-weight:700'+(t<0?';color:var(--red)':'')+'">'+sMoney(t)+'</td></tr>'; };
@@ -4957,11 +4971,13 @@ window.startClinicApp = function(){
     function inMonth(iso,mo){ var d=parseISO(iso); return d && d.getFullYear()===mo.y && d.getMonth()===mo.m; }
     var consults=months.map(function(mo){ return patients.filter(function(p){ return p.consultDate && inMonth(p.consultDate,mo); }).length; });
     var starts=months.map(function(mo){ return patients.filter(function(p){ var sd=treatmentStartDate(p); return sd && inMonth(sd,mo); }).length; });
+    var onTx=months.map(function(mo){ return onTreatmentCount({start:new Date(mo.y,mo.m,1), end:new Date(new Date(mo.y,mo.m+1,1).getTime()-1)}); });
     var totals=months.map(function(mo){ var end=new Date(mo.y,mo.m+1,1).getTime()-1; return patients.filter(function(p){ var d=parseISO(p.createdAt||p.consultDate); return d? d.getTime()<=end : true; }).length; });
     var labels=months.map(function(mo){return mo.label;});
     $("repTrends").innerHTML=
       trendBlock("Initial consults", consults, labels, "#D9820B","bars")+
       trendBlock("Started treatment", starts, labels, "#0a7d53","bars")+
+      trendBlock("On treatment", onTx, labels, "#0D9488","line")+
       trendBlock("Total clients", totals, labels, "#2563EB","line");
   }
 
@@ -5424,7 +5440,7 @@ window.startClinicApp = function(){
   }
 
   // ---------- clients ----------
-  var PSTAGES = { lead:"New lead", consult:"Consult done", bloodwork:"Blood work", treatment:"On treatment" };
+  var PSTAGES = { lead:"New lead", consult:"Consult done", bloodwork:"Blood work", treatment:"On treatment", lapsed:"Off treatment 90d+" };
   function hasBloodwork(p){ return (p.visitLog||[]).some(function(v){ return v.type==="Blood work"; }); }
   function lastVisit(p, type){
     var vs=(p.visitLog||[]).filter(function(v){ return !type || v.type===type; });
@@ -5567,7 +5583,7 @@ window.startClinicApp = function(){
     });
   }
   function pStage(p){
-    if(p.treatments && p.treatments.length) return "treatment";
+    if(p.treatments && p.treatments.length) return onTreatmentNow(p) ? "treatment" : "lapsed";
     if(hasBloodwork(p)) return "bloodwork";
     if(p.consultDate) return "consult";
     return "lead";
@@ -5576,7 +5592,7 @@ window.startClinicApp = function(){
 
   function seenToday(p){ var ls=lastSeenDate(p); if(!ls) return false; var t=new Date(); t.setHours(0,0,0,0); return daysBetween(t, parseISO(ls))===0; }
   function pCounts(){
-    var c={all:patients.length, lead:0, consult:0, bloodwork:0, treatment:0, due:0, notx:0, inactive:0, today:0, reengage:0, cold:0};
+    var c={all:patients.length, lead:0, consult:0, bloodwork:0, treatment:0, lapsed:0, due:0, notx:0, inactive:0, today:0, reengage:0, cold:0};
     patients.forEach(function(p){
       if(p.active===false){ c.inactive++; return; }
       if(isColdLead(p)){ c.cold++; return; }
@@ -5613,9 +5629,9 @@ window.startClinicApp = function(){
     function seg(color,n){ return n>0?'<i style="width:'+(n/total*100)+'%;background:'+color+'"></i>':''; }
     bar.innerHTML='<div class="vbar">'+
       seg("#C7CCC8",c.lead)+seg("var(--amber)",c.consult)+
-      seg("#7C6FE0",c.bloodwork)+seg("var(--good)",c.treatment)+'</div>';
+      seg("#7C6FE0",c.bloodwork)+seg("var(--good)",c.treatment)+seg("#94A3B8",c.lapsed)+'</div>';
     var leg=[["#C7CCC8","New lead",c.lead],["var(--amber)","Consult",c.consult],
-      ["#7C6FE0","Blood work",c.bloodwork],["var(--good)","On treatment",c.treatment]];
+      ["#7C6FE0","Blood work",c.bloodwork],["var(--good)","On treatment",c.treatment],["#94A3B8","Off treatment 90d+",c.lapsed]];
     $("pLegend").innerHTML=leg.map(function(l){
       return '<div><span class="sw" style="background:'+l[0]+'"></span>'+l[1]+' <b>'+l[2]+'</b></div>';
     }).join("");
@@ -5623,7 +5639,7 @@ window.startClinicApp = function(){
   function renderPatientChips(){
     var c=pCounts();
     var defs=[["all","All",c.all],["today","Seen today",c.today],["reengage","Not seen 60d+",c.reengage],["due","Follow-up",c.due],["lead","New lead",c.lead],["consult","Consult",c.consult],
-      ["bloodwork","Blood work",c.bloodwork],["treatment","On treatment",c.treatment],["notx","Not on treatment",c.notx],["cold","Inactive lead",c.cold],["inactive","Inactive",c.inactive]];
+      ["bloodwork","Blood work",c.bloodwork],["treatment","On treatment",c.treatment],["lapsed","Off treatment 90d+",c.lapsed],["notx","Not on treatment",c.notx],["cold","Inactive lead",c.cold],["inactive","Inactive",c.inactive]];
     $("pChips").innerHTML=defs.map(function(d){
       return '<button class="chip'+(pFilter===d[0]?" on":"")+(d[0]==="due"&&d[2]>0?" chip-due":"")+'" data-pfilter="'+d[0]+'">'+d[1]+
         ' <span class="cnt">'+d[2]+'</span></button>';
