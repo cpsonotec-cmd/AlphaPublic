@@ -4950,12 +4950,14 @@ window.startClinicApp = function(){
     return '<svg class="trend-svg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">'+bars+'</svg>';
   }
   function miniLine(values, labels, color){
-    var W=680,H=112,pad=18, max=Math.max.apply(null,values.concat([1])), n=values.length, xw=(W-pad*2)/(n-1||1);
-    var pts=values.map(function(v,i){ return [pad+i*xw, H-24-(max?(v/max)*(H-38):0)]; });
+    var W=680,H=122,pad=18, max=Math.max.apply(null,values.concat([1])), n=values.length, xw=(W-pad*2)/(n-1||1);
+    var pts=values.map(function(v,i){ return [pad+i*xw, H-24-(max?(v/max)*(H-48):0)]; });
     var d="M"+pts.map(function(p){return p[0].toFixed(1)+","+p[1].toFixed(1);}).join(" L");
     var area=d+" L"+pts[n-1][0].toFixed(1)+","+(H-24)+" L"+pts[0][0].toFixed(1)+","+(H-24)+" Z";
-    var dot='<circle cx="'+pts[n-1][0].toFixed(1)+'" cy="'+pts[n-1][1].toFixed(1)+'" r="3.5" fill="'+color+'"/>';
-    var lbls=labels.map(function(l,i){ return (i%2===0||i===n-1)?'<text x="'+(pad+i*xw).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="9" fill="#9AA3AD">'+l+'</text>':''; }).join('');
+    var dot=pts.map(function(p,i){ var last=(i===n-1);
+      return '<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="'+(last?4.5:3.5)+'" fill="'+(last?color:"#fff")+'" stroke="'+color+'" stroke-width="2"><title>'+labels[i]+': '+values[i]+'</title></circle>'+
+        '<text x="'+p[0].toFixed(1)+'" y="'+(p[1]-8).toFixed(1)+'" text-anchor="middle" font-size="10" font-weight="'+(last?700:500)+'" fill="#374151">'+values[i]+'</text>'; }).join('');
+    var lbls=labels.map(function(l,i){ return true?'<text x="'+(pad+i*xw).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="9" fill="#9AA3AD">'+l+'</text>':''; }).join('');
     return '<svg class="trend-svg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet"><path d="'+area+'" fill="'+color+'" opacity="0.12"/><path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="2.5"/>'+dot+lbls+'</svg>';
   }
   function trendBlock(title, values, labels, color, type){
