@@ -834,6 +834,22 @@
   .mo-grp td{font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);background:var(--canvas);padding-top:10px}
   .home-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
   .home-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px}
+  .home-wide{grid-column:1/-1}
+  .hm-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0 6px}
+  .hm-kpi{border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+  .hm-kpi-l{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+  .hm-kpi-v{font-size:20px;font-weight:800;margin-top:2px}
+  .hm-kpi-s{font-size:11px;color:var(--muted)}
+  .hm-legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:8px 0 4px}
+  .hm-legend span{display:inline-flex;align-items:center;gap:6px}
+  .hm-sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+  .hm-sw-line{width:16px;height:3px;border-radius:2px;display:inline-block}
+  .hm-chart{width:100%;overflow-x:auto}
+  .hm-chart svg{display:block;width:100%;height:auto;min-width:420px}
+  .hm-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px}
+  .hm-table th,.hm-table td{padding:5px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+  .hm-table th:first-child,.hm-table td:first-child{text-align:left}
+  .hm-table-wrap{overflow-x:auto}
   .hc-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
   .hc-title{font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
   .hc-period{font-size:12px;color:var(--muted)}
@@ -4801,6 +4817,79 @@ window.startClinicApp = function(){
       off+=len; return seg; }).join('');
     return '<svg viewBox="0 0 '+size+' '+size+'" width="'+size+'" height="'+size+'">'+segs+'</svg>';
   }
+  function monthlyPL(range){
+    var led=buildLedger();
+    var end=range.end?new Date(range.end.getTime()):new Date();
+    var start=range.start?new Date(range.start.getTime()):null;
+    if(!start){ led.forEach(function(e){ var d=parseISO(e.date); if(d && (!start || d<start)) start=d; }); }
+    if(!start){ start=new Date(end.getFullYear(), end.getMonth()-11, 1); }
+    var months=[], idx={}, cy=start.getFullYear(), cm=start.getMonth(), guard=0;
+    while((cy<end.getFullYear() || (cy===end.getFullYear() && cm<=end.getMonth())) && guard<240){
+      var k=cy+"-"+(cm<9?"0":"")+(cm+1); idx[k]=months.length;
+      months.push({key:k, y:cy, m:cm, rev:0, exp:0, net:0});
+      cm++; if(cm>11){ cm=0; cy++; } guard++;
+    }
+    led.forEach(function(e){ if(!inRangeR(e.date, range)) return;
+      var d=parseISO(e.date); if(!d) return;
+      var k=d.getFullYear()+"-"+(d.getMonth()<9?"0":"")+(d.getMonth()+1);
+      var b=months[idx[k]]; if(!b) return;
+      e.lines.forEach(function(l){ var a=acctByCode(l.acct); if(!a) return;
+        if(a.type==="Income") b.rev+=(l.cr-l.dr);
+        else if(a.type==="Expense") b.exp+=(l.dr-l.cr);
+      });
+    });
+    months.forEach(function(b){ b.net=b.rev-b.exp; });
+    return months;
+  }
+  function niceStep(span){ var raw=span/4||1, mag=Math.pow(10,Math.floor(Math.log(raw)/Math.LN10)), n=raw/mag; return (n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10)*mag; }
+  function shortMoney(v){ var a=Math.abs(v), sg=v<0?"-":""; if(a>=1000000) return sg+"$"+(a/1000000).toFixed(a>=10000000?0:1)+"M"; if(a>=1000) return sg+"$"+(a/1000).toFixed(a>=10000?0:1)+"k"; return sg+"$"+Math.round(a); }
+  function monthlyChartSVG(months){
+    var W=760, H=270, L=58, R=14, T=14, B=34, pw=W-L-R, ph=H-T-B, n=months.length||1;
+    var hi=0, lo=0; months.forEach(function(b){ hi=Math.max(hi,b.rev,b.exp,b.net); lo=Math.min(lo,b.net); });
+    if(hi===0 && lo===0) hi=1000;
+    var step=niceStep(hi-lo), top=Math.ceil(hi/step)*step, bot=Math.floor(lo/step)*step; if(top===bot) top=bot+step;
+    function Y(v){ return T+(top-v)/(top-bot)*ph; }
+    var out='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Monthly revenue, expenses and profit">';
+    for(var g=bot; g<=top+step/2; g+=step){ var gy=Y(g).toFixed(1);
+      out+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+gy+'" y2="'+gy+'" stroke="'+(Math.abs(g)<1e-9?"#9CA3AF":"#E5E7EB")+'" stroke-width="1"/>';
+      out+='<text x="'+(L-8)+'" y="'+(+gy+4)+'" text-anchor="end" font-size="11" fill="#6B7280">'+shortMoney(g)+'</text>'; }
+    var gw=pw/n, bw=Math.min(34, gw*0.32), zero=Y(0);
+    var spanYears=months.length && months[0].y!==months[months.length-1].y;
+    var every=Math.ceil(n/14);
+    var pts=[];
+    months.forEach(function(b,i){
+      var cx=L+gw*i+gw/2;
+      [[b.rev,"#0E9F6E",cx-bw-1,"Revenue"],[b.exp,"#F59E0B",cx+1,"Expenses"]].forEach(function(q){
+        var y1=Y(Math.max(q[0],0)), h=Math.abs(Y(q[0])-zero);
+        out+='<rect x="'+q[2].toFixed(1)+'" y="'+(q[0]>=0?y1:zero).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+Math.max(h,0).toFixed(1)+'" rx="3" fill="'+q[1]+'"><title>'+MO_ABBR[b.m]+' '+b.y+' '+q[3]+': $'+money(q[0])+'</title></rect>';
+      });
+      pts.push([cx, Y(b.net), b]);
+      if(i%every===0) out+='<text x="'+cx.toFixed(1)+'" y="'+(H-B+16)+'" text-anchor="middle" font-size="11" fill="#6B7280">'+MO_ABBR[b.m]+(spanYears?" \u2019"+String(b.y).slice(2):"")+'</text>';
+    });
+    if(pts.length>1) out+='<polyline fill="none" stroke="#1E3A8A" stroke-width="2.5" stroke-linejoin="round" points="'+pts.map(function(p){return p[0].toFixed(1)+","+p[1].toFixed(1);}).join(" ")+'"/>';
+    pts.forEach(function(p){ out+='<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="4.5" fill="'+(p[2].net<0?"#DC2626":"#1E3A8A")+'" stroke="#fff" stroke-width="1.5"><title>'+MO_ABBR[p[2].m]+' '+p[2].y+' Profit: '+sMoney(p[2].net)+'</title></circle>'; });
+    return out+'</svg>';
+  }
+  function sMoney(v){ return (v<0?"-$":"$")+money(Math.abs(v)); }
+  function homeMonthlyCard(range, lbl){
+    var months=monthlyPL(range);
+    var tr=0, te=0; months.forEach(function(b){ tr+=b.rev; te+=b.exp; }); var tn=tr-te;
+    var onTx=patients.filter(function(p){ return p.treatments&&p.treatments.length; }).length;
+    var kpi=function(l,v,c,sub){ return '<div class="hm-kpi"><div class="hm-kpi-l">'+l+'</div><div class="hm-kpi-v" style="color:'+c+'">'+v+'</div><div class="hm-kpi-s">'+sub+'</div></div>'; };
+    var kpis='<div class="hm-kpis">'+
+      kpi("Revenue","$"+money(tr),"var(--good-deep)",esc(lbl))+
+      kpi("Expenses","$"+money(te),"#B45309",esc(lbl))+
+      kpi("Profit",sMoney(tn),tn>=0?"#1E3A8A":"var(--red)",esc(lbl))+
+      kpi("Clients on treatment",String(onTx),"var(--good)","current total")+'</div>';
+    var legend='<div class="hm-legend"><span><i class="hm-sw" style="background:#0E9F6E"></i>Revenue</span><span><i class="hm-sw" style="background:#F59E0B"></i>Expenses</span><span><i class="hm-sw-line" style="background:#1E3A8A"></i>Profit</span></div>';
+    var head='<tr><th>Month</th>'+months.map(function(b){return '<th>'+MO_ABBR[b.m]+' '+String(b.y).slice(2)+'</th>';}).join('')+'<th>Total</th></tr>';
+    var row=function(nm,f,t){ return '<tr><td>'+nm+'</td>'+months.map(function(b){ var v=f(b); return '<td'+(v<0?' style="color:var(--red)"':'')+'>'+sMoney(v)+'</td>'; }).join('')+'<td style="font-weight:700'+(t<0?';color:var(--red)':'')+'">'+sMoney(t)+'</td></tr>'; };
+    var table='<div class="hm-table-wrap"><table class="hm-table" id="homeMonthlyTable"><thead>'+head+'</thead><tbody>'+
+      row("Revenue",function(b){return b.rev;},tr)+row("Expenses",function(b){return b.exp;},te)+row("<b>Profit</b>",function(b){return b.net;},tn)+'</tbody></table></div>';
+    return '<div class="home-card home-wide" id="homeMonthly">'+
+      '<div class="hc-head"><span class="hc-title">Monthly revenue, expenses &amp; profit</span><span class="hc-period">'+esc(lbl)+'</span></div>'+
+      kpis+legend+'<div class="hm-chart">'+monthlyChartSVG(months)+'</div>'+table+'</div>';
+  }
   function renderHomeSummary(){
     var range=posRange(), lbl=posPeriodLabel();
     var cur=plForRange(range);
@@ -4833,7 +4922,7 @@ window.startClinicApp = function(){
       '<div class="hc-head"><span class="hc-title">Cash &amp; bank</span><span class="hc-period">as of today</span></div>'+
       '<div class="hc-sub">Total cash balance</div><div class="hc-big">$'+money(cashTotal)+'</div>'+
       '<div class="hc-acct-list">'+acctList+'</div></div>';
-    $("homeGrid").innerHTML=plCard+expCard+bankCard;
+    $("homeGrid").innerHTML=plCard+expCard+bankCard+homeMonthlyCard(range, lbl);
   }
 
   /* ---- Analytics monthly trends ---- */
@@ -7604,7 +7693,7 @@ window.startClinicApp = function(){
 (function () {
   'use strict';
   if (window.__ALPHA_SYNC_GUARD__) return;
-  window.__ALPHA_SYNC_GUARD__ = '1.2';
+  window.__ALPHA_SYNC_GUARD__ = '1.1';
 
   var SYNC_TABLE = 'workspace_sync';
   var SEEN_KEY   = 'alphahipaa_cloud_seen';
@@ -7612,30 +7701,7 @@ window.startClinicApp = function(){
 
   function ts(v) { var t = Date.parse(v || ''); return isNaN(t) ? 0 : t; }
   function readSeen() { try { return sessionStorage.getItem(SEEN_KEY) || ''; } catch (e) { return ''; } }
-  // v1.2: the stamp only ever moves forward.
-  // v1.1 re-read the cloud stamp after a push, which fixed the case where the
-  // server sets updated_at itself. But saves are debounced, so two pushes can
-  // be in flight at once and each re-reads independently. If the OLDER push's
-  // re-read resolves last, it writes an older stamp over a newer one, the next
-  // save compares a newer cloud against a stale local stamp, and a perfectly
-  // safe save is blocked. Same for a slow GET response arriving after a push.
-  // Ignoring backwards writes closes both without weakening the guard: a save
-  // from ANOTHER tab or device still advances cloud past this session's stamp
-  // and is still blocked.
-  function writeSeen(v) {
-    try {
-      if (!v) return;
-      var cur = sessionStorage.getItem(SEEN_KEY) || '';
-      if (!cur || ts(v) >= ts(cur)) sessionStorage.setItem(SEEN_KEY, v);
-    } catch (e) {}
-  }
-
-  function hideBanner() {
-    try {
-      var el = document.getElementById('alphaSyncGuardBanner');
-      if (el) el.style.display = 'none';
-    } catch (e) {}
-  }
+  function writeSeen(v) { try { if (v) sessionStorage.setItem(SEEN_KEY, v); } catch (e) {} }
 
   // Adopt a stamp from any workspace_sync payload we happen to observe.
   function observe(text) {
@@ -7719,7 +7785,6 @@ window.startClinicApp = function(){
           return remoteStamp(url, opts.headers).then(function (after) {
             if (after) { writeSeen(after); }
             else { try { var row = JSON.parse(opts.body); if (Array.isArray(row)) row = row[0]; if (row && row.updated_at) writeSeen(row.updated_at); } catch (e) {} }
-            hideBanner();   // a save got through, so any earlier warning is stale
             return res;
           }).catch(function () {
             try { var r2 = JSON.parse(opts.body); if (Array.isArray(r2)) r2 = r2[0]; if (r2 && r2.updated_at) writeSeen(r2.updated_at); } catch (e) {}
