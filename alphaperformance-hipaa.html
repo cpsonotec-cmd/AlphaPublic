@@ -3484,6 +3484,7 @@ window.startClinicApp = function(){
     {code:"3000",name:"Owner Equity",type:"Equity"},
     {code:"4100",name:"Membership Dues",type:"Income"},
     {code:"4200",name:"Product & Supplement Sales",type:"Income"},
+    {code:"5105",name:"COGS - Supplements",type:"Expense"},
     {code:"5100",name:"Payroll & Staff",type:"Expense"},
     {code:"5400",name:"Rent & Utilities",type:"Expense"},
     {code:"5500",name:"Insurance",type:"Expense"},
@@ -3519,6 +3520,20 @@ window.startClinicApp = function(){
     acctEntity=key; store.set("alphaperf_acct_entity", key);
     if(key!=="both"){ var e=loadEntity(key); accounts=e.accounts; journals=e.journals; }
   }
+  // Read-only reconciliation helper: balances and P&L per account for one entity, without changing the selected entity.
+  window.__reconBalances=function(ent, fromISO, toISO){
+    var sv={e:acctEntity,a:accounts,j:journals}; var out={bal:{},pl:{}};
+    try{
+      acctEntity=ent; if(ent!=="both"){ var e=loadEntity(ent); accounts=e.accounts; journals=e.journals; }
+      buildLedger().forEach(function(en){ if(toISO && en.date>toISO) return;
+        en.lines.forEach(function(l){ var a=acctByCode(l.acct); if(!a) return;
+          var sign=(a.type==="Asset"||a.type==="Expense")?1:-1, v=sign*((+l.dr||0)-(+l.cr||0));
+          out.bal[l.acct]=Math.round(((out.bal[l.acct]||0)+v)*100)/100;
+          if((a.type==="Income"||a.type==="Expense") && (!fromISO || en.date>=fromISO)) out.pl[l.acct]=Math.round(((out.pl[l.acct]||0)+v)*100)/100;
+        }); });
+    } finally { acctEntity=sv.e; accounts=sv.a; journals=sv.j; }
+    return out;
+  };
   function mergedAccounts(){
     var m=load("alphaperf_accounts_mjs",null); if(!m||!m.length) m=clone(DEFAULT_ACCOUNTS_MJS);
     var a=load("alphaperf_accounts_alpha",null); if(!a||!a.length) a=clone(DEFAULT_ACCOUNTS_ALPHA);
@@ -3651,6 +3666,7 @@ window.startClinicApp = function(){
     if(!accts.some(function(a){return a.code==="4100";})){ accts.push({code:"4100",name:"Membership Dues",type:"Income",id:"4100"}); changed=true; }
     if(!accts.some(function(a){return a.code==="4200";})){ accts.push({code:"4200",name:"Product & Supplement Sales",type:"Income",id:"4200"}); changed=true; }
     if(!accts.some(function(a){return a.code==="5650";})){ accts.push({code:"5650",name:"Card Processing (Square)",type:"Expense",id:"5650"}); changed=true; }
+    if(!accts.some(function(a){return a.code==="5105";})){ accts.push({code:"5105",name:"COGS - Supplements",type:"Expense",id:"5105"}); changed=true; }
     if(changed){
       store.set("alphaperf_accounts_alpha", JSON.stringify(accts));
       if(acctEntity==="alpha"){ var e=loadEntity("alpha"); accounts=e.accounts; journals=e.journals; }
