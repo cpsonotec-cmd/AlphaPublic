@@ -3504,26 +3504,45 @@ window.startClinicApp = function(){
   function openGcDetail(id){
     var c=giftcerts.filter(function(x){return x.id===id;})[0]; if(!c) return;
     var st=gcStatus(c), reds=(c.redemptions||[]);
+    var saleTx = c.kind==="donation" ? null : txns.filter(function(t){return t.type==="sale" && t.gcSell && t.saleGroup===c.saleId;})[0];
+    var amtLocked="";
+    if(reds.length) amtLocked="Locked because it has been redeemed.";
+    else if(c.voided) amtLocked="Void.";
+    else if(c.kind!=="donation" && (!saleTx || (saleTx.items||[]).length!==1 || (saleTx.payments||[]).length>1 || saleTx.discountAmt>0)) amtLocked="This certificate was sold with other items or a split payment. Edit the sale in Register history instead.";
     var body=
       '<div class="gc-det-top"><div class="gc-det-num">'+esc(c.num)+'</div><span class="gc-chip gc-'+st.toLowerCase()+'">'+st+'</span></div>'+
       '<div class="gc-det-grid"><div><span>Type</span><b>'+(c.kind==="donation"?"Donation":"Sold")+'</b></div><div><span>Company</span><b>'+entLabel(c.entity)+'</b></div>'+
-      '<div><span>Amount</span><b>$'+money(c.amount)+'</b></div><div><span>Balance</span><b>$'+money(gcBalance(c))+'</b></div>'+
-      '<div><span>Issued</span><b>'+esc(c.issued||"")+'</b></div>'+
-      '<div><span>Purchased by</span><b>'+esc(c.purchaser||"—")+'</b></div></div>'+
+      '<div><span>Used</span><b>$'+money(gcSpent(c))+'</b></div><div><span>Balance</span><b>$'+money(gcBalance(c))+'</b></div></div>'+
+      '<div class="pos-field"><label>Certificate number</label><input type="text" id="gcdNum" value="'+esc(c.num)+'"'+(reds.length?' disabled':'')+'>'+(reds.length?'<div class="gc-hint">Locked because it has been redeemed.</div>':'')+'</div>'+
+      '<div class="pos-field"><label>Amount</label><input type="number" id="gcdAmt" min="1" step="0.01" value="'+c.amount+'"'+(amtLocked?' disabled':'')+'>'+(amtLocked?'<div class="gc-hint">'+esc(amtLocked)+'</div>':'')+'</div>'+
+      '<div class="gc-row2"><div class="pos-field"><label>Issue date</label><input type="date" id="gcdIss" value="'+esc(c.issued||"")+'"></div>'+
+      '<div class="pos-field"><label>Expires</label><input type="date" id="gcdExp" value="'+esc(c.expires||"")+'"></div></div>'+
       '<div class="pos-field"><label>'+(c.kind==="donation"?"Donated to":"Recipient")+'</label><input type="text" id="gcdTo" value="'+esc(c.recipient||"")+'"></div>'+
-      '<div class="pos-field"><label>Expires</label><input type="date" id="gcdExp" value="'+esc(c.expires||"")+'"></div>'+
+      (c.kind==="donation"?'':'<div class="pos-field"><label>Purchased by</label><input type="text" id="gcdBy" value="'+esc(c.purchaser||"")+'"></div>')+
       '<div class="pos-field"><label>Note</label><input type="text" id="gcdNote" value="'+esc(c.note||"")+'"></div>'+
-      (c.kind==="donation" && !reds.length && !c.voided ? '<div class="pos-field"><label>Amount</label><input type="number" id="gcdAmt" min="1" step="0.01" value="'+c.amount+'"></div>' : '')+
       '<div class="gc-hist-h">Redemptions</div>'+
       (reds.length ? reds.map(function(r){ return '<div class="gc-hist"><span>'+esc(r.date||"")+' · '+esc(r.client||"Walk-in")+'</span><b>−$'+money(r.amount)+'</b></div>'; }).join("") : '<div class="gc-hint">None yet.</div>');
     var foot='<button class="btn-primary" id="gcdSave" type="button">Save changes</button>';
     if(st==="Open" || st==="Expired") foot='<button class="btn-ghost" id="gcdRedeem" type="button">Redeem in register</button>'+foot;
     if(c.kind==="donation" && !reds.length) foot='<button class="btn-danger" id="gcdDel" type="button">Delete</button>'+foot;
-    gcModalShow("Gift certificate", body, foot);
+    gcModalShow("Edit gift certificate", body, foot);
     $("gcdSave").onclick=function(){
-      var ex=$("gcdExp").value; if(!ex){ toast("Enter an expiration date"); return; }
-      c.expires=ex; c.recipient=($("gcdTo").value||"").trim(); c.note=($("gcdNote").value||"").trim();
-      if($("gcdAmt")){ var a=Math.round((parseFloat($("gcdAmt").value)||0)*100)/100; if(a>0) c.amount=a; }
+      var ex=$("gcdExp").value, is=$("gcdIss").value; if(!is){ toast("Enter an issue date"); return; } if(!ex){ toast("Enter an expiration date"); return; }
+      if(ex<is){ toast("Expiration can't be before the issue date"); return; }
+      var nn=gcNormNum($("gcdNum").value); if(!nn){ toast("Enter a certificate number"); return; }
+      var dup=gcFind(nn); if(dup && dup.id!==c.id){ toast(nn+" is already in use"); return; }
+      var a=Math.round((parseFloat($("gcdAmt").value)||0)*100)/100; if(!(a>0)){ toast("Enter an amount"); return; }
+      if(!amtLocked && a!==c.amount && saleTx){
+        saleTx.items[0].retail=a; saleTx.subtotal=a; saleTx.total=a; saleTx.gcSellAmt=a; saleTx.profit=a-(saleTx.cost||0);
+        if(saleTx.payments && saleTx.payments.length) saleTx.payments[0].amount=a;
+        if(saleTx.arAmount>0) saleTx.arAmount=Math.min(saleTx.arAmount,a);
+        saleTx.gcSell && (saleTx.items[0].gcSell=saleTx.items[0].gcSell && Object.assign({},saleTx.items[0].gcSell,{amount:a}));
+        saveTxns();
+      }
+      if(!amtLocked) c.amount=a;
+      if(saleTx){ saleTx.date=is; if(nn!==c.num && saleTx.items[0]){ saleTx.items[0].name="Gift Certificate "+nn; if(saleTx.items[0].gcSell) saleTx.items[0].gcSell.num=nn; } saveTxns(); }
+      if(c.kind!=="donation" && $("gcdBy")) c.purchaser=($("gcdBy").value||"").trim();
+      c.num=nn; c.issued=is; c.expires=ex; c.recipient=($("gcdTo").value||"").trim(); c.note=($("gcdNote").value||"").trim();
       saveGC(); gcModalClose(); renderGiftCerts(); toast("Saved");
     };
     if($("gcdRedeem")) $("gcdRedeem").onclick=function(){ gcModalClose(); switchView("register"); $("posGcNum").value=c.num; applyPosGc(c.num); };
