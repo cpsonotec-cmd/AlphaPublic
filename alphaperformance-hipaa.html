@@ -3463,7 +3463,7 @@ window.startClinicApp = function(){
     function syncKind(){
       var d=gcDraft; Array.prototype.forEach.call(document.querySelectorAll("[data-gck]"),function(b){ b.classList.toggle("on", b.getAttribute("data-gck")===d.kind); });
       $("gcKindNote").textContent = d.kind==="donation"
-        ? "Donation: no sale and no money recorded. It is a free certificate for a charity or event. When it is redeemed, the value is booked to Charitable Donations."
+        ? "Donation: no sale and no money recorded. It is a free certificate for a charity or event. The donation is booked to Charitable Donations the day you issue it."
         : "Sold: added to the register to ring up. The money is held as a gift certificate liability until the certificate is redeemed.";
       $("gcToLbl").textContent = d.kind==="donation" ? "Donated to (organization or event)" : "Recipient (optional)";
       $("gcGo").textContent = d.kind==="donation" ? "Issue donation certificate" : "Add to register";
@@ -3895,7 +3895,7 @@ window.startClinicApp = function(){
     if(t.gcAmount>0){ gcPart=Math.round(t.gcAmount*frac*100)/100; gcPart=Math.max(0,Math.min(gcPart, amount-arPart)); }
     var cashPart=Math.round((amount-arPart-gcPart)*100)/100;
     var lines=[];
-    if(gcPart>0.005) lines.push({acct:(t.gcKind==="donation"?"7230":"2250"),dr:gcPart,cr:0});
+    if(gcPart>0.005) lines.push({acct:"2250",dr:gcPart,cr:0});
     if(cashPart>0.005) lines.push({acct:"1000",dr:cashPart,cr:0});
     if(arPart>0.005) lines.push({acct:"1100",dr:arPart,cr:0});
     if(!lines.length) lines.push({acct:"1000",dr:0,cr:0});
@@ -3944,6 +3944,11 @@ window.startClinicApp = function(){
         var code=acctCodeByName(t.category||t.name)||"5900";
         entries.push({date:t.date,ref:"EXP",memo:(t.name||t.category||"Expense"),lines:[{acct:code,dr:t.amount||0,cr:0},{acct:"1000",dr:0,cr:t.amount||0}],ent:ee});
       }
+    });
+    giftcerts.forEach(function(c){
+      if(c.kind!=="donation" || c.voided) return;
+      if(!both && c.entity!==acctEntity) return;
+      entries.push({date:c.issued,ref:"DON",memo:"Donation certificate "+c.num+(c.recipient?" \u2014 "+c.recipient:""),lines:[{acct:"7230",dr:+c.amount||0,cr:0},{acct:"2250",dr:0,cr:+c.amount||0}],ent:c.entity});
     });
     var jsrc = both ? (load("alphaperf_journals_mjs",[])||[]).concat(load("alphaperf_journals_alpha",[])||[]) : journals;
     jsrc.forEach(function(j){ entries.push({date:j.date,ref:"JE",memo:j.memo,je:j.id,lines:(j.lines||[]).map(function(l){return {acct:l.acct,dr:+l.dr||0,cr:+l.cr||0};})}); });
