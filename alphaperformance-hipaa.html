@@ -1337,6 +1337,7 @@
     </div>
     <section class="stats" id="repKpis"></section>
     <div class="rep-card"><h3 class="rep-h">Monthly trends <span class="rep-sub">last 12 months</span></h3><div id="repTrends"></div></div>
+    <div class="rep-card"><h3 class="rep-h">Retention <span class="rep-sub">based on purchases</span></h3><div id="repRetention"></div></div>
     <div class="rep-card"><h3 class="rep-h">Revenue in period <span class="rep-sub" id="repPeriodLbl"></span></h3><div id="repPeriodRev"></div></div>
     <div class="rep-card"><h3 class="rep-h">Pipeline funnel</h3><div id="repFunnel"></div></div>
     <div class="rep-card"><h3 class="rep-h">Demographics <span class="rep-sub" id="repDemoSummary"></span></h3>
@@ -1973,6 +1974,11 @@
         <input type="number" id="setSqFixed" min="0" step="0.01" inputmode="decimal"><span>per transaction</span>
       </div>
       <div class="sq-fee-note">Square's standard in‑person rate is 2.6% + $0.10. The fee is booked to <b>Card Processing (Square)</b> and reduces cash automatically.</div>
+    </div>
+    <div class="settings-label">Treatment activity</div>
+    <div class="sq-fee-set">
+      <div class="sq-fee-rate"><span>Mark a client "No recent activity" after</span><input type="number" id="setTxLapse" min="14" max="365" step="1" inputmode="numeric"><span>days without a treatment or purchase</span></div>
+      <div class="sq-fee-note">Any sale of a product or treatment counts as activity. Consults, memberships, scans and discounts alone do not. Default is 90 days; a 4-week TRT cycle may suit 60.</div>
     </div>
     <div class="settings-label">Cloud sync</div>
     <div id="cloudStatus" class="cloud-status">Not connected. Data stays on this device only.</div>
@@ -2860,14 +2866,40 @@ window.startClinicApp = function(){
     if(ds.length) return ds[0];
     return p.consultDate || p.createdAt || null;
   }
-  var TX_LAPSE_DAYS=90;
+  function txLapseDays(){ var n=parseInt(settings.txLapseDays,10); return (n>0)?n:90; }
+  // Purchases count as treatment activity. Consults, memberships, scans, monitoring and discounts alone do not.
+  var TX_SERVICE_ONLY=/consult|shape scale|monitoring|membership|dues|services|custom amount|discount/i;
+  var _txIdx=null, _txIdxSig="";
+  function txByClient(){
+    var sig=(txns||[]).length+"|"+((txns&&txns[0])||{}).id+"|"+((txns&&txns[txns.length-1])||{}).id;
+    if(_txIdx && _txIdxSig===sig) return _txIdx;
+    var m={};
+    (txns||[]).forEach(function(x){
+      if(!x || x.type!=="sale" || !x.clientId || !x.date) return;
+      var real=(x.items||[]).some(function(i){ var n=((i&&i.name)||"").trim(); return n && !TX_SERVICE_ONLY.test(n); });
+      var c=m[x.clientId]||(m[x.clientId]={real:[], all:0, total:0});
+      c.all++; c.total+=(+x.total||0);
+      if(real) c.real.push(x.date);
+    });
+    _txIdx=m; _txIdxSig=sig; return m;
+  }
+  function purchaseDates(p){ var c=txByClient()[p.id]; return c?c.real:[]; }
   function treatmentDates(p){
     var T=(p.visitLog||[]).filter(function(v){ return v.treatments&&v.treatments.length; }).map(function(v){ return v.date; }).filter(Boolean);
+    T=T.concat(purchaseDates(p));
     if(!T.length && p.treatments && p.treatments.length){ var f=p.lastVisit||treatmentStartDate(p); if(f) T=[f]; }
     return T;
   }
+  // Most recent treatment or purchase activity on or before today, as {date, days}
+  function lastTxActivity(p){
+    var t=new Date(); t.setHours(23,59,59,999); var best=null;
+    treatmentDates(p).forEach(function(iso){ var d=parseISO(iso); if(d && d<=t && (!best || d>best)) best=d; });
+    if(!best) return null;
+    var t0=new Date(); t0.setHours(0,0,0,0);
+    return {date:isoFrom(best), days:Math.max(0,Math.round((t0-best)/86400000))};
+  }
   function onTreatmentIn(p, r){
-    var rs=r&&r.start?r.start.getTime():null, re=r&&r.end?r.end.getTime():Date.now(), lapse=TX_LAPSE_DAYS*86400000;
+    var rs=r&&r.start?r.start.getTime():null, re=r&&r.end?r.end.getTime():Date.now(), lapse=txLapseDays()*86400000;
     if(p.coldLead && p.coldDate && rs!=null){ var cd=parseISO(p.coldDate); if(cd && cd.getTime()<rs) return false; }
     return treatmentDates(p).some(function(iso){ var d=parseISO(iso); if(!d) return false; var t=d.getTime(); return t<=re && (rs==null || t+lapse>=rs); });
   }
@@ -2985,6 +3017,7 @@ window.startClinicApp = function(){
       statTile("New clients", r.newClients, "", "#7C6FE0", periodLbl),
       statTile("Visits logged", r.visitsInPeriod, "", "var(--amber)", periodLbl)
     ].join("");
+    try{ renderRetention(); }catch(e){ if(window.console) console.error("retention",e); }
     try{ renderTrends(); }catch(e){ if(window.console) console.error("trends",e); if($("repTrends")) $("repTrends").innerHTML='<div class="rep-empty">Trends could not be drawn: '+esc(e.message)+'</div>'; }
 
     // Revenue in period (dated events: memberships started + treatment value at visits)
@@ -4982,6 +5015,34 @@ window.startClinicApp = function(){
     var chgHtml=(chg==null)?"":('<span class="trend-chg '+(chg>=0?"tc-up":"tc-down")+'">'+(chg>=0?"\u25B2":"\u25BC")+Math.abs(chg)+'%</span>');
     return '<div class="trend-block"><div class="trend-head"><span class="trend-title">'+title+'</span><span class="trend-latest">'+latest+chgHtml+'</span></div>'+(type==="line"?miniLine(values,labels,color):miniBars(values,labels,color))+'</div>';
   }
+  function renderRetention(){
+    var el=$("repRetention"); if(!el) return;
+    var idx=txByClient(), t0=new Date(); t0.setHours(0,0,0,0); var t1=t0.getTime();
+    var n=0, once=0, orders=0, ltv=0, b={d30:0,d60:0,d90:0,d180:0,d365:0,gone:0};
+    patients.forEach(function(p){
+      var c=idx[p.id]; if(!c || !c.real.length) return;
+      n++; orders+=c.real.length; ltv+=c.total; if(c.real.length===1) once++;
+      var last=0; c.real.forEach(function(iso){ var d=parseISO(iso); if(d && d.getTime()<=t1+86399999 && d.getTime()>last) last=d.getTime(); });
+      if(!last) return; var days=Math.max(0,Math.round((t1-last)/86400000));
+      if(days<=30) b.d30++; if(days<=60) b.d60++; if(days<=90) b.d90++;
+      if(days>90 && days<=180) b.d180++; else if(days>180 && days<=365) b.d365++; else if(days>365) b.gone++;
+    });
+    if(!n){ el.innerHTML='<div class="rep-empty">No purchases recorded against clients yet.</div>'; return; }
+    var repeat=n-once;
+    el.innerHTML='<div class="stats">'+
+      statTile("Repeat rate", Math.round(repeat/n*1000)/10+"%", "", "var(--good)", repeat+" of "+n+" bought more than once")+
+      statTile("One-and-done", once, "", "var(--red)", Math.round(once/n*100)+"% bought once, never again")+
+      statTile("Avg orders / client", (orders/n).toFixed(1), "", "#7C6FE0", "product and treatment orders")+
+      statTile("Avg lifetime value", "$"+money(ltv/n), "", "var(--emerald)", "all sales per client")+'</div>'+
+      hbars([
+        {label:"Purchased in 30 days", value:b.d30, color:"var(--good)"},
+        {label:"Purchased in 60 days", value:b.d60, color:"var(--good)"},
+        {label:"Purchased in 90 days", value:b.d90, color:"var(--good)"},
+        {label:"91\u2013180 days (at risk)", value:b.d180, color:"var(--amber)"},
+        {label:"181\u2013365 days (lapsed)", value:b.d365, color:"#94A3B8"},
+        {label:"365+ days (gone)", value:b.gone, color:"#CBD5E1"}
+      ],"clients");
+  }
   function renderTrends(){
     if(!$("repTrends")) return;
     var now=new Date(), months=[];
@@ -5458,7 +5519,7 @@ window.startClinicApp = function(){
   }
 
   // ---------- clients ----------
-  var PSTAGES = { lead:"New lead", consult:"Consult done", bloodwork:"Blood work", treatment:"On treatment", lapsed:"Off treatment 90d+" };
+  var PSTAGES = { lead:"New lead", consult:"Consult done", bloodwork:"Blood work", treatment:"On treatment", lapsed:"No recent activity" };
   function hasBloodwork(p){ return (p.visitLog||[]).some(function(v){ return v.type==="Blood work"; }); }
   function lastVisit(p, type){
     var vs=(p.visitLog||[]).filter(function(v){ return !type || v.type===type; });
@@ -5471,6 +5532,7 @@ window.startClinicApp = function(){
     (p.visitLog||[]).forEach(function(v){ if(v.date) dates.push(v.date); });
     if(p.consultDate) dates.push(p.consultDate);
     if(p.lastVisit) dates.push(p.lastVisit);
+    purchaseDates(p).forEach(function(d){ dates.push(d); });
     if(!dates.length) return null;
     var end=new Date(); end.setHours(23,59,59,999);
     var past=dates.filter(function(d){ var dt=parseISO(d); return dt && dt<=end; }); // future visits are appointments, not "seen"
@@ -5602,6 +5664,7 @@ window.startClinicApp = function(){
   }
   function pStage(p){
     if(p.treatments && p.treatments.length) return onTreatmentNow(p) ? "treatment" : "lapsed";
+    if(onTreatmentNow(p)) return "treatment";
     if(hasBloodwork(p)) return "bloodwork";
     if(p.consultDate) return "consult";
     return "lead";
@@ -5616,7 +5679,7 @@ window.startClinicApp = function(){
       if(isColdLead(p)){ c.cold++; return; }
       c[pStage(p)]++;
       if(isDue(p)) c.due++;
-      if(!(p.treatments&&p.treatments.length)) c.notx++;
+      if(!(p.treatments&&p.treatments.length) && !onTreatmentNow(p)) c.notx++;
       if(seenToday(p)) c.today++;
       if(p.active!==false){ var _ds=daysSinceSeen(p); if(_ds!=null && _ds>=60) c.reengage++; }
     });
@@ -5649,7 +5712,7 @@ window.startClinicApp = function(){
       seg("#C7CCC8",c.lead)+seg("var(--amber)",c.consult)+
       seg("#7C6FE0",c.bloodwork)+seg("var(--good)",c.treatment)+seg("#94A3B8",c.lapsed)+'</div>';
     var leg=[["#C7CCC8","New lead",c.lead],["var(--amber)","Consult",c.consult],
-      ["#7C6FE0","Blood work",c.bloodwork],["var(--good)","On treatment",c.treatment],["#94A3B8","Off treatment 90d+",c.lapsed]];
+      ["#7C6FE0","Blood work",c.bloodwork],["var(--good)","On treatment",c.treatment],["#94A3B8","No recent activity",c.lapsed]];
     $("pLegend").innerHTML=leg.map(function(l){
       return '<div><span class="sw" style="background:'+l[0]+'"></span>'+l[1]+' <b>'+l[2]+'</b></div>';
     }).join("");
@@ -5657,7 +5720,7 @@ window.startClinicApp = function(){
   function renderPatientChips(){
     var c=pCounts();
     var defs=[["all","All",c.all],["today","Seen today",c.today],["reengage","Not seen 60d+",c.reengage],["due","Follow-up",c.due],["lead","New lead",c.lead],["consult","Consult",c.consult],
-      ["bloodwork","Blood work",c.bloodwork],["treatment","On treatment",c.treatment],["lapsed","Off treatment 90d+",c.lapsed],["notx","Not on treatment",c.notx],["cold","Inactive lead",c.cold],["inactive","Inactive",c.inactive]];
+      ["bloodwork","Blood work",c.bloodwork],["treatment","On treatment",c.treatment],["lapsed","No recent activity",c.lapsed],["notx","Not on treatment",c.notx],["cold","Inactive lead",c.cold],["inactive","Inactive",c.inactive]];
     $("pChips").innerHTML=defs.map(function(d){
       return '<button class="chip'+(pFilter===d[0]?" on":"")+(d[0]==="due"&&d[2]>0?" chip-due":"")+'" data-pfilter="'+d[0]+'">'+d[1]+
         ' <span class="cnt">'+d[2]+'</span></button>';
@@ -5679,7 +5742,7 @@ window.startClinicApp = function(){
       if(pFilter==="due") return isDue(p);
       if(pFilter==="today") return seenToday(p);
       if(pFilter==="reengage"){ var rd=daysSinceSeen(p); return rd!=null && rd>=60; }
-      if(pFilter==="notx") return !(p.treatments&&p.treatments.length);
+      if(pFilter==="notx") return !(p.treatments&&p.treatments.length) && !onTreatmentNow(p);
       return pStage(p)===pFilter;
     });
     arr.sort(function(a,b){
@@ -5741,7 +5804,7 @@ window.startClinicApp = function(){
             inactB+
             discB+
             memberB+
-            '<span class="badge status-badge sb-'+st+'"><span class="d"></span>'+PSTAGES[st]+'</span>'+
+            '<span class="badge status-badge sb-'+st+'"><span class="d"></span>'+PSTAGES[st]+(st==="lapsed"?(function(){ var la=lastTxActivity(p); return la?(" \u00b7 "+la.days+"d"):""; })():"")+'</span>'+
             seenTodayB+
             dueB+
           '</div>'+
@@ -6330,6 +6393,7 @@ window.startClinicApp = function(){
     $("setSbUrl").value = settings.supabaseUrl||"";
     $("setSbKey").value = settings.supabaseKey||"";
     $("setFollowup").value = settings.followupDays||60;
+    if($("setTxLapse")) $("setTxLapse").value = txLapseDays();
     if($("setSqOn")){ $("setSqOn").checked = settings.squareFeeOn!==false; $("setSqPct").value = (settings.squareFeePct!=null?settings.squareFeePct:2.6); $("setSqFixed").value = (settings.squareFeeFixed!=null?settings.squareFeeFixed:0.10); }
     refreshCloudUI();
     renderTierEditor();
@@ -6497,6 +6561,7 @@ window.startClinicApp = function(){
       draftRefSources.forEach(function(r){ var n=(""+(r.name||"")).trim(); if(!n || seen[n.toLowerCase()]) return; seen[n.toLowerCase()]=1;
         var o={name:n, type:r.type||"none"}; if(r.label&&(""+r.label).trim()) o.label=(""+r.label).trim(); if(o.type==="list") o.options=(r.options||[]).map(function(x){return (""+x).trim();}).filter(function(x){return x;}); out.push(o); });
       if(out.length) settings.refSources=out; })();
+    if($("setTxLapse")){ settings.txLapseDays = Math.max(14, Math.min(365, parseInt($("setTxLapse").value,10)||90)); }
     if($("setSqOn")){ settings.squareFeeOn = $("setSqOn").checked; settings.squareFeePct = Math.max(0, parseFloat($("setSqPct").value)||0); settings.squareFeeFixed = Math.max(0, parseFloat($("setSqFixed").value)||0); }
     saveSettings(); applyTheme();
     tiers = draftTiers.filter(function(t){return t.name.trim();}).map(function(t){return {name:t.name.trim(),price:+t.price||0};});
