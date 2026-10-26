@@ -639,6 +639,7 @@
   .sb-treatment{background:var(--good-soft);color:var(--good-deep)} .sb-treatment .d{background:var(--good)}
   .sb-lapsed{background:#EEF2F6;color:#475569} .sb-lapsed .d{background:#94A3B8}
   .treat-badge{background:#ECE9FB;color:#5344b0}
+  .supp-badge{background:#E3F4EA;color:#17653A}
   .disc-badge{background:var(--amber-soft);color:#946400}
   .due-badge{background:var(--red-soft);color:#a5352f}
   .inactive-badge{background:#E5E7EB;color:#4B5563}
@@ -6169,6 +6170,8 @@ window.startClinicApp = function(){
       if(p.lastContact){ var _lc=parseISO(p.lastContact); if(_lc) dates.push('<span class="contacted-meta">'+ICON.phone+"Contacted "+fmtDate(_lc)+'</span>'); }
       var _nv=nextVisitDate(p);
       if(_nv) dates.push('<span class="upcoming-meta">'+ICON.clock+"Next "+fmtDate(parseISO(_nv))+'</span>');
+      var _sp=clientSupplements(p.id);
+      var suppB = _sp.length ? '<div class="m-meta"><span class="treat-badges">'+_sp.slice(0,5).map(function(e){return '<span class="badge supp-badge">'+esc(e.name)+'</span>';}).join("")+(_sp.length>5?'<span class="badge supp-badge">+'+(_sp.length-5)+' more</span>':'')+'</span></div>' : '';
       var treatB = (p.treatments&&p.treatments.length)
         ? '<div class="m-meta"><span class="treat-badges">'+p.treatments.map(function(tn){var dl=(p.doses&&p.doses[tn])?" "+p.doses[tn]:"";return '<span class="badge treat-badge">'+esc(tn+dl)+'</span>';}).join("")+'</span></div>' : '';
       var memberB = p.isMember ? '<span class="badge tier-badge">Member'+(p.tier?" · "+esc(p.tier):"")+'</span>' : '';
@@ -6194,7 +6197,7 @@ window.startClinicApp = function(){
           '</div>'+
           (contact.length?'<div class="m-meta">'+contact.join("")+'</div>':'')+
           '<div class="m-meta">'+dates.join("")+'</div>'+
-          treatB+
+          treatB+suppB+
         '</div>'+
         '<div class="m-actions">'+
           (_cold
@@ -6603,18 +6606,23 @@ window.startClinicApp = function(){
     if(!hit) THORNE_SUPPS.forEach(function(x){ if(x.name.toLowerCase()===nm) hit=true; });
     return hit || (SUPP_RE.test(it.name) && !TX_SERVICE_ONLY.test(it.name));
   }
-  function clientSupplements(id){
-    var by={};
+  var _suppIdx=null,_suppSig="";
+  function suppIndex(){
+    var sig=(txns||[]).length+"|"+((txns&&txns[0])||{}).id+"|"+((txns&&txns[txns.length-1])||{}).id+"|"+(regProducts?(regProducts.alpha||[]).length:0);
+    if(_suppIdx && _suppSig===sig) return _suppIdx;
+    var m={};
     txns.forEach(function(t){
-      if(t.type!=="sale" || t.clientId!==id) return;
+      if(t.type!=="sale" || !t.clientId) return;
       (t.items||[]).forEach(function(it){
         if(!isSuppItem(it)) return;
-        var k=it.name.trim().toLowerCase(), e=by[k]||(by[k]={name:it.name.trim(),last:"",count:0});
+        var by=m[t.clientId]||(m[t.clientId]={}), k=it.name.trim().toLowerCase(), e=by[k]||(by[k]={name:it.name.trim(),last:"",count:0});
         e.count+=(it.qty||1); if((t.date||"")>e.last) e.last=t.date||"";
       });
     });
-    return Object.keys(by).map(function(k){return by[k];}).sort(function(a,b){return (b.last||"").localeCompare(a.last||"");});
+    var out={}; Object.keys(m).forEach(function(cid){ out[cid]=Object.keys(m[cid]).map(function(k){return m[cid][k];}).sort(function(a,b){return (b.last||"").localeCompare(a.last||"");}); });
+    _suppIdx=out; _suppSig=sig; return out;
   }
+  function clientSupplements(id){ return suppIndex()[id]||[]; }
   function renderClientSupps(id){
     var list=clientSupplements(id), f=$("pSuppsField"); if(!f) return;
     f.style.display="block";
