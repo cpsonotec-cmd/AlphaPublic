@@ -431,6 +431,10 @@
   .pci-sub{font-size:12.5px;color:var(--muted);margin-top:4px}
   .purch-list{display:flex;flex-direction:column;gap:7px;margin-bottom:10px}
   .purch-empty{font-size:13px;color:var(--faint);padding:4px 0}
+  .supp-list{display:flex;flex-direction:column;gap:6px}
+  .supp-row{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:8px 11px;background:var(--canvas);border-radius:10px;font-size:14px}
+  .supp-row small{color:var(--muted);font-size:12px;white-space:nowrap}
+  .supp-row.supp-old{opacity:.6}
   .purch-row{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:9px 11px;background:var(--canvas);border-radius:10px}
   .purch-main{min-width:0}
   .purch-t1{font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -1984,6 +1988,11 @@
           <span>Next renewal: <b id="pmRenewText"></b></span>
         </div>
       </div>
+    </div>
+
+    <div class="field" id="pSuppsField" style="display:none;margin-top:16px">
+      <label>Supplements <span class="opt">· from register purchases</span></label>
+      <div id="pSuppList" class="supp-list"></div>
     </div>
 
     <div class="field" id="pPurchasesField" style="display:none;margin-top:16px">
@@ -6547,7 +6556,7 @@ window.startClinicApp = function(){
     setMembOn(!!withMemb);
     setActiveOn(true); $("pInactiveReason").value=""; $("pInactiveDetail").value=""; syncInactiveDetail();
     renderStageTrack();
-    $("pPurchasesField").style.display="none";
+    $("pPurchasesField").style.display="none"; if($("pSuppsField")) $("pSuppsField").style.display="none";
     openPPanel();
     setTimeout(function(){ $("pName").focus(); },320);
   }
@@ -6582,7 +6591,40 @@ window.startClinicApp = function(){
     renderClientPurchases(id);
     openPPanel();
   }
+  var SUPP_RE=/berberine|mitoopure|creatine|nutrient|magnesium|vitamin|zinc|omega|fish oil|probiotic|biotic|electrolyte|protein|collagen|multivit|ashwagandha|\bdim\b|\bepa\b|\bnad\b|\bb12\b|\bd3\b|\bd-?5000|resvera|pre-?workout|testosterone support|hormone advantage/i;
+  function isSuppItem(it){
+    if(!it || !it.name) return false;
+    if(it.cat==="Supplement") return true;
+    var nm=(it.name||"").trim().toLowerCase();
+    if(it.cat && it.cat!=="Supplement") return false;
+    if(treatments.indexOf(it.name)>=0 || TREATMENT_PRICING[it.name]) return false;
+    var hit=false;
+    try{ ensureRegProducts(); ["alpha","mjs"].forEach(function(k){ (regProducts[k]||[]).forEach(function(p){ if(p.cat==="Supplement" && (p.name||"").toLowerCase()===nm) hit=true; }); }); }catch(e){}
+    if(!hit) THORNE_SUPPS.forEach(function(x){ if(x.name.toLowerCase()===nm) hit=true; });
+    return hit || (SUPP_RE.test(it.name) && !TX_SERVICE_ONLY.test(it.name));
+  }
+  function clientSupplements(id){
+    var by={};
+    txns.forEach(function(t){
+      if(t.type!=="sale" || t.clientId!==id) return;
+      (t.items||[]).forEach(function(it){
+        if(!isSuppItem(it)) return;
+        var k=it.name.trim().toLowerCase(), e=by[k]||(by[k]={name:it.name.trim(),last:"",count:0});
+        e.count+=(it.qty||1); if((t.date||"")>e.last) e.last=t.date||"";
+      });
+    });
+    return Object.keys(by).map(function(k){return by[k];}).sort(function(a,b){return (b.last||"").localeCompare(a.last||"");});
+  }
+  function renderClientSupps(id){
+    var list=clientSupplements(id), f=$("pSuppsField"); if(!f) return;
+    f.style.display="block";
+    var cut=new Date(); cut.setDate(cut.getDate()-120); var cutIso=cut.getFullYear()+"-"+pad(cut.getMonth()+1)+"-"+pad(cut.getDate());
+    $("pSuppList").innerHTML = list.length ? list.map(function(e){
+      return '<div class="supp-row'+(e.last<cutIso?' supp-old':'')+'"><span>'+esc(e.name)+'</span><small>last bought '+fmtDate(parseISO(e.last))+(e.count>1?' \u00b7 '+e.count+' total':'')+'</small></div>';
+    }).join("") : '<div class="purch-empty">No supplements purchased yet.</div>';
+  }
   function renderClientPurchases(id){
+    renderClientSupps(id);
     $("pPurchasesField").style.display="block";
     var list=txns.filter(function(t){return t.clientId===id && t.type==="sale";})
       .sort(function(a,b){return (b.date||"").localeCompare(a.date||"");});
