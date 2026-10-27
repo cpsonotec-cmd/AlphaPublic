@@ -1393,6 +1393,7 @@
     </div>
     <section class="stats" id="repKpis"></section>
     <div class="rep-card"><h3 class="rep-h">Monthly trends <span class="rep-sub">last 12 months</span></h3><div id="repTrends"></div></div>
+    <div class="rep-card"><h3 class="rep-h">Funnel conversion <span class="rep-sub">first visit to started treatment, by month</span></h3><div id="repConv"></div></div>
     <div class="rep-card"><h3 class="rep-h">Outreach results <span class="rep-sub" id="repOutreachLbl">contacts that led to an appointment</span></h3><div id="repOutreach"></div></div>
     <div class="rep-card"><h3 class="rep-h">Retention <span class="rep-sub">based on purchases</span></h3><div id="repRetention"></div></div>
     <div class="rep-card"><h3 class="rep-h">Revenue in period <span class="rep-sub" id="repPeriodLbl"></span></h3><div id="repPeriodRev"></div></div>
@@ -2961,7 +2962,7 @@ window.startClinicApp = function(){
   }
   function txLapseDays(){ var n=parseInt(settings.txLapseDays,10); return (n>0)?n:90; }
   // Purchases count as treatment activity. Consults, memberships, scans, monitoring and discounts alone do not.
-  var TX_SERVICE_ONLY=/gift certificate|consult|shape scale|monitoring|membership|dues|services|custom amount|discount/i;
+  var TX_SERVICE_ONLY=/gift|consult|shape scale|monitoring|membership|dues|services|custom amount|discount|\btips?\b|shipping/i;
   var _txIdx=null, _txIdxSig="";
   function txByClient(){
     var sig=(txns||[]).length+"|"+((txns&&txns[0])||{}).id+"|"+((txns&&txns[txns.length-1])||{}).id;
@@ -2977,6 +2978,39 @@ window.startClinicApp = function(){
     _txIdx=m; _txIdxSig=sig; return m;
   }
   function purchaseDates(p){ var c=txByClient()[p.id]; return c?c.real:[]; }
+  // ---- Funnel milestones: each is an event, once per client for life (never read from visit-type labels) ----
+  //  signedUp     = earliest appointment ever booked, any status (p.appts from Tebra); until appointments are
+  //                 imported it falls back to the earliest visit or booked appointment on record
+  //  firstVisit   = earliest visit of ANY type that has already happened
+  //  startedTx    = earliest sale that contains a real product or treatment
+  // p.createdAt is the import date, not a business date, and is never used here.
+  var SIGNUP_RELIABLE_FROM="2026-01", START_RELIABLE_FROM="2026-02";
+  function buildMilestones(){
+    var out={}, idx=txByClient(), t=new Date(); t.setHours(23,59,59,999);
+    var tIso=t.getFullYear()+"-"+pad(t.getMonth()+1)+"-"+pad(t.getDate());
+    patients.forEach(function(p){
+      var past=[], all=[];
+      (p.visitLog||[]).forEach(function(v){ if(v && v.date){ all.push(v.date); if(v.date<=tIso) past.push(v.date); } });
+      past.sort(); all.sort();
+      var ap=[]; (p.appts||[]).forEach(function(a){ if(a && a.date) ap.push(a.date); });
+      (p.contactLog||[]).forEach(function(c){ if(c && c.outcome==="appt" && (c.apptDate||c.date)) ap.push(c.apptDate||c.date); });
+      var su=ap.concat(all).sort()[0]||null;
+      var real=(idx[p.id]&&idx[p.id].real||[]).slice().sort();
+      out[p.id]={ signedUp:su, firstVisit:past[0]||null, startedTx:real[0]||null };
+    });
+    return out;
+  }
+  function milestoneCount(ms, field, range){
+    var n=0; Object.keys(ms).forEach(function(id){ var v=ms[id][field]; if(v && (!range || inRange(v, range))) n++; }); return n;
+  }
+  function milestoneByMonth(ms, field, ym){
+    var n=0; Object.keys(ms).forEach(function(id){ var v=ms[id][field]; if(v && v.slice(0,7)===ym) n++; }); return n;
+  }
+  function cohortConversion(ms, ym){
+    var seen=0, conv=0;
+    Object.keys(ms).forEach(function(id){ var f=ms[id].firstVisit; if(!f || f.slice(0,7)!==ym) return; seen++; if(ms[id].startedTx) conv++; });
+    return {cohort:seen, converted:conv, pct:seen?conv/seen:0};
+  }
   function treatmentDates(p){
     var T=(p.visitLog||[]).filter(function(v){ return v.treatments&&v.treatments.length; }).map(function(v){ return v.date; }).filter(Boolean);
     T=T.concat(purchaseDates(p));
@@ -3098,12 +3132,15 @@ window.startClinicApp = function(){
     $("repTo").value = repMode==="custom" ? repToISO : todayISO();
 
     // KPIs
-    var initConsults = patients.filter(function(p){ return p.consultDate && inRange(p.consultDate, r.range); }).length;
-    var startedTx = patients.filter(function(p){ var sd=treatmentStartDate(p); return sd && inRange(sd, r.range); }).length;
+    var _ms=buildMilestones();
+    var signedUp = milestoneCount(_ms, "signedUp", r.range);
+    var initConsults = milestoneCount(_ms, "firstVisit", r.range);
+    var startedTx = milestoneCount(_ms, "startedTx", r.range);
     $("repKpis").innerHTML=[
       statTile("Total clients", patients.length, "", "#9AA39D", "in your book"),
-      statTile("Initial consults", initConsults, "", "#D9820B", periodLbl),
-      statTile("Started treatment", startedTx, "", "var(--good)", periodLbl),
+      statTile("Signed up", signedUp, "", "#2563EB", "first appointment booked \u00b7 "+periodLbl),
+      statTile("Initial consults", initConsults, "", "#D9820B", "first visit, any reason \u00b7 "+periodLbl),
+      statTile("Started treatment", startedTx, "", "var(--good)", "first real purchase \u00b7 "+periodLbl),
       statTile("On treatment", onTreatmentCount(r.range), "", "var(--good)", periodLbl),
       statTile("Active members", r.activeMembers.length, "", "var(--emerald-deep)", "enrolled & active"),
       statTile("Monthly revenue", "$"+money(r.mrrNet), "", "var(--emerald)", "after discounts"),
@@ -3111,6 +3148,7 @@ window.startClinicApp = function(){
       statTile("Visits logged", r.visitsInPeriod, "", "var(--amber)", periodLbl)
     ].join("");
     try{ renderRetention(); }catch(e){ if(window.console) console.error("retention",e); }
+    try{ renderConversion(); }catch(e){ if(window.console) console.error("conv",e); }
     try{ renderOutreach(); }catch(e){ if(window.console) console.error("outreach",e); }
     try{ renderTrends(); }catch(e){ if(window.console) console.error("trends",e); if($("repTrends")) $("repTrends").innerHTML='<div class="rep-empty">Trends could not be drawn: '+esc(e.message)+'</div>'; }
 
@@ -5422,6 +5460,18 @@ window.startClinicApp = function(){
     var chgHtml=(chg==null)?"":('<span class="trend-chg '+(chg>=0?"tc-up":"tc-down")+'">'+(chg>=0?"\u25B2":"\u25BC")+Math.abs(chg)+'%</span>');
     return '<div class="trend-block"><div class="trend-head"><span class="trend-title">'+title+'</span><span class="trend-latest">'+latest+chgHtml+'</span></div>'+(type==="line"?miniLine(values,labels,color):miniBars(values,labels,color))+'</div>';
   }
+  function renderConversion(){
+    var el=$("repConv"); if(!el) return;
+    var ms=buildMilestones(), now=new Date(), rows=[];
+    for(var i=6;i>=0;i--){
+      var d=new Date(now.getFullYear(), now.getMonth()-i, 1), ym=d.getFullYear()+"-"+pad(d.getMonth()+1), c=cohortConversion(ms, ym);
+      var endOfMonth=new Date(d.getFullYear(), d.getMonth()+1, 0), ageDays=Math.max(0,Math.round((now-endOfMonth)/86400000));
+      rows.push({ym:ym, label:MO_ABBR[d.getMonth()]+" "+d.getFullYear(), c:c, age:i===0?"month in progress":(ageDays<14?"under 2 weeks old":Math.round(ageDays/7)+" weeks old"), weak:ym<START_RELIABLE_FROM});
+    }
+    el.innerHTML='<div class="purch-list">'+rows.map(function(x){
+      return '<div class="purch-row"'+(x.weak?' style="opacity:.5"':'')+'><div class="purch-main"><div class="purch-t1">'+esc(x.label)+'</div><div class="purch-t2">'+x.c.cohort+' first visits \u00b7 '+x.c.converted+' started treatment \u00b7 cohort '+x.age+(x.weak?' \u00b7 history incomplete':'')+'</div></div><div class="purch-amt">'+(x.c.cohort?Math.round(x.c.pct*100)+"%":"\u2014")+'</div></div>';
+    }).join("")+'</div><div class="rep-empty" style="margin-top:8px;text-align:left">Recent months read low because those clients have had less time to start. Compare a month with others of similar age.</div>';
+  }
   function renderOutreach(){
     var el=$("repOutreach"); if(!el) return;
     var r=reportRange(), rows=[];
@@ -5503,14 +5553,20 @@ window.startClinicApp = function(){
     var now=new Date(), months=[];
     for(var i=11;i>=0;i--){ var dd=new Date(now.getFullYear(), now.getMonth()-i, 1); months.push({y:dd.getFullYear(),m:dd.getMonth(),label:MO_ABBR[dd.getMonth()]}); }
     function inMonth(iso,mo){ var d=parseISO(iso); return d && d.getFullYear()===mo.y && d.getMonth()===mo.m; }
-    var consults=months.map(function(mo){ return patients.filter(function(p){ return p.consultDate && inMonth(p.consultDate,mo); }).length; });
-    var starts=months.map(function(mo){ return patients.filter(function(p){ var sd=treatmentStartDate(p); return sd && inMonth(sd,mo); }).length; });
+    var _ms=buildMilestones();
+    function ymOf(mo){ return mo.y+"-"+pad(mo.m+1); }
+    var signups=months.map(function(mo){ return milestoneByMonth(_ms,"signedUp",ymOf(mo)); });
+    var consults=months.map(function(mo){ return milestoneByMonth(_ms,"firstVisit",ymOf(mo)); });
+    var starts=months.map(function(mo){ return milestoneByMonth(_ms,"startedTx",ymOf(mo)); });
+    var okSign=months.map(function(mo){ return ymOf(mo)>=SIGNUP_RELIABLE_FROM; }), okStart=months.map(function(mo){ return ymOf(mo)>=START_RELIABLE_FROM; });
     var onTx=months.map(function(mo){ return onTreatmentCount({start:new Date(mo.y,mo.m,1), end:new Date(new Date(mo.y,mo.m+1,1).getTime()-1)}); });
     var totals=months.map(function(mo){ var end=new Date(mo.y,mo.m+1,1).getTime()-1; return patients.filter(function(p){ var d=parseISO(p.createdAt||p.consultDate); return d? d.getTime()<=end : true; }).length; });
     var labels=months.map(function(mo){return mo.label;});
     $("repTrends").innerHTML=
+      trendBlock("Signed up", signups.filter(function(v,i){return okSign[i];}), labels.filter(function(v,i){return okSign[i];}), "#2563EB","bars")+
       trendBlock("Initial consults", consults, labels, "#D9820B","bars")+
-      trendBlock("Started treatment", starts, labels, "#0a7d53","bars")+
+      trendBlock("Started treatment", starts.filter(function(v,i){return okStart[i];}), labels.filter(function(v,i){return okStart[i];}), "#0a7d53","bars")+
+      '<div class="rep-empty" style="margin:6px 0 0;text-align:left">Signed up is charted from Jan 2026 and Started treatment from Feb 2026. Earlier months are left out because the appointment and sales history before then is incomplete.</div>'+
       trendBlock("On treatment", onTx, labels, "#0D9488","line")+
       trendBlock("Total clients", totals, labels, "#2563EB","line");
   }
@@ -6161,7 +6217,7 @@ window.startClinicApp = function(){
   }
   function renderPatientStats(){
     var c=pCounts();
-    var consultDone = patients.filter(function(p){return !!p.consultDate;}).length;
+    var _msC=buildMilestones(); var consultDone = patients.filter(function(p){return !!(_msC[p.id]&&_msC[p.id].firstVisit);}).length;
     var bloodDone = patients.filter(function(p){return hasBloodwork(p);}).length;
     var mem = memberList().length;
     var html=[
@@ -7293,6 +7349,8 @@ window.startClinicApp = function(){
   }
   function applyRemoteState(d){
     if(!d) return;
+    // never replace a real client book with a dramatically smaller cloud copy
+    if(Array.isArray(d.patients) && patients.length>=20 && d.patients.length < patients.length*0.5){ toast("Ignored a cloud copy with only "+d.patients.length+" clients (this device has "+patients.length+")"); return; }
     if(Array.isArray(d.patients)) patients=d.patients;
     if(Array.isArray(d.tiers) && d.tiers.length) tiers=d.tiers;
     if(Array.isArray(d.treatments) && d.treatments.length) treatments=d.treatments;
