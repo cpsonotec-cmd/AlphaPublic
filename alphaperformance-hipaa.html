@@ -1393,6 +1393,7 @@
     </div>
     <section class="stats" id="repKpis"></section>
     <div class="rep-card"><h3 class="rep-h">Monthly trends <span class="rep-sub">last 12 months</span></h3><div id="repTrends"></div></div>
+    <div class="rep-card"><h3 class="rep-h">Never came in <span class="rep-sub">clients with no visit of any kind, as at today</span></h3><div id="repNever"></div></div>
     <div class="rep-card"><h3 class="rep-h">Funnel conversion <span class="rep-sub">first visit to started treatment, by month</span></h3><div id="repConv"></div></div>
     <div class="rep-card"><h3 class="rep-h">Outreach results <span class="rep-sub" id="repOutreachLbl">contacts that led to an appointment</span></h3><div id="repOutreach"></div></div>
     <div class="rep-card"><h3 class="rep-h">Retention <span class="rep-sub">based on purchases</span></h3><div id="repRetention"></div></div>
@@ -2993,24 +2994,50 @@ window.startClinicApp = function(){
   }
   function purchaseDates(p){ var c=txByClient()[p.id]; return c?c.real:[]; }
   // ---- Funnel milestones: each is an event, once per client for life (never read from visit-type labels) ----
-  //  signedUp     = earliest appointment ever booked, any status (p.appts from Tebra); until appointments are
-  //                 imported it falls back to the earliest visit or booked appointment on record
-  //  firstVisit   = earliest visit of ANY type that has already happened
-  //  startedTx    = earliest sale that contains a real product or treatment
+  //  firstVisit   = earliest visit of ANY type that has already happened            (flow: initial consult)
+  //  startedTx    = earliest sale that contains a real product or treatment           (flow: started treatment)
+  //  firstBooking = earliest appointment booked, any status (p.appts, from Tebra; future visit-log entries count as upcoming bookings)
+  //  cameIn       = has at least one visit that already happened
+  // Flows: initial consult, started treatment, missed first visit (booked that month, never attended).
+  // Stock: never came in (active clients with no visit, as at today).
   // p.createdAt is the import date, not a business date, and is never used here.
-  var SIGNUP_RELIABLE_FROM="2026-01", START_RELIABLE_FROM="2026-02";
+  var START_RELIABLE_FROM="2026-02", MISSED_RELIABLE_FROM="2026-01";
+  function isoToday(){ var t=new Date(); return t.getFullYear()+"-"+pad(t.getMonth()+1)+"-"+pad(t.getDate()); }
+  function clientAppts(p, tIso){
+    var out=[]; (p.appts||[]).forEach(function(a){ if(a && a.date) out.push({date:a.date, status:a.status||""}); });
+    (p.visitLog||[]).forEach(function(v){ if(v && v.date && v.date>tIso) out.push({date:v.date, status:"Scheduled"}); });
+    return out.sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:0;});
+  }
   function buildMilestones(){
-    var out={}, idx=txByClient(), t=new Date(); t.setHours(23,59,59,999);
-    var tIso=t.getFullYear()+"-"+pad(t.getMonth()+1)+"-"+pad(t.getDate());
+    var out={}, idx=txByClient(), tIso=isoToday();
     patients.forEach(function(p){
-      var past=[], all=[];
-      (p.visitLog||[]).forEach(function(v){ if(v && v.date){ all.push(v.date); if(v.date<=tIso) past.push(v.date); } });
-      past.sort(); all.sort();
-      var ap=[]; (p.appts||[]).forEach(function(a){ if(a && a.date) ap.push(a.date); });
-      (p.contactLog||[]).forEach(function(c){ if(c && c.outcome==="appt" && (c.apptDate||c.date)) ap.push(c.apptDate||c.date); });
-      var su=ap.concat(all).sort()[0]||null;
+      var past=[]; (p.visitLog||[]).forEach(function(v){ if(v && v.date && v.date<=tIso) past.push(v.date); }); past.sort();
+      var ap=clientAppts(p,tIso);
       var real=(idx[p.id]&&idx[p.id].real||[]).slice().sort();
-      out[p.id]={ signedUp:su, firstVisit:past[0]||null, startedTx:real[0]||null };
+      out[p.id]={ firstVisit:past[0]||null, startedTx:real[0]||null, firstBooking:ap.length?ap[0].date:null, appts:ap, cameIn:past.length>0, active:p.active!==false };
+    });
+    return out;
+  }
+  // FLOW: booked a first appointment in this month and has still never attended
+  function missedFirstVisitByMonth(ms, ym){
+    var n=0; Object.keys(ms).forEach(function(id){ var r=ms[id]; if(r.cameIn) return; if(r.firstBooking && r.firstBooking.slice(0,7)===ym && r.firstBooking<=isoToday()) n++; }); return n;
+  }
+  function missedFirstVisitInRange(ms, range){
+    var n=0; Object.keys(ms).forEach(function(id){ var r=ms[id]; if(r.cameIn) return; if(r.firstBooking && r.firstBooking<=isoToday() && inRange(r.firstBooking, range)) n++; }); return n;
+  }
+  // STOCK: active clients with no visit of any kind, as at today
+  function neverCameIn(ms){
+    var today=isoToday(), out={ total:0, ids180:[], byAge:{"0-30":0,"31-60":0,"61-90":0,"91-180":0,"180+":0,"never booked":0}, byStatus:{noShowOrCancelled:0, upcomingOnly:0, pending:0, neverBooked:0} };
+    Object.keys(ms).forEach(function(id){
+      var r=ms[id]; if(r.cameIn || !r.active) return;
+      out.total++;
+      var ap=r.appts||[];
+      if(!ap.length){ out.byAge["never booked"]++; out.byStatus.neverBooked++; return; }
+      var past=ap.filter(function(a){ return a.date<=today; });
+      if(!past.length){ out.byAge["never booked"]++; out.byStatus.upcomingOnly++; return; }
+      if(past.some(function(a){ return /NoShow|No Show|Cancel|Reschedul/i.test(a.status); })) out.byStatus.noShowOrCancelled++; else out.byStatus.pending++;
+      var days=Math.round((parseISO(today)-parseISO(r.firstBooking))/86400000);
+      if(days<=30) out.byAge["0-30"]++; else if(days<=60) out.byAge["31-60"]++; else if(days<=90) out.byAge["61-90"]++; else if(days<=180) out.byAge["91-180"]++; else { out.byAge["180+"]++; out.ids180.push(id); }
     });
     return out;
   }
@@ -3147,14 +3174,16 @@ window.startClinicApp = function(){
 
     // KPIs
     var _ms=buildMilestones();
-    var signedUp = milestoneCount(_ms, "signedUp", r.range);
+    var _nci = neverCameIn(_ms);
+    var missedFV = missedFirstVisitInRange(_ms, r.range);
     var initConsults = milestoneCount(_ms, "firstVisit", r.range);
     var startedTx = milestoneCount(_ms, "startedTx", r.range);
     $("repKpis").innerHTML=[
       statTile("Total clients", patients.length, "", "#9AA39D", "in your book"),
-      statTile("Signed up", signedUp, "", "#2563EB", "first appointment booked \u00b7 "+periodLbl),
       statTile("Initial consults", initConsults, "", "#D9820B", "first visit, any reason \u00b7 "+periodLbl),
+      statTile("Missed first visit", missedFV, "", "var(--red)", "booked, never attended \u00b7 "+periodLbl),
       statTile("Started treatment", startedTx, "", "var(--good)", "first real purchase \u00b7 "+periodLbl),
+      statTile("Never came in", _nci.total, "", "#94A3B8", "no visit of any kind, as at today"),
       statTile("On treatment", onTreatmentCount(r.range), "", "var(--good)", periodLbl),
       statTile("Active members", r.activeMembers.length, "", "var(--emerald-deep)", "enrolled & active"),
       statTile("Monthly revenue", "$"+money(r.mrrNet), "", "var(--emerald)", "after discounts"),
@@ -3162,6 +3191,7 @@ window.startClinicApp = function(){
       statTile("Visits logged", r.visitsInPeriod, "", "var(--amber)", periodLbl)
     ].join("");
     try{ renderRetention(); }catch(e){ if(window.console) console.error("retention",e); }
+    try{ renderNeverCameIn(_ms); }catch(e){ if(window.console) console.error("never",e); }
     try{ renderConversion(); }catch(e){ if(window.console) console.error("conv",e); }
     try{ renderOutreach(); }catch(e){ if(window.console) console.error("outreach",e); }
     try{ renderTrends(); }catch(e){ if(window.console) console.error("trends",e); if($("repTrends")) $("repTrends").innerHTML='<div class="rep-empty">Trends could not be drawn: '+esc(e.message)+'</div>'; }
@@ -5474,6 +5504,31 @@ window.startClinicApp = function(){
     var chgHtml=(chg==null)?"":('<span class="trend-chg '+(chg>=0?"tc-up":"tc-down")+'">'+(chg>=0?"\u25B2":"\u25BC")+Math.abs(chg)+'%</span>');
     return '<div class="trend-block"><div class="trend-head"><span class="trend-title">'+title+'</span><span class="trend-latest">'+latest+chgHtml+'</span></div>'+(type==="line"?miniLine(values,labels,color):miniBars(values,labels,color))+'</div>';
   }
+  function renderNeverCameIn(ms){
+    var el=$("repNever"); if(!el) return;
+    var n=neverCameIn(ms||buildMilestones());
+    if(!n.total){ el.innerHTML='<div class="rep-empty">Everyone on file has been seen at least once.</div>'; return; }
+    var st=n.byStatus;
+    el.innerHTML='<div class="stats">'+
+      statTile("Never came in", n.total, "", "#94A3B8", "active clients, no visit")+
+      statTile("Booked, then no-showed or cancelled", st.noShowOrCancelled, "", "var(--red)", "a show-rate problem")+
+      statTile("Never booked", st.neverBooked, "", "var(--amber)", "a scheduling or follow-up problem")+
+      statTile("Upcoming or pending", st.upcomingOnly+st.pending, "", "var(--good)", st.upcomingOnly+" upcoming only \u00b7 "+st.pending+" pending")+'</div>'+
+      hbars([
+        {label:"0\u201330 days since first booking", value:n.byAge["0-30"], color:"var(--good)"},
+        {label:"31\u201360 days", value:n.byAge["31-60"], color:"var(--good)"},
+        {label:"61\u201390 days", value:n.byAge["61-90"], color:"var(--amber)"},
+        {label:"91\u2013180 days", value:n.byAge["91-180"], color:"var(--amber)"},
+        {label:"180+ days (realistically dead)", value:n.byAge["180+"], color:"var(--red)"},
+        {label:"Never booked or only upcoming (undateable)", value:n.byAge["never booked"], color:"#94A3B8"}
+      ],"clients")+
+      (n.ids180.length?'<button type="button" class="btn-ghost" id="repNeverInactive" style="margin-top:12px">Mark the '+n.ids180.length+' clients over 180 days as inactive</button>':'');
+    var b=$("repNeverInactive"); if(b) b.onclick=function(){
+      var ids=n.ids180.slice();
+      askConfirm({ title:"Mark "+ids.length+" clients inactive?", message:"These clients have never had a visit and their first booking was over 180 days ago. They move out of this list and the Follow-up count. You can set any of them active again from their record.", okLabel:"Mark inactive",
+        onConfirm:function(){ ids.forEach(function(id){ var p=findPatient(id); if(p && p.active!==false){ p.active=false; p.inactiveReason="Lost contact / no response"; p.inactiveDetail=""; } }); savePatients(); try{ renderAll(); }catch(e){} renderReports(); toast(ids.length+" clients marked inactive"); } });
+    };
+  }
   function renderConversion(){
     var el=$("repConv"); if(!el) return;
     var ms=buildMilestones(), now=new Date(), rows=[];
@@ -5569,18 +5624,18 @@ window.startClinicApp = function(){
     function inMonth(iso,mo){ var d=parseISO(iso); return d && d.getFullYear()===mo.y && d.getMonth()===mo.m; }
     var _ms=buildMilestones();
     function ymOf(mo){ return mo.y+"-"+pad(mo.m+1); }
-    var signups=months.map(function(mo){ return milestoneByMonth(_ms,"signedUp",ymOf(mo)); });
+    var missed=months.map(function(mo){ return missedFirstVisitByMonth(_ms,ymOf(mo)); });
     var consults=months.map(function(mo){ return milestoneByMonth(_ms,"firstVisit",ymOf(mo)); });
     var starts=months.map(function(mo){ return milestoneByMonth(_ms,"startedTx",ymOf(mo)); });
-    var okSign=months.map(function(mo){ return ymOf(mo)>=SIGNUP_RELIABLE_FROM; }), okStart=months.map(function(mo){ return ymOf(mo)>=START_RELIABLE_FROM; });
+    var okMiss=months.map(function(mo){ return ymOf(mo)>=MISSED_RELIABLE_FROM; }), okStart=months.map(function(mo){ return ymOf(mo)>=START_RELIABLE_FROM; });
     var onTx=months.map(function(mo){ return onTreatmentCount({start:new Date(mo.y,mo.m,1), end:new Date(new Date(mo.y,mo.m+1,1).getTime()-1)}); });
     var totals=months.map(function(mo){ var end=new Date(mo.y,mo.m+1,1).getTime()-1; return patients.filter(function(p){ var d=parseISO(p.createdAt||p.consultDate); return d? d.getTime()<=end : true; }).length; });
     var labels=months.map(function(mo){return mo.label;});
     $("repTrends").innerHTML=
-      trendBlock("Signed up", signups.filter(function(v,i){return okSign[i];}), labels.filter(function(v,i){return okSign[i];}), "#2563EB","bars")+
       trendBlock("Initial consults", consults, labels, "#D9820B","bars")+
+      trendBlock("Missed first visit", missed.filter(function(v,i){return okMiss[i];}), labels.filter(function(v,i){return okMiss[i];}), "#B42318","bars")+
       trendBlock("Started treatment", starts.filter(function(v,i){return okStart[i];}), labels.filter(function(v,i){return okStart[i];}), "#0a7d53","bars")+
-      '<div class="rep-empty" style="margin:6px 0 0;text-align:left">Signed up is charted from Jan 2026 and Started treatment from Feb 2026. Earlier months are left out because the appointment and sales history before then is incomplete.</div>'+
+      '<div class="rep-empty" style="margin:6px 0 0;text-align:left">Missed first visit is charted from Jan 2026 and Started treatment from Feb 2026. Earlier months are left out because the appointment and sales history before then is incomplete. Missed first visit only counts clients who had an appointment on record, so it understates.</div>'+
       trendBlock("On treatment", onTx, labels, "#0D9488","line")+
       trendBlock("Total clients", totals, labels, "#2563EB","line");
   }
