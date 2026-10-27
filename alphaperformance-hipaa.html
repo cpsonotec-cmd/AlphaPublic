@@ -7461,7 +7461,11 @@ window.startClinicApp = function(){
         if(res.error){ toast("Couldn't load from cloud"); return; }
         var rd = res.data && res.data.data;
         var remoteHasData = rd && (((rd.patients&&rd.patients.length)) || ((rd.members&&rd.members.length)));
-        if(remoteHasData){
+        var localHasData = patients.length>0 || members.length>0;
+        if(remoteHasData && localHasData && seedIfEmpty){
+          // this device already holds data (the encrypted workspace sync is the source of truth): never overwrite it with the cached copy in app_state
+          cloudReady=true;
+        } else if(remoteHasData){
           applyRemoteState(rd);
         } else if(seedIfEmpty){
           cloudReady=true; cloudPush();
@@ -7516,6 +7520,8 @@ window.startClinicApp = function(){
       });
   }
   function onSignedIn(user){
+    // supabase-js fires an auth event on every tab refocus and token refresh. Only the first sign-in of a page session may pull.
+    if(sbUser && user && sbUser.id===user.id && cloudReady){ sbUser=user; return; }
     sbUser=user;
     setPill("syncing","Syncing…");
     hideAuth();
