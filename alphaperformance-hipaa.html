@@ -648,6 +648,16 @@
   .supp-badge{background:#E3F4EA;color:#17653A}
   .disc-badge{background:var(--amber-soft);color:#946400}
   .due-badge{background:var(--red-soft);color:#a5352f}
+  .cs-badge.cs-appt{background:#DCFCE7;color:#166534}
+  .cs-badge.cs-soon{background:#DBEAFE;color:#1E40AF}
+  .cm-sec{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:8px 10px 4px}
+  .cm-chips{display:flex;gap:6px;flex-wrap:wrap;padding:0 8px 4px}
+  .contact-menu .cm-chips button{width:auto;padding:8px 11px;border:1px solid var(--line);border-radius:9px;font-size:13px}
+  .contact-menu .cm-chips button.on{background:var(--emerald);color:#fff;border-color:var(--emerald)}
+  .contact-menu .cm-chips button.on svg{stroke:#fff}
+  .contact-menu .cm-date{margin:4px 8px;width:calc(100% - 16px);padding:9px;border:1px solid var(--line);border-radius:9px;font-size:14px;background:var(--card);color:var(--ink)}
+  .contact-menu .cm-save{margin:6px 8px 4px;width:calc(100% - 16px);justify-content:center;background:var(--emerald);color:#fff}
+  .contact-menu .cm-save:hover{background:var(--emerald)}
   .inactive-badge{background:#E5E7EB;color:#4B5563}
   .seen-today-badge{background:#E7F6EF;color:#0a7d53}
   .seen-today-meta{color:#0a7d53!important;font-weight:600}
@@ -1881,6 +1891,8 @@
         <button type="button" class="vc-add" id="pLastContactToday">Today</button>
         <button type="button" class="btn-ghost lc-clear" id="pLastContactClear">Clear</button>
       </div>
+      <div class="lc-row" style="margin-top:8px"><select id="pContactOutcome" style="flex:1" aria-label="Outcome of last contact"><option value="">Outcome of contact (optional)</option><option value="appt">Made an appointment</option><option value="soon">Will come back soon</option><option value="noanswer">No answer / left message</option></select>
+        <input type="date" id="pApptDate" style="display:none" aria-label="Appointment date"></div>
       <label class="cold-toggle"><input type="checkbox" id="pColdLead"> Inactive lead <span class="opt">· tried to reach them, no response (removes from Follow-up)</span></label>
       <select id="pColdReason" style="display:none">
         <option>No response</option><option>Wrong number / bad email</option><option>Not interested</option><option>Asked not to be contacted</option><option>Other</option>
@@ -5955,8 +5967,27 @@ window.startClinicApp = function(){
     if(ls && p.coldDate && ls>p.coldDate) return false;
     return true;
   }
+  // What came out of the last contact: booked appointment or "will come back soon". Hides itself once they are seen again.
+  function contactStatus(p){
+    if(!p || !p.lastContact || !p.contactOutcome) return null;
+    var t=new Date(); t.setHours(0,0,0,0);
+    var lc=parseISO(p.lastContact), ls=lastSeenDate(p), lsd=ls?parseISO(ls):null;
+    if(lsd && lc && lsd>lc) return null; // came in after the contact
+    if(p.contactOutcome==="appt"){
+      var ad=p.apptDate?parseISO(p.apptDate):null;
+      if(ad && ad>=t) return {kind:"appt", label:"Appointment "+fmtDate(ad)};
+      if(!ad && lc && daysBetween(t,lc)<=14) return {kind:"appt", label:"Appointment booked"};
+      return null;
+    }
+    if(p.contactOutcome==="soon"){
+      if(lc && daysBetween(t,lc)<=30) return {kind:"soon", label:"Coming back soon"};
+      return null;
+    }
+    return null;
+  }
   function isDue(p){
     if(p.active===false || isColdLead(p)) return false;
+    if(contactStatus(p)) return false;
     if(p.isMember && p.status==="cancelled") return false;
     var ds=daysSinceSeen(p);
     return ds!=null && ds>=followupDays();
@@ -6175,7 +6206,7 @@ window.startClinicApp = function(){
       var _lsDays = _ls ? daysBetween(_today, parseISO(_ls)) : null;
       var lastVisitTxt = (_lsDays==null) ? "\u2014" : (_lsDays===0?"today":_lsDays===1?"yesterday":(_lsDays+"d ago"));
       dates.push('<span'+(_lsDays===0?' class="seen-today-meta"':'')+'>'+ICON.clock+"Last visit "+lastVisitTxt+'</span>');
-      if(p.lastContact){ var _lc=parseISO(p.lastContact); if(_lc){ var _cm=p.lastContactMethod||"", _cv=_cm==="Text"?"Texted":_cm==="Email"?"Emailed":_cm==="Phone call"?"Called":"Contacted", _ci=_cm==="Email"?ICON.mail:(_cm==="Text"?ICON.chat:ICON.phone), _cd=daysBetween(new Date(new Date().setHours(0,0,0,0)),_lc); dates.push('<span class="contacted-meta">'+_ci+_cv+" "+fmtDate(_lc)+(_cd>0?" \u00b7 "+_cd+"d ago":(_cd===0?" \u00b7 today":""))+'</span>'); } }
+      if(p.lastContact){ var _lc=parseISO(p.lastContact); if(_lc){ var _cm=p.lastContactMethod||"", _cv=_cm==="Text"?"Texted":_cm==="Email"?"Emailed":_cm==="Phone call"?"Called":"Contacted", _ci=_cm==="Email"?ICON.mail:(_cm==="Text"?ICON.chat:ICON.phone), _cd=daysBetween(new Date(new Date().setHours(0,0,0,0)),_lc); dates.push('<span class="contacted-meta">'+_ci+_cv+" "+fmtDate(_lc)+(_cd>0?" \u00b7 "+_cd+"d ago":(_cd===0?" \u00b7 today":""))+(p.contactOutcome==="noanswer"?" \u00b7 no answer":"")+'</span>'); } }
       var _nv=nextVisitDate(p);
       if(_nv) dates.push('<span class="upcoming-meta">'+ICON.clock+"Next "+fmtDate(parseISO(_nv))+'</span>');
       var _sp=clientSupplements(p.id);
@@ -6186,6 +6217,7 @@ window.startClinicApp = function(){
       var discB = p.discount ? '<span class="badge disc-badge">'+esc(p.discount)+'</span>' : '';
       var dsn = daysSinceSeen(p);
       var dueB = isDue(p) ? '<span class="badge due-badge">'+dsn+'d no visit</span>' : '';
+      var _cs=contactStatus(p); if(_cs) dueB='<span class="badge cs-badge cs-'+_cs.kind+'">'+esc(_cs.label)+'</span>'+dueB;
       var _cold = isColdLead(p);
       if(_cold) dueB = '<span class="badge cold-badge">Inactive lead'+(p.coldReason?' · '+esc(p.coldReason):'')+'</span>';
       var inact = p.active===false;
@@ -6554,7 +6586,7 @@ window.startClinicApp = function(){
     $("pSaveBtn").textContent = withMemb ? "Save member" : "Save client";
     $("pDeleteBtn").style.display="none";
     $("pName").value=""; $("pPhone").value=""; $("pEmail").value="";
-    $("pConsult").value=""; if($("pLastContact")) $("pLastContact").value=""; if($("pLastContactMethod")) $("pLastContactMethod").value=""; if($("pColdLead")){ $("pColdLead").checked=false; $("pColdReason").value="No response"; $("pColdReason").style.display="none"; } $("pNotes").value="";
+    $("pConsult").value=""; if($("pLastContact")) $("pLastContact").value=""; if($("pLastContactMethod")) $("pLastContactMethod").value=""; if($("pContactOutcome")){ $("pContactOutcome").value=""; $("pApptDate").value=""; $("pApptDate").style.display="none"; } if($("pColdLead")){ $("pColdLead").checked=false; $("pColdReason").value="No response"; $("pColdReason").style.display="none"; } $("pNotes").value="";
     $("pSex").value=""; $("pDob").value="";
     fillRefSourceSelect(""); $("pRefBy").value=""; $("pRefDetail").value=""; fillRefByList(null); $("pRefSource").onchange=onRefSourceChange; syncRefFields();
     fillLocationSelect("");
@@ -6580,7 +6612,7 @@ window.startClinicApp = function(){
     $("pSaveBtn").textContent="Save changes";
     $("pDeleteBtn").style.display="block";
     $("pName").value=p.name; $("pPhone").value=p.phone||""; $("pEmail").value=p.email||"";
-    $("pConsult").value=p.consultDate||""; if($("pLastContact")) $("pLastContact").value=p.lastContact||""; if($("pLastContactMethod")) $("pLastContactMethod").value=p.lastContactMethod||""; if($("pColdLead")){ var _ic=isColdLead(p); $("pColdLead").checked=_ic; $("pColdReason").value=p.coldReason||"No response"; $("pColdReason").style.display=_ic?"block":"none"; } $("pNotes").value=p.notes||"";
+    $("pConsult").value=p.consultDate||""; if($("pLastContact")) $("pLastContact").value=p.lastContact||""; if($("pLastContactMethod")) $("pLastContactMethod").value=p.lastContactMethod||""; if($("pContactOutcome")){ $("pContactOutcome").value=p.contactOutcome||""; $("pApptDate").value=p.apptDate||""; $("pApptDate").style.display=p.contactOutcome==="appt"?"":"none"; } if($("pColdLead")){ var _ic=isColdLead(p); $("pColdLead").checked=_ic; $("pColdReason").value=p.coldReason||"No response"; $("pColdReason").style.display=_ic?"block":"none"; } $("pNotes").value=p.notes||"";
     $("pSex").value=p.sex||""; $("pDob").value=p.dob||"";
     fillRefSourceSelect(p.refSource||""); $("pRefBy").value=p.refByName||""; $("pRefDetail").value=p.refDetail||""; fillRefByList(id); $("pRefSource").onchange=onRefSourceChange; syncRefFields();
     fillLocationSelect(p.location||"");
@@ -6631,26 +6663,38 @@ window.startClinicApp = function(){
     _suppIdx=out; _suppSig=sig; return out;
   }
   function clientSupplements(id){ return suppIndex()[id]||[]; }
-  function logContact(id, method){
+  function logContact(id, method, outcome, apptDate){
     var p=findPatient(id); if(!p) return;
-    p.lastContact=todayISO(); p.lastContactMethod=method||"";
-    p.contactLog=(p.contactLog||[]); p.contactLog.push({date:todayISO(), method:method||""}); if(p.contactLog.length>30) p.contactLog=p.contactLog.slice(-30);
+    p.lastContact=todayISO(); p.lastContactMethod=method||""; p.contactOutcome=outcome||""; p.apptDate=(outcome==="appt"?(apptDate||""):"");
+    p.contactLog=(p.contactLog||[]); p.contactLog.push({date:todayISO(), method:method||"", outcome:outcome||"", apptDate:p.apptDate}); if(p.contactLog.length>30) p.contactLog=p.contactLog.slice(-30);
     savePatients(); if(window.__hipAudit) window.__hipAudit("client_contacted", p.id);
-    try{ renderPatientList(); }catch(e){} try{ renderList(); }catch(e){}
-    toast(p.name.split(" ")[0]+": "+(method||"contact")+" logged for today");
+    try{ renderPatientList(); }catch(e){} try{ renderList(); }catch(e){} try{ renderFollowupBanner(); }catch(e){}
+    toast(p.name.split(" ")[0]+": contact logged"+(outcome==="appt"?" \u00b7 appointment booked":outcome==="soon"?" \u00b7 coming back soon":""));
   }
   function closeContactMenu(){ var m=$("contactMenu"); if(m) m.remove(); document.removeEventListener("mousedown", _cmOutside, true); }
   function _cmOutside(e){ var m=$("contactMenu"); if(m && !m.contains(e.target)) closeContactMenu(); }
   function openContactMenu(btn, id){
     closeContactMenu();
-    var m=document.createElement("div"); m.className="contact-menu"; m.id="contactMenu";
-    m.innerHTML='<div class="cm-h">How did you reach them?</div>'+
-      '<button type="button" data-cm="Phone call">'+ICON.phone+'Phone call</button><button type="button" data-cm="Text">'+ICON.chat+'Text</button><button type="button" data-cm="Email">'+ICON.mail+'Email</button><button type="button" data-cm="">Other / not sure</button>';
+    var st={method:"", outcome:""};
+    var m=document.createElement("div"); m.className="contact-menu"; m.id="contactMenu"; m.style.width="300px";
+    m.innerHTML='<div class="cm-sec">How did you reach them?</div><div class="cm-chips" id="cmMethod">'+
+      '<button type="button" data-cmm="Phone call">'+ICON.phone+'Call</button><button type="button" data-cmm="Text">'+ICON.chat+'Text</button><button type="button" data-cmm="Email">'+ICON.mail+'Email</button></div>'+
+      '<div class="cm-sec">What happened?</div><div class="cm-chips" id="cmOutcome">'+
+      '<button type="button" data-cmo="appt">Made an appointment</button><button type="button" data-cmo="soon">Will come back soon</button><button type="button" data-cmo="noanswer">No answer / left message</button></div>'+
+      '<input type="date" class="cm-date" id="cmAppt" style="display:none" aria-label="Appointment date">'+
+      '<button type="button" class="cm-save" id="cmSave">Log contact</button>';
     document.body.appendChild(m);
+    function paint(){
+      Array.prototype.forEach.call(m.querySelectorAll("[data-cmm]"),function(o){ o.classList.toggle("on", o.getAttribute("data-cmm")===st.method); });
+      Array.prototype.forEach.call(m.querySelectorAll("[data-cmo]"),function(o){ o.classList.toggle("on", o.getAttribute("data-cmo")===st.outcome); });
+      $("cmAppt").style.display = st.outcome==="appt" ? "block" : "none";
+    }
+    Array.prototype.forEach.call(m.querySelectorAll("[data-cmm]"),function(o){ o.onclick=function(){ var v=o.getAttribute("data-cmm"); st.method = st.method===v?"":v; paint(); }; });
+    Array.prototype.forEach.call(m.querySelectorAll("[data-cmo]"),function(o){ o.onclick=function(){ var v=o.getAttribute("data-cmo"); st.outcome = st.outcome===v?"":v; paint(); }; });
+    $("cmSave").onclick=function(){ var ap=$("cmAppt").value; closeContactMenu(); logContact(id, st.method, st.outcome, ap); };
     var r=btn.getBoundingClientRect(), w=m.offsetWidth, h=m.offsetHeight;
     m.style.left=Math.max(8,Math.min(window.innerWidth-w-8, r.right-w))+"px";
     m.style.top=Math.max(8,Math.min(window.innerHeight-h-8, r.bottom+6))+"px";
-    Array.prototype.forEach.call(m.querySelectorAll("[data-cm]"),function(o){ o.onclick=function(ev){ ev.stopPropagation(); var v=o.getAttribute("data-cm"); closeContactMenu(); logContact(id, v); }; });
     setTimeout(function(){ document.addEventListener("mousedown", _cmOutside, true); },0);
   }
   function renderClientSupps(id){
@@ -6698,7 +6742,7 @@ window.startClinicApp = function(){
     var inactiveDetail = (!isActive && inactiveReason==="Other") ? ($("pInactiveDetail").value||"").trim() : "";
     var data={
       name:name, phone:$("pPhone").value.trim(), email:$("pEmail").value.trim(),
-      consultDate:$("pConsult").value||"", lastContact:($("pLastContact")?$("pLastContact").value:"")||"", lastContactMethod:($("pLastContactMethod")?$("pLastContactMethod").value:"")||"", sex:$("pSex").value||"", dob:$("pDob").value||"", location:$("pLocation").value||"", visitLog: formVisits.slice(),
+      consultDate:$("pConsult").value||"", lastContact:($("pLastContact")?$("pLastContact").value:"")||"", lastContactMethod:($("pLastContactMethod")?$("pLastContactMethod").value:"")||"", contactOutcome:($("pContactOutcome")?$("pContactOutcome").value:"")||"", apptDate:($("pContactOutcome")&&$("pContactOutcome").value==="appt"&&$("pApptDate"))?$("pApptDate").value:"", sex:$("pSex").value||"", dob:$("pDob").value||"", location:$("pLocation").value||"", visitLog: formVisits.slice(),
       refSource:refSrc, refByName:refByName, refBy: refMatch?refMatch.id:"", refDetail:refDetail,
       active:isActive, inactiveReason:inactiveReason, inactiveDetail:inactiveDetail,
       treatments: formTreatments.slice(), doses:doses, discount:disc, notes:$("pNotes").value.trim(),
@@ -7515,8 +7559,9 @@ window.startClinicApp = function(){
   // client panel controls
   $("pPanelClose").onclick=closePPanel;
   $("pSaveBtn").onclick=saveClient;
+  if($("pContactOutcome")) $("pContactOutcome").onchange=function(){ $("pApptDate").style.display=this.value==="appt"?"":"none"; };
   if($("pLastContactToday")) $("pLastContactToday").onclick=function(){ $("pLastContact").value=todayISO(); };
-  if($("pLastContactClear")) $("pLastContactClear").onclick=function(){ $("pLastContact").value=""; if($("pLastContactMethod")) $("pLastContactMethod").value=""; };
+  if($("pLastContactClear")) $("pLastContactClear").onclick=function(){ if($("pContactOutcome")){ $("pContactOutcome").value=""; $("pApptDate").value=""; $("pApptDate").style.display="none"; } $("pLastContact").value=""; if($("pLastContactMethod")) $("pLastContactMethod").value=""; };
   if($("pColdLead")) $("pColdLead").onchange=function(){ $("pColdReason").style.display=this.checked?"block":"none"; if(this.checked && !$("pLastContact").value) $("pLastContact").value=todayISO(); };
   $("pDeleteBtn").onclick=deleteClient;
   $("pName").oninput=function(){ $("pName").style.borderColor=""; };
