@@ -2265,9 +2265,23 @@ window.startClinicApp = function(){
   "use strict";
 
   // ---------- storage: in-memory, encrypted at rest by the HIPAA vault ----------
+  // Plain, persistent sync warning (does not auto-hide). Used when a push is refused or cloud data replaces fresh local changes.
+  window.__syncAlert=function(msg){
+    try{
+      var el=document.getElementById("syncAlertBanner");
+      if(!el){ el=document.createElement("div"); el.id="syncAlertBanner";
+        el.style.cssText="position:fixed;top:0;left:0;right:0;z-index:2147483646;background:#92400e;color:#fff;padding:12px 44px 12px 18px;font:600 14px/1.4 system-ui,-apple-system,sans-serif;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,.3)";
+        var x=document.createElement("button"); x.type="button"; x.setAttribute("aria-label","Dismiss"); x.textContent="\u00d7";
+        x.style.cssText="position:absolute;right:10px;top:6px;background:none;border:none;color:#fff;font-size:24px;cursor:pointer;line-height:1";
+        x.onclick=function(){ el.style.display="none"; };
+        var t=document.createElement("span"); t.id="syncAlertText"; el.appendChild(t); el.appendChild(x);
+        document.body.appendChild(el); }
+      document.getElementById("syncAlertText").textContent=msg; el.style.display="block";
+    }catch(e){}
+  };
   var store = {
     get:function(k){ var m=window.__vaultMem||{}; return (k in m)? m[k] : null; },
-    set:function(k,v){ (window.__vaultMem||(window.__vaultMem={}))[k]=String(v); if(window.__vaultSave) window.__vaultSave(); },
+    set:function(k,v){ (window.__vaultMem||(window.__vaultMem={}))[k]=String(v); window.__lastSaveAt=Date.now(); if(window.__vaultSave) window.__vaultSave(); },
     del:function(k){ if(window.__vaultMem) delete window.__vaultMem[k]; if(window.__vaultSave) window.__vaultSave(); }
   };
 
@@ -7351,6 +7365,8 @@ window.startClinicApp = function(){
     if(!d) return;
     // never replace a real client book with a dramatically smaller cloud copy
     if(Array.isArray(d.patients) && patients.length>=20 && d.patients.length < patients.length*0.5){ toast("Ignored a cloud copy with only "+d.patients.length+" clients (this device has "+patients.length+")"); return; }
+    var _ago=window.__lastSaveAt?Math.round((Date.now()-window.__lastSaveAt)/1000):null;
+    if(_ago!=null && _ago<=60 && window.__syncAlert) window.__syncAlert("Cloud data just replaced what is on this device, "+_ago+" seconds after your last save ("+(Array.isArray(d.patients)?d.patients.length:"?")+" clients came in, "+patients.length+" were here). If you did not expect this, stop editing and check before saving again.");
     if(Array.isArray(d.patients)) patients=d.patients;
     if(Array.isArray(d.tiers) && d.tiers.length) tiers=d.tiers;
     if(Array.isArray(d.treatments) && d.treatments.length) treatments=d.treatments;
@@ -7428,15 +7444,16 @@ window.startClinicApp = function(){
     lastWriteToken = Math.random().toString(36).slice(2) + Date.now().toString(36);
     data._w = lastWriteToken;
     setPill("syncing","Saving…");
-    sb.from("app_state").upsert({ user_id:sbUser.id, data:data, updated_at:new Date().toISOString() }, { onConflict:"user_id" })
+    return sb.from("app_state").upsert({ user_id:sbUser.id, data:data, updated_at:new Date().toISOString() }, { onConflict:"user_id" })
       .then(function(res){
-        if(res.error){ setPill("error","Sync error"); toast("Couldn't save to cloud"); }
-        else { setPill("on","Synced"); }
+        if(res.error){ setPill("error","Sync error"); toast("Couldn't save to cloud"); if(window.__syncAlert) window.__syncAlert("Upload to the cloud was refused: "+(res.error.message||"unknown error")+". Your changes are only on this device."); return false; }
+        else { setPill("on","Synced"); return true; }
       });
   }
   function cloudPushManual(){
     if(!sb || !sbUser){ toast("Sign in to sync first"); return; }
-    cloudReady=true; cloudPush(); toast("Uploading to cloud…");
+    cloudReady=true; toast("Uploading to cloud…");
+    var _p=cloudPush(); if(_p && _p.then) _p.then(function(ok){ if(ok) toast("Uploaded to cloud"); });
   }
   function cloudReloadManual(){
     if(!sb || !sbUser){ toast("Sign in to sync first"); return; }
@@ -7858,6 +7875,7 @@ window.startClinicApp = function(){
   var SYNC_ID="workspace";
   var syncEnabled=!!(SYNC_URL && SYNC_KEY);
   var syncState="idle"; // idle|syncing|ok|error|off
+  var syncErrMsg="";
   function syncHeaders(extra){ var h={apikey:SYNC_KEY, Authorization:"Bearer "+SYNC_KEY}; if(extra) for(var k in extra) h[k]=extra[k]; return h; }
   async function syncPull(){
     if(!syncEnabled) return null;
@@ -7872,13 +7890,13 @@ window.startClinicApp = function(){
     var payload={ id:SYNC_ID, accounts:accounts, vault:lsGet("vault",null), audit:lsGet("audit",[]), updated_at:stamp };
     try{
       var r=await fetch(SYNC_URL+"/rest/v1/workspace_sync?on_conflict=id", {method:"POST", headers:syncHeaders({"Content-Type":"application/json", Prefer:"resolution=merge-duplicates,return=minimal"}), body:JSON.stringify(payload)});
-      if(r.ok){ lsSet("synced", stamp); syncState="ok"; }
-      else if(r.status===409){ syncState="error"; }            // guard block = real conflict, never retry
+      if(r.ok){ lsSet("synced", stamp); syncState="ok"; syncErrMsg=""; }
+      else if(r.status===409){ syncState="error"; syncErrMsg="Push refused: the cloud copy is newer than this tab, so nothing was uploaded. Reload to get the cloud copy, then redo your change."; if(window.__syncAlert) window.__syncAlert(syncErrMsg); }            // guard block = real conflict, never retry
       else if(!isRetry){ syncState="syncing"; refreshSyncUI(); setTimeout(function(){ syncPush(true); }, 2500); return; }
-      else { syncState="error"; }
+      else { syncState="error"; syncErrMsg="Upload failed (server returned "+r.status+"). Your changes are only on this device."; }
     }catch(e){
       if(!isRetry){ setTimeout(function(){ syncPush(true); }, 2500); return; } // transient network error: one retry
-      syncState="error";
+      syncState="error"; syncErrMsg="Upload failed (no connection). Your changes are only on this device.";
     }
     refreshSyncUI();
   }
@@ -7929,11 +7947,11 @@ window.startClinicApp = function(){
     }
   }
   function refreshSyncUI(){ var el=$("hipSyncState"); if(!el) return;
-    el.textContent = syncState==="off"?"Cloud sync off":syncState==="syncing"?"Syncing\u2026":syncState==="error"?"Sync error \u2014 will retry":("Synced \u00b7 "+timeAgo(lsGet("synced",null)));
+    el.textContent = syncState==="off"?"Cloud sync off":syncState==="syncing"?"Syncing\u2026":syncState==="error"?(syncErrMsg||"Sync error"):("Synced \u00b7 "+timeAgo(lsGet("synced",null)));
     el.style.color = syncState==="error"?"#B42318":"#5B6472";
   }
   function timeAgo(iso){ if(!iso) return "never"; var s=Math.max(0,(Date.now()-new Date(iso).getTime())/1000); if(s<60)return "just now"; if(s<3600)return Math.floor(s/60)+" min ago"; if(s<86400)return Math.floor(s/3600)+" hr ago"; return new Date(iso).toLocaleDateString(); }
-  async function syncNow(){ await syncPush(true); toast(syncState==="ok"?"Synced":"Sync failed \u2014 check connection"); }
+  async function syncNow(){ try{ await saveVaultNow(); }catch(e){} await syncPush(true); toast(syncState==="ok"?"Synced":(syncErrMsg||"Sync failed \u2014 check connection")); }
 
   function saveAccounts(){ lsSet("accounts", accounts); pushSoon(); }
   function findAcct(e){ e=(e||"").trim().toLowerCase(); return accounts.filter(function(a){return a.email===e;})[0]; }
