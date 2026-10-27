@@ -1393,6 +1393,7 @@
     </div>
     <section class="stats" id="repKpis"></section>
     <div class="rep-card"><h3 class="rep-h">Monthly trends <span class="rep-sub">last 12 months</span></h3><div id="repTrends"></div></div>
+    <div class="rep-card"><h3 class="rep-h">Outreach results <span class="rep-sub" id="repOutreachLbl">contacts that led to an appointment</span></h3><div id="repOutreach"></div></div>
     <div class="rep-card"><h3 class="rep-h">Retention <span class="rep-sub">based on purchases</span></h3><div id="repRetention"></div></div>
     <div class="rep-card"><h3 class="rep-h">Revenue in period <span class="rep-sub" id="repPeriodLbl"></span></h3><div id="repPeriodRev"></div></div>
     <div class="rep-card"><h3 class="rep-h">Pipeline funnel</h3><div id="repFunnel"></div></div>
@@ -3110,6 +3111,7 @@ window.startClinicApp = function(){
       statTile("Visits logged", r.visitsInPeriod, "", "var(--amber)", periodLbl)
     ].join("");
     try{ renderRetention(); }catch(e){ if(window.console) console.error("retention",e); }
+    try{ renderOutreach(); }catch(e){ if(window.console) console.error("outreach",e); }
     try{ renderTrends(); }catch(e){ if(window.console) console.error("trends",e); if($("repTrends")) $("repTrends").innerHTML='<div class="rep-empty">Trends could not be drawn: '+esc(e.message)+'</div>'; }
 
     // Revenue in period (dated events: memberships started + treatment value at visits)
@@ -5420,6 +5422,54 @@ window.startClinicApp = function(){
     var chgHtml=(chg==null)?"":('<span class="trend-chg '+(chg>=0?"tc-up":"tc-down")+'">'+(chg>=0?"\u25B2":"\u25BC")+Math.abs(chg)+'%</span>');
     return '<div class="trend-block"><div class="trend-head"><span class="trend-title">'+title+'</span><span class="trend-latest">'+latest+chgHtml+'</span></div>'+(type==="line"?miniLine(values,labels,color):miniBars(values,labels,color))+'</div>';
   }
+  function renderOutreach(){
+    var el=$("repOutreach"); if(!el) return;
+    var r=reportRange(), rows=[];
+    patients.forEach(function(p){
+      (p.contactLog||[]).forEach(function(c){ if(c.date && inRange(c.date,r)) rows.push({p:p,c:c}); });
+    });
+    $("repOutreachLbl").textContent = (typeof periodLabelRep==="function"?"":"")+"a booked appointment counts as a win";
+    if(!rows.length){ el.innerHTML='<div class="rep-empty">No contacts logged in this period. Use the contact button on a client card to log a call, text or email.</div>'; return; }
+    var today=new Date(); today.setHours(0,0,0,0);
+    var tot={n:rows.length, appt:0, soon:0, none:0, noans:0, showed:0, pending:0}, by={};
+    var wins=[];
+    rows.forEach(function(x){
+      var o=x.c.outcome||"", m=x.c.method||"Other";
+      var b=by[m]||(by[m]={n:0,appt:0}); b.n++;
+      if(o==="appt"){
+        tot.appt++; b.appt++;
+        var target=parseISO(x.c.apptDate||x.c.date), came=false;
+        if(x.c.apptDate && target>today){ tot.pending++; }
+        else {
+          var ds=[]; (x.p.visitLog||[]).forEach(function(v){ if(v.date) ds.push(v.date); }); purchaseDates(x.p).forEach(function(d){ ds.push(d); });
+          came=ds.some(function(d){ var dd=parseISO(d); return dd && dd>=target; });
+          if(came) tot.showed++;
+        }
+        wins.push({p:x.p,c:x.c,came:came});
+      }
+      else if(o==="soon") tot.soon++; else if(o==="noanswer") tot.noans++; else tot.none++;
+    });
+    var rate=Math.round(tot.appt/tot.n*1000)/10;
+    var settled=tot.appt-tot.pending;
+    var tiles='<div class="stats">'+
+      statTile("Contacts", tot.n, "", "var(--amber)", "calls, texts and emails logged")+
+      statTile("Appointments (wins)", tot.appt, "", "var(--good)", rate+"% of contacts")+
+      statTile("Will come back soon", tot.soon, "", "#7C6FE0", "said they would return")+
+      statTile("Showed up", tot.showed, "", "var(--emerald)", (settled>0?Math.round(tot.showed/settled*100)+"% of booked appointments":"none due yet")+(tot.pending?" \u00b7 "+tot.pending+" upcoming":""))+
+      '</div>';
+    var order=["Phone call","Text","Email","Other"];
+    var meth=order.filter(function(m){return by[m];}).map(function(m){
+      var b=by[m], pr=Math.round(b.appt/b.n*100);
+      return '<div class="purch-row"><div class="purch-main"><div class="purch-t1">'+(m==="Phone call"?"Calls":m==="Text"?"Texts":m==="Email"?"Emails":"Other / not recorded")+'</div><div class="purch-t2">'+b.n+' contact'+(b.n===1?"":"s")+' \u00b7 '+b.appt+' appointment'+(b.appt===1?"":"s")+'</div></div><div class="purch-amt">'+pr+'%</div></div>';
+    }).join("");
+    wins.sort(function(a,b){return (b.c.date||"").localeCompare(a.c.date||"");});
+    var recent=wins.slice(0,8).map(function(w){
+      return '<div class="purch-row"><div class="purch-main"><div class="purch-t1">'+esc(w.p.name||"")+'</div><div class="purch-t2">'+esc(w.c.method||"Contact")+' '+fmtDate(parseISO(w.c.date))+(w.c.apptDate?' \u00b7 appt '+fmtDate(parseISO(w.c.apptDate)):'')+'</div></div><div class="purch-amt">'+(w.came?'\u2713 came in':(w.c.apptDate && parseISO(w.c.apptDate)>today?'upcoming':'\u2014'))+'</div></div>';
+    }).join("");
+    el.innerHTML=tiles+
+      '<div class="rep-h" style="font-size:13px;margin:14px 0 6px">Win rate by method</div><div class="purch-list">'+meth+'</div>'+
+      (recent?'<div class="rep-h" style="font-size:13px;margin:14px 0 6px">Recent wins</div><div class="purch-list">'+recent+'</div>':'');
+  }
   function renderRetention(){
     var el=$("repRetention"); if(!el) return;
     var idx=txByClient(), t0=new Date(); t0.setHours(0,0,0,0); var t1=t0.getTime();
@@ -6666,10 +6716,17 @@ window.startClinicApp = function(){
   function logContact(id, method, outcome, apptDate){
     var p=findPatient(id); if(!p) return;
     p.lastContact=todayISO(); p.lastContactMethod=method||""; p.contactOutcome=outcome||""; p.apptDate=(outcome==="appt"?(apptDate||""):"");
-    p.contactLog=(p.contactLog||[]); p.contactLog.push({date:todayISO(), method:method||"", outcome:outcome||"", apptDate:p.apptDate}); if(p.contactLog.length>30) p.contactLog=p.contactLog.slice(-30);
+    p.contactLog=(p.contactLog||[]); p.contactLog.push({date:todayISO(), method:method||"", outcome:outcome||"", apptDate:p.apptDate}); if(p.contactLog.length>200) p.contactLog=p.contactLog.slice(-200);
     savePatients(); if(window.__hipAudit) window.__hipAudit("client_contacted", p.id);
     try{ renderPatientList(); }catch(e){} try{ renderList(); }catch(e){} try{ renderFollowupBanner(); }catch(e){}
     toast(p.name.split(" ")[0]+": contact logged"+(outcome==="appt"?" \u00b7 appointment booked":outcome==="soon"?" \u00b7 coming back soon":""));
+  }
+  // keep the contact history in step when the date/method/outcome are edited in the client panel
+  function syncContactLog(p){
+    if(!p.lastContact) return;
+    var log=p.contactLog=(p.contactLog||[]), last=log[log.length-1];
+    var e={date:p.lastContact, method:p.lastContactMethod||"", outcome:p.contactOutcome||"", apptDate:p.contactOutcome==="appt"?(p.apptDate||""):""};
+    if(last && last.date===e.date) log[log.length-1]=e; else if(!last || e.method || e.outcome) log.push(e);
   }
   function closeContactMenu(){ var m=$("contactMenu"); if(m) m.remove(); document.removeEventListener("mousedown", _cmOutside, true); }
   function _cmOutside(e){ var m=$("contactMenu"); if(m && !m.contains(e.target)) closeContactMenu(); }
@@ -6765,6 +6822,7 @@ window.startClinicApp = function(){
       if(window.__hipAudit) window.__hipAudit("patient_edit", pEditingId);
       var p=findPatient(pEditingId);
       Object.keys(data).forEach(function(k){ p[k]=data[k]; });
+      syncContactLog(p);
       if(isMem){ if(typeof p.visits!=="number") p.visits=0; if(!p.joinedAt) p.joinedAt=todayISO(); }
       toast("Client updated");
     }else{
