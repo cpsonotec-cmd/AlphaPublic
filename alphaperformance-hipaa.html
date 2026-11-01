@@ -569,7 +569,7 @@
   .cloud-pill svg{width:16px;height:16px}
   .cloud-pill.on{color:#7fe3b6} .cloud-pill.on svg{color:#25c281}
   .cloud-pill.signin{color:#ffd27a}
-  .cloud-pill.error{color:#ff9d96}
+  .cloud-pill.error{color:#fff;background:#B42318} .cloud-pill.error:hover{background:#C9301F}
   .cloud-pill.syncing{color:#cfe0ff}
   @media (max-width:520px){ .cloud-pill span{display:none} .cloud-pill{padding:8px} }
 
@@ -1150,7 +1150,6 @@
   .visit-del svg{width:13px;height:13px}
   .visit-empty{font-size:13px;color:var(--faint);padding:4px 2px}
 </style>
-<style>#cloudPill{display:none !important}</style>
 <style id="hipStyles">
   #hipGate{position:fixed;inset:0;z-index:9000;background:linear-gradient(160deg,#0E1420,#182233);display:none;align-items:center;justify-content:center;padding:24px;padding-top:calc(24px + env(safe-area-inset-top));overflow:auto}
   #hipGate.show{display:flex}
@@ -7796,6 +7795,7 @@ window.startClinicApp = function(){
     persistLocalRaw(); applyTheme(); applyBrand(); renderAll();
   }
   function setPill(state, label){
+    if(window.__wsPill && window.__wsPill()) return; // the encrypted workspace sync owns this pill: green only after a confirmed cloud write
     var p=$("cloudPill");
     p.className="cloud-pill"+(state?" "+state:"");
     $("cloudLbl").textContent=label;
@@ -7821,6 +7821,7 @@ window.startClinicApp = function(){
       });
   }
   function cloudPushManual(){
+    if(window.__wsSyncNow){ window.__wsSyncNow(); if(sb && sbUser){ cloudReady=true; cloudPush(); } return; } // report the confirmed workspace result, not an optimistic one
     if(!sb || !sbUser){ toast("Sign in to sync first"); return; }
     cloudReady=true; toast("Uploading to cloud…");
     var _p=cloudPush(); if(_p && _p.then) _p.then(function(ok){ if(ok) toast("Uploaded to cloud"); });
@@ -7906,7 +7907,19 @@ window.startClinicApp = function(){
         toast("Couldn't reach the sync service");
       });
   }
+  // fresh access token for the workspace push: refresh, never reconnect
+  window.__sbFreshToken=async function(){
+    if(!sb) return {nosb:true}; // supabase-js not running: the caller does the refresh-token grant itself
+    try{
+      var r=await sb.auth.getSession(), s=r&&r.data&&r.data.session;
+      if(!s) return null;
+      if(!s.expires_at || s.expires_at-120 <= Math.floor(Date.now()/1000)){ var rr=await sb.auth.refreshSession(); s=rr&&rr.data&&rr.data.session; }
+      return (s&&s.access_token)?{token:s.access_token}:null;
+    }catch(e){ return null; }
+  };
+  window.__showCloudAuth=function(){ if(sb){ setAuthMode("signin"); showAuth(); } else if(settings.supabaseUrl && settings.supabaseKey){ cloudInit(); setTimeout(function(){ if(sb){ setAuthMode("signin"); showAuth(); } }, 1500); } else openSettings(); };
   function onSignedIn(user){
+    try{ if(window.__wsRetry) window.__wsRetry(); }catch(e){}
     // supabase-js fires an auth event on every tab refocus and token refresh. Only the first sign-in of a page session may pull.
     if(sbUser && user && sbUser.id===user.id && cloudReady){ sbUser=user; return; }
     sbUser=user;
@@ -7983,8 +7996,8 @@ window.startClinicApp = function(){
     $("cloudSetup").style.display = connected ? "none" : "block";
     if(connected){
       $("caEmail").textContent = sbUser.email || "your account";
-      $("cloudStatus").textContent = "Sync is on. Members and settings update live on every signed-in device.";
-      $("cloudStatus").className = "cloud-status ok";
+      $("cloudStatus").textContent = "Signed in to the cloud. Whether your data has actually reached the cloud is shown on the sync pill in the sidebar and in Security \u2192 Multi-device sync.";
+      $("cloudStatus").className = "cloud-status";
     } else if(settings.supabaseUrl && settings.supabaseKey){
       $("cloudStatus").textContent = "Connected to your project. Sign in to start syncing.";
       $("cloudStatus").className = "cloud-status";
@@ -8158,6 +8171,7 @@ window.startClinicApp = function(){
   if($("addRefSourceBtn")) $("addRefSourceBtn").onclick=function(){ draftRefSources.push({name:"",type:"none"}); paintRefSources(); };
   $("clearAllBtn").onclick=clearAll;
   $("cloudPill").onclick=function(){
+    if(window.__wsPillClick){ window.__wsPillClick(); return; }
     if(sb && sbUser){ openSettings(); }
     else if(settings.supabaseUrl && settings.supabaseKey){ showAuth(); }
     else { openSettings(); }
@@ -8247,29 +8261,168 @@ window.startClinicApp = function(){
   var syncEnabled=!!(SYNC_URL && SYNC_KEY);
   var syncState="idle"; // idle|syncing|ok|error|off
   var syncErrMsg="";
-  function syncHeaders(extra){ var h={apikey:SYNC_KEY, Authorization:"Bearer "+SYNC_KEY}; if(extra) for(var k in extra) h[k]=extra[k]; return h; }
-  async function syncPull(){
+  // ---- Sync reliability (change request 1 Nov 2026) ----
+  // Rule: alphahipaa_synced is written ONLY from a value the database returned and that a read-back confirmed.
+  var syncOkThisSession=false;   // the pill may show green only after a server confirmation in this page session
+  var syncHold=true;             // no pushes until the unlock liveness check has run (and any conflict is resolved)
+  var conflictPending=null;      // {cloud} when another device saved after this one and the user has not chosen yet
+  var syncInFlight=false, syncRetryTimer=null, lastAuditedErr="", storageBlocked=false, authNote="", dbRead=null;
+  function syncHeaders(extra, token){ var h={apikey:SYNC_KEY, Authorization:"Bearer "+(token||SYNC_KEY)}; if(extra) for(var k in extra) h[k]=extra[k]; return h; }
+  function rawFetch(u,o){ return (window.__syncGuardRawFetch||window.fetch)(u,o); } // stamp reads must not be adopted by Sync Guard
+  function tsv(v){ var t=Date.parse(v||""); return isNaN(t)?0:t; }
+  function fmtTs(v){ return v ? new Date(v).toLocaleString() : "never"; }
+  function ssGetP(k){ try{ var r=sessionStorage.getItem(PFX+k); return r?JSON.parse(r):null; }catch(e){ return null; } }
+  // failure state and the unsent counter must survive a reload, even when localStorage is full (falls back to sessionStorage)
+  function persist(k,v){ if(lsSet(k,v)){ try{ sessionStorage.removeItem(PFX+k); }catch(e){} return true; } try{ sessionStorage.setItem(PFX+k, JSON.stringify(v)); }catch(e){} return false; }
+  function persisted(k,d){ var s=ssGetP(k); if(s!=null) return s; return lsGet(k,d); }
+  function unpersist(k){ try{ localStorage.removeItem(PFX+k); }catch(e){} try{ sessionStorage.removeItem(PFX+k); }catch(e){} }
+  var unsentMem=+persisted("unsent",0)||0;
+  function unsentCount(){ return unsentMem; }
+  function setUnsent(n){ unsentMem=Math.max(0, n|0); persist("unsent", unsentMem); }
+  function syncError(){ return persisted("sync_error", null); }
+  function plural(n,w){ return n+" "+w+(n===1?"":"s"); }
+
+  /* session: refresh an expiring token, never reconnect (a reconnect pulls and can overwrite unsent work) */
+  function readAuth(){ try{ return JSON.parse(localStorage.getItem("alphaperf_auth")||"null"); }catch(e){ return null; } }
+  function jwtIss(tok){ try{ return (JSON.parse(atob(tok.split(".")[1].replace(/-/g,"+").replace(/_/g,"/")))||{}).iss||""; }catch(e){ return ""; } }
+  var sessPromise=null; // one refresh at a time: a refresh token is single use
+  async function ensureSession(){ if(sessPromise) return sessPromise; sessPromise=ensureSessionInner(); try{ return await sessPromise; } finally{ sessPromise=null; } }
+  async function ensureSessionInner(){
+    var a=readAuth();
+    if(!a || !a.access_token || !a.refresh_token){ authNote="No cloud sign-in on this device; using the project key."; return {ok:false, reason:"no-session"}; }
+    var iss=jwtIss(a.access_token);
+    if(iss && iss.indexOf(SYNC_URL)!==0){ authNote="The cloud sign-in on this device is for a different project; using the project key."; return {ok:false, reason:"other-project"}; }
+    var now=Math.floor(Date.now()/1000);
+    if(a.expires_at && a.expires_at-120 > now){ authNote="Cloud sign-in valid until "+fmtTs(a.expires_at*1000)+"."; return {ok:true, token:a.access_token}; }
+    var expTxt=a.expires_at?fmtTs(a.expires_at*1000):"an unknown time";
+    try{
+      var s=(typeof window.__sbFreshToken==="function") ? await window.__sbFreshToken() : {nosb:true};
+      if(s && s.token){ authNote="Cloud sign-in refreshed at "+new Date().toLocaleTimeString()+"."; return {ok:true, token:s.token, refreshed:true}; }
+      if(s && s.nosb){
+        var r=await rawFetch(SYNC_URL+"/auth/v1/token?grant_type=refresh_token", {method:"POST", headers:{"Content-Type":"application/json", apikey:SYNC_KEY}, body:JSON.stringify({refresh_token:a.refresh_token})});
+        if(r.ok){
+          var j=await r.json();
+          if(j && j.access_token){ if(!j.expires_at && j.expires_in) j.expires_at=now+j.expires_in; try{ localStorage.setItem("alphaperf_auth", JSON.stringify(j)); }catch(e){}
+            authNote="Cloud sign-in refreshed at "+new Date().toLocaleTimeString()+"."; return {ok:true, token:j.access_token, refreshed:true}; }
+        }
+        authNote="Cloud sign-in expired "+expTxt+" and could not be refreshed (server "+r.status+")."; return {ok:false, reason:"refresh-failed-"+r.status, expired:true};
+      }
+    }catch(e){}
+    authNote="Cloud sign-in expired "+expTxt+" and could not be refreshed."; return {ok:false, reason:"refresh-failed", expired:true};
+  }
+  async function errText(r){ try{ var t=await r.text(); try{ var j=JSON.parse(t); return j.message||j.msg||j.error_description||j.error||t.slice(0,160); }catch(e){ return t.slice(0,160); } }catch(e){ return ""; } }
+  // one cheap read of the row the database actually holds
+  async function readCloudStamp(token){
+    try{
+      var r=await rawFetch(SYNC_URL+"/rest/v1/workspace_sync?id=eq."+SYNC_ID+"&select=updated_at", {headers:syncHeaders(null, token)});
+      if(!r.ok) return {ok:false, status:r.status, msg:"server "+r.status+(r.status===401?" (sign-in rejected)":"")+": "+(await errText(r))};
+      var rows=await r.json(); return {ok:true, stamp:(rows&&rows[0]&&rows[0].updated_at)||null};
+    }catch(e){ return {ok:false, status:0, msg:"no connection"}; }
+  }
+  async function readCloudStampAuto(){
+    var sess=await ensureSession(), rd=await readCloudStamp(sess.ok?sess.token:null);
+    if(!rd.ok && sess.ok && (rd.status===401||rd.status===403)) rd=await readCloudStamp(null);
+    rd.sess=sess; dbRead={ok:rd.ok, stamp:rd.stamp, msg:rd.msg, at:new Date().toISOString()}; return rd;
+  }
+  async function syncPull(token){
     if(!syncEnabled) return null;
-    try{ var r=await fetch(SYNC_URL+"/rest/v1/workspace_sync?id=eq."+SYNC_ID+"&select=*", {headers:syncHeaders()});
-      if(!r.ok) return null; var rows=await r.json(); return (rows&&rows[0])?rows[0]:null; }catch(e){ return null; }
+    try{ var r=await rawFetch(SYNC_URL+"/rest/v1/workspace_sync?id=eq."+SYNC_ID+"&select=*", {headers:syncHeaders(null, token)});
+      if(!r.ok) return {ok:false, status:r.status, msg:"server "+r.status+": "+(await errText(r))};
+      var rows=await r.json(); return {ok:true, row:(rows&&rows[0])?rows[0]:null}; }catch(e){ return {ok:false, status:0, msg:"no connection"}; }
+  }
+  function setSeen(v){ try{ if(v) sessionStorage.setItem("alphahipaa_cloud_seen", v); }catch(e){} }
+
+  /* success / failure */
+  function markSyncOk(stamp, unsentAtStart){
+    var stored=lsSet("synced", stamp);
+    setSeen(stamp);
+    persist("cloud_confirmed", {stamp:stamp, at:new Date().toISOString()});
+    // assert in the save path: the device stamp must equal the database's updated_at exactly
+    if(!stored || lsGet("synced",null)!==stamp){ markSyncFailed("The cloud saved the upload, but this device could not record the confirmation (browser storage is full). Free space, then tap Sync now.","storage"); return; }
+    unpersist("sync_error"); lastAuditedErr="";
+    setUnsent(unsentCount()-(unsentAtStart||0));
+    syncState="ok"; syncErrMsg=""; syncOkThisSession=true;
+    clearTimeout(syncRetryTimer); syncRetryTimer=null;
+    hideSyncFailBanner();
+    if(unsentCount()>0) pushSoon();
+    refreshSyncUI();
+  }
+  function markSyncFailed(msg, kind){
+    var prev=syncError(), now=new Date().toISOString();
+    syncState="error"; syncErrMsg=msg; syncOkThisSession=false;
+    persist("sync_error", {msg:msg, kind:kind||"", ts:now, since:(prev&&prev.since)||now});
+    if(msg!==lastAuditedErr){ lastAuditedErr=msg; try{ audit("sync_failed", (kind||"")+": "+msg.slice(0,160), true); }catch(e){} }
+    console.error("[sync] NOT synced: "+msg);
+    showSyncFailBanner();
+    refreshSyncUI();
+    if(kind!=="conflict" && kind!=="storage" && kind!=="guard"){ clearTimeout(syncRetryTimer); syncRetryTimer=setTimeout(function(){ syncRetryTimer=null; syncPush(true); }, 60000); }
+  }
+  function showSyncFailBanner(){
+    try{
+      var e=syncError(); if(!e) return;
+      var el=document.getElementById("wsSyncFail");
+      if(!el){ el=document.createElement("div"); el.id="wsSyncFail";
+        el.style.cssText="position:fixed;top:0;left:0;right:0;z-index:2147483645;background:#B42318;color:#fff;padding:11px 44px 11px 16px;font:600 13.5px/1.45 system-ui,-apple-system,sans-serif;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,.3)";
+        document.body.appendChild(el); }
+      var n=unsentCount();
+      el.innerHTML='<b>Not synced'+(n?' · '+plural(n,"unsent change")+' only on this device':'')+'.</b> '+escp(e.msg)+
+        ' <button type="button" id="wsSyncRetry" style="margin-left:8px;background:#fff;color:#B42318;border:0;border-radius:7px;padding:4px 10px;font-weight:700;cursor:pointer">'+(conflictPending?'Choose a copy':'Retry now')+'</button>'+
+        ' <button type="button" id="wsSyncDet" style="background:transparent;color:#fff;border:1px solid rgba(255,255,255,.6);border-radius:7px;padding:3px 9px;font-weight:600;cursor:pointer">Details</button>'+
+        '<button type="button" id="wsSyncX" aria-label="Hide" style="position:absolute;right:10px;top:5px;background:none;border:0;color:#fff;font-size:22px;cursor:pointer">×</button>';
+      el.style.display="block";
+      $("wsSyncRetry").onclick=function(){ if(conflictPending) conflictPrompt(conflictPending.cloud); else syncNow(); };
+      $("wsSyncDet").onclick=function(){ if(curUser) openConsole("overview"); };
+      $("wsSyncX").onclick=function(){ el.style.display="none"; }; // the pill stays red until a confirmed push
+    }catch(e){}
+  }
+  function hideSyncFailBanner(){ var el=document.getElementById("wsSyncFail"); if(el) el.style.display="none"; }
+
+  /* push */
+  async function pushRequest(payload, token){
+    return fetch(SYNC_URL+"/rest/v1/workspace_sync?on_conflict=id&select=updated_at", {method:"POST",
+      headers:syncHeaders({"Content-Type":"application/json", Prefer:"resolution=merge-duplicates,return=representation"}, token), body:JSON.stringify(payload)});
   }
   async function syncPush(isRetry){
     if(window.__alphaReadOnly) return;
     if(!syncEnabled || !accounts.length) return;
+    if(syncHold) return;
+    if(conflictPending){ markSyncFailed("Not uploading: another device saved to the cloud at "+fmtTs(conflictPending.cloud)+". Choose which copy to keep.","conflict"); return; }
+    if(storageBlocked){ markSyncFailed("Browser storage is full, so the last change could not be saved on this device and nothing was uploaded. Export a backup, then free space.","storage"); return; }
+    if(syncInFlight){ pushSoon(); return; }
+    syncInFlight=true;
+    try{ await doSyncPush(isRetry); }catch(e){ markSyncFailed("Upload failed unexpectedly ("+(e&&e.message||e)+"). Your changes are only on this device.","error"); }
+    finally{ syncInFlight=false; }
+  }
+  async function doSyncPush(isRetry){
     syncState="syncing"; refreshSyncUI();
-    var stamp=new Date().toISOString();
-    var payload={ id:SYNC_ID, accounts:accounts, vault:lsGet("vault",null), audit:lsGet("audit",[]), updated_at:stamp };
+    var unsentAtStart=unsentCount();
+    var payload={ id:SYNC_ID, accounts:accounts, vault:lsGet("vault",null), audit:lsGet("audit",[]), updated_at:new Date().toISOString() };
+    var sess=await ensureSession(), token=sess.ok?sess.token:null, r;
     try{
-      var r=await fetch(SYNC_URL+"/rest/v1/workspace_sync?on_conflict=id", {method:"POST", headers:syncHeaders({"Content-Type":"application/json", Prefer:"resolution=merge-duplicates,return=minimal"}), body:JSON.stringify(payload)});
-      if(r.ok){ lsSet("synced", stamp); syncState="ok"; syncErrMsg=""; }
-      else if(r.status===409){ syncState="error"; syncErrMsg="Push refused: the cloud copy is newer than this tab, so nothing was uploaded. Reload to get the cloud copy, then redo your change."; if(window.__syncAlert) window.__syncAlert(syncErrMsg); }            // guard block = real conflict, never retry
-      else if(!isRetry){ syncState="syncing"; refreshSyncUI(); setTimeout(function(){ syncPush(true); }, 2500); return; }
-      else { syncState="error"; syncErrMsg="Upload failed (server returned "+r.status+"). Your changes are only on this device."; }
+      r=await pushRequest(payload, token);
+      if(!r.ok && token && (r.status===401||r.status===403)){ token=null; r=await pushRequest(payload, null); }
     }catch(e){
-      if(!isRetry){ setTimeout(function(){ syncPush(true); }, 2500); return; } // transient network error: one retry
-      syncState="error"; syncErrMsg="Upload failed (no connection). Your changes are only on this device.";
+      if(!isRetry){ syncInFlight=false; setTimeout(function(){ syncPush(true); }, 2500); return; }
+      markSyncFailed("Upload failed: no connection to the cloud. Your changes are only on this device.","network"); return;
     }
-    refreshSyncUI();
+    var body=null; try{ body=await r.clone().json(); }catch(e){}
+    if(r.status===409 && body && body.blocked){
+      markSyncFailed("Upload refused: another tab or device saved to the cloud at "+fmtTs(body.cloud)+", after this tab loaded. Nothing was uploaded. Reload to get the cloud copy, then redo your change.","guard"); return;
+    }
+    if(!r.ok){
+      if(!isRetry && (r.status>=500 || r.status===429)){ syncInFlight=false; setTimeout(function(){ syncPush(true); }, 2500); return; }
+      var m=(body&&(body.message||body.msg))||("server returned "+r.status);
+      if(r.status===401||r.status===403) markSyncFailed((sess.expired?"Your cloud sign-in expired and could not be refreshed. Tap the red pill to sign in to the cloud again. ":"The cloud refused the upload ("+m+"). ")+"Nothing was uploaded; your changes are only on this device.","auth");
+      else markSyncFailed("Upload failed (server "+r.status+": "+m+"). Your changes are only on this device.","server");
+      return;
+    }
+    var row=Array.isArray(body)?body[0]:body;
+    if(!row || !row.updated_at){ markSyncFailed("The cloud answered but returned no saved row, so nothing is confirmed"+(sess.expired?" (your cloud sign-in has expired; tap the red pill to sign in again)":"")+". Your changes are only on this device.", sess.expired?"auth":"norow"); return; }
+    var back=await readCloudStamp(token);
+    if(!back.ok){ markSyncFailed("Upload sent but could not be confirmed: reading the cloud back failed ("+back.msg+").","readback"); return; }
+    if(tsv(back.stamp)!==tsv(row.updated_at)){ markSyncFailed("Upload not confirmed: the cloud holds a copy from "+fmtTs(back.stamp)+", not the one just sent.","readback"); return; }
+    dbRead={ok:true, stamp:back.stamp, at:new Date().toISOString()};
+    markSyncOk(back.stamp, unsentAtStart);
   }
   var pushTimer=null;
   function pushSoon(){ if(window.__alphaReadOnly) return; if(!syncEnabled) return; clearTimeout(pushTimer); pushTimer=setTimeout(function(){ syncPush(false); }, 1200); }
@@ -8298,37 +8451,164 @@ window.startClinicApp = function(){
     lsSet("accounts", accounts);
     if(remote.vault!=null) lsSet("vault", remote.vault); else { try{ localStorage.removeItem(PFX+"vault"); }catch(e){} }
     lsSet("audit", remote.audit || []);
-    lsSet("synced", remote.updated_at || new Date().toISOString());
+    if(remote.updated_at){ lsSet("synced", remote.updated_at); setSeen(remote.updated_at); persist("cloud_confirmed", {stamp:remote.updated_at, at:new Date().toISOString()}); }
+    setUnsent(0); unpersist("sync_error");
   }
+  var bootConflict=null, bootPullErr="", bootAdopted=null;
   async function syncBoot(){
-    if(!syncEnabled){ syncState="off"; return; }
+    if(!syncEnabled){ syncState="off"; syncHold=false; return; }
+    try{ pruneRestorePoints(3); }catch(e){}
     syncState="syncing";
-    var remote=await syncPull();
+    var sess=await ensureSession();
+    var res=await syncPull(sess.ok?sess.token:null);
+    if(res && !res.ok && sess.ok && (res.status===401||res.status===403)) res=await syncPull(null);
     var localSynced=lsGet("synced", null);
-    if(remote){
-      if(!accounts.length || !localSynced || (remote.updated_at && remote.updated_at > localSynced)){
-        adoptRemote(remote);
-      } else {
-        pushSoon();
+    var dirty=unsentCount()>0 || !!syncError();
+    if(res && res.ok){
+      var remote=res.row;
+      if(remote){
+        dbRead={ok:true, stamp:remote.updated_at, at:new Date().toISOString()};
+        var newer=!localSynced || tsv(remote.updated_at)>tsv(localSynced);
+        if(!accounts.length){ adoptRemote(remote); }
+        else if(newer && dirty){ bootConflict={cloud:remote.updated_at}; }   // never pull silently over unsent work
+        else if(newer){ adoptRemote(remote); bootAdopted=remote.updated_at; } // clean device: nothing to lose; reported after sign-in
+        else setSeen(remote.updated_at);
       }
-      syncState="ok";
-    } else {
-      syncState="ok";
-      if(accounts.length) pushSoon();
+    } else bootPullErr=(res&&res.msg)||"no connection";
+    syncState="idle";
+  }
+  // after unlock: one authenticated read before any work starts
+  async function syncLiveness(){
+    if(!syncEnabled){ syncHold=false; return; }
+    var rd=await readCloudStampAuto();
+    if(!rd.ok){
+      syncHold=false;
+      markSyncFailed("Cannot reach the cloud ("+rd.msg+")."+(rd.sess&&rd.sess.expired?" Your cloud sign-in expired; tap the red pill to sign in again.":"")+" Anything you change now stays on this device until this is fixed.", (rd.status===401||rd.status===403)?"auth":"network");
+      modal('<div class="hiph">Cloud sync is not working</div><div class="hipsub">'+escp(syncErrMsg)+'</div><div class="hipsub">You can keep working. The red <b>Not synced</b> pill and banner stay up until a save is confirmed by the cloud.</div><button class="hipbtn" id="wsLiveOk">Continue</button>');
+      $("wsLiveOk").onclick=closeModal; return;
     }
+    var cloud=rd.stamp, local=lsGet("synced",null), n=unsentCount();
+    if(bootConflict || (cloud && local && tsv(cloud)>tsv(local))){ syncHold=false; conflictPending={cloud:cloud||bootConflict.cloud}; conflictPrompt(conflictPending.cloud); return; }
+    syncHold=false;
+    if(!cloud){ if(accounts.length){ setUnsent(Math.max(1,n)); pushSoon(); } refreshSyncUI(); return; }
+    setSeen(cloud);
+    if(local && tsv(cloud)<tsv(local)){
+      // this device recorded a cloud save the cloud does not have (the 30 Oct failure signature): upload now
+      setUnsent(Math.max(1,n)); toast("The cloud copy is older than this device's last save. Uploading this device's data now."); pushSoon(); refreshSyncUI(); return;
+    }
+    if(n>0 || syncError()){ pushSoon(); refreshSyncUI(); return; }
+    persist("cloud_confirmed", {stamp:cloud, at:new Date().toISOString()});
+    syncState="ok"; syncErrMsg=""; syncOkThisSession=true; hideSyncFailBanner(); refreshSyncUI();
+    if(bootAdopted) toast("Loaded the newer cloud copy saved by another device at "+fmtTs(bootAdopted));
   }
-  function refreshSyncUI(){ var el=$("hipSyncState"); if(!el) return;
-    el.textContent = syncState==="off"?"Cloud sync off":syncState==="syncing"?"Syncing\u2026":syncState==="error"?(syncErrMsg||"Sync error"):("Synced \u00b7 "+timeAgo(lsGet("synced",null)));
-    el.style.color = syncState==="error"?"#B42318":"#5B6472";
+  function conflictPrompt(cloud){
+    var n=unsentCount(), local=lsGet("synced",null);
+    modal('<div class="hiph">Two different copies</div>'+
+      '<div class="hipsub">Another device saved to the cloud at <b>'+escp(fmtTs(cloud))+'</b>, after this device last confirmed a cloud save ('+escp(fmtTs(local))+').'+
+      (n?' This device also has <b>'+plural(n,"change")+'</b> that never reached the cloud.':'')+' Nothing has been replaced yet. Choose which copy to keep.</div>'+
+      '<button class="hipbtn" id="wsCfBak" style="margin-bottom:8px">Download this device’s backup first</button>'+
+      '<button class="hipbtn ghost" id="wsCfKeep" style="margin-bottom:8px">Keep this device’s copy and upload it</button>'+
+      '<button class="hipbtn ghost" id="wsCfCloud" style="margin-bottom:8px">Use the cloud copy'+(n?' (discards this device’s unsent changes)':'')+'</button>'+
+      '<button class="hipbtn ghost sm" id="wsCfLater">Decide later (nothing uploads until you choose)</button><div class="hiperr" id="wsCfErr"></div>');
+    $("wsCfBak").onclick=function(){ exportBackup(); };
+    $("wsCfKeep").onclick=function(){ setSeen(cloud); conflictPending=null; bootConflict=null; setUnsent(Math.max(1,unsentCount())); audit("sync_conflict_keep_local", fmtTs(cloud)); closeModal(); syncPush(true); };
+    $("wsCfCloud").onclick=async function(){
+      $("wsCfErr").textContent="Loading the cloud copy…";
+      var sess=await ensureSession(), res=await syncPull(sess.ok?sess.token:null);
+      if(res && !res.ok && sess.ok) res=await syncPull(null);
+      if(!res || !res.ok || !res.row){ $("wsCfErr").textContent="Could not load the cloud copy ("+((res&&res.msg)||"no data")+"). Nothing was changed."; return; }
+      audit("sync_conflict_use_cloud", fmtTs(res.row.updated_at), true);
+      adoptRemote(res.row); window.__allowUnload=true; location.reload();
+    };
+    $("wsCfLater").onclick=function(){ closeModal(); markSyncFailed("Not uploading: another device saved to the cloud at "+fmtTs(cloud)+". Choose which copy to keep.","conflict"); };
   }
+  function syncLabel(){
+    var n=unsentCount();
+    if(syncState==="off") return ["","Cloud sync off"];
+    if(window.__alphaReadOnly && syncState!=="error") return ["","Read-only device"];
+    if(syncState==="error") return ["error","Not synced"+(n?" · "+plural(n,"unsent change"):"")];
+    if(syncState==="syncing") return ["syncing","Saving to cloud…"];
+    if(syncOkThisSession && n===0){ var c=persisted("cloud_confirmed",null); return ["on","Synced · "+timeAgo(c&&c.at)]; }
+    if(n>0) return ["signin", plural(n,"unsent change")];
+    return ["syncing","Checking cloud…"];
+  }
+  function paintPill(L){ var p=$("cloudPill"), lb=$("cloudLbl"); if(!p||!lb) return; p.className="cloud-pill"+(L[0]?" "+L[0]:""); lb.textContent=L[1]; p.title=syncState==="error"?syncErrMsg:"Cloud sync"; }
+  window.__wsPill=function(){ if(!syncEnabled) return false; paintPill(syncLabel()); return true; };
+  window.__wsPillClick=function(){ var e=syncError(); if(e && e.kind==="auth" && typeof window.__showCloudAuth==="function") window.__showCloudAuth(); else if(conflictPending) conflictPrompt(conflictPending.cloud); else if(curUser) openConsole("overview"); };
+  window.__wsRetry=function(){ if(syncState==="error" && !conflictPending && !storageBlocked) syncPush(true); };
+  window.__wsSyncNow=function(){ return syncNow(); };
+  function refreshSyncUI(){
+    var L=syncLabel(); paintPill(L);
+    var el=$("hipSyncState");
+    if(el){ el.textContent=L[1]; el.style.color=syncState==="error"?"#B42318":L[0]==="on"?"#067647":"#5B6472"; }
+    if(syncState==="error" && syncError()) showSyncFailBanner();
+    renderSyncDetail(false);
+  }
+  setInterval(function(){ try{ refreshSyncUI(); }catch(e){} }, 30000);
+  window.addEventListener("online", function(){ if(syncState==="error") window.__wsRetry(); });
   function timeAgo(iso){ if(!iso) return "never"; var s=Math.max(0,(Date.now()-new Date(iso).getTime())/1000); if(s<60)return "just now"; if(s<3600)return Math.floor(s/60)+" min ago"; if(s<86400)return Math.floor(s/3600)+" hr ago"; return new Date(iso).toLocaleDateString(); }
-  async function syncNow(){ try{ await saveVaultNow(); }catch(e){} await syncPush(true); toast(syncState==="ok"?"Synced":(syncErrMsg||"Sync failed \u2014 check connection")); }
+  async function syncNow(){
+    try{ await saveVaultNow(); }catch(e){}
+    if(conflictPending){ conflictPrompt(conflictPending.cloud); return; }
+    await syncPush(true);
+    toast(syncState==="ok"?"Synced and confirmed by the cloud":(syncErrMsg||"Sync failed"));
+    renderSyncDetail(true);
+  }
 
-  function saveAccounts(){ lsSet("accounts", accounts); pushSoon(); }
+  /* storage ceiling */
+  function storageUse(){
+    var tot=0, parts={vault:0, audit:0, restore:0, other:0}, rp=0;
+    try{ for(var i=0;i<localStorage.length;i++){ var k=localStorage.key(i), v=localStorage.getItem(k)||"", sz=k.length+v.length; tot+=sz;
+      if(k===PFX+"vault") parts.vault+=sz; else if(k===PFX+"audit") parts.audit+=sz; else if(isRestoreKey(k)){ parts.restore+=sz; rp++; } else parts.other+=sz; } }catch(e){}
+    return {total:tot, parts:parts, restorePoints:rp};
+  }
+  function mb(n){ return (n/1048576).toFixed(2)+" MB"; }
+  function isRestoreKey(k){ return /vaultbak|restore[_-]?point/i.test(k||""); }
+  function rpTime(k){
+    var t=0;
+    try{ var v=JSON.parse(localStorage.getItem(k)); t=Date.parse(v&&(v.ts||v.savedAt||v.created||v.createdAt||v.at)||"")||0; }catch(e){}
+    if(!t){ var m=(k||"").match(/(\d{4}-\d{2}-\d{2})(?:[T_ ](\d{2})[:\-]?(\d{2})(?:[:\-]?(\d{2}))?)?/); if(m) t=Date.parse(m[1]+"T"+(m[2]||"00")+":"+(m[3]||"00")+":"+(m[4]||"00")+"Z")||0; }
+    return t;
+  }
+  function pruneRestorePoints(keep){
+    var ks=[]; for(var i=0;i<localStorage.length;i++){ var k=localStorage.key(i); if(isRestoreKey(k)) ks.push({k:k, t:rpTime(k)}); }
+    ks.sort(function(a,b){ return (b.t-a.t) || (a.k<b.k?1:a.k>b.k?-1:0); });
+    var drop=ks.slice(keep); drop.forEach(function(x){ try{ localStorage.removeItem(x.k); }catch(e){} });
+    if(drop.length) console.warn("[storage] removed "+drop.length+" old restore point(s): "+drop.map(function(x){return x.k;}).join(", "));
+    return drop.length;
+  }
+  async function renderSyncDetail(fetchNow){
+    var el=$("hipSyncDetail"); if(!el) return;
+    if(fetchNow){ el.dataset.loading="1"; await readCloudStampAuto(); el.dataset.loading=""; }
+    var local=lsGet("synced",null), n=unsentCount(), err=syncError(), u=storageUse();
+    var rows=[];
+    var dbTxt = !dbRead ? "not read yet" : dbRead.ok ? fmtTs(dbRead.stamp)+' <span style="color:#98A2B3">(read from the database '+timeAgo(dbRead.at)+')</span>' : '<span style="color:#B42318">could not read: '+escp(dbRead.msg||"")+'</span>';
+    rows.push(['Last confirmed cloud write', dbTxt]);
+    rows.push(['This device’s last confirmed save', escp(fmtTs(local))]);
+    var note="";
+    if(dbRead && dbRead.ok && dbRead.stamp && local){
+      var d=tsv(dbRead.stamp)-tsv(local);
+      if(d>60000) note="The cloud copy is newer than this device’s last save by "+Math.round(d/60000)+" min: another device has saved since. Reload before editing.";
+      else if(d<-60000) note="This device recorded a save "+Math.round(-d/60000)+" min newer than anything the cloud holds. That save never landed; tap Sync now.";
+    } else if(dbRead && dbRead.ok && !dbRead.stamp) note = local ? "The cloud returned no copy of this workspace, although this device saved one before. Access was probably refused (an expired cloud sign-in) or the row was removed." : "The cloud has no copy of this workspace yet.";
+    rows.push(['Unsent changes on this device', n?'<b style="color:#B42318">'+n+'</b>':'0']);
+    rows.push(['Cloud sign-in', escp(authNote||"not checked yet")]);
+    if(err) rows.push(['Last failure', '<span style="color:#B42318">'+escp(err.msg)+'</span> <span style="color:#98A2B3">('+escp(fmtTs(err.ts))+(err.since&&err.since!==err.ts?', failing since '+escp(fmtTs(err.since)):'')+')</span>']);
+    var warn=u.total>3*1048576;
+    rows.push(['Browser storage used', '<b style="color:'+(warn?"#B42318":"inherit")+'">'+mb(u.total)+'</b> of about 5 MB'+(warn?' · <b style="color:#B42318">nearly full</b>':'')+'<br><span style="color:#98A2B3">vault '+mb(u.parts.vault)+' · access log '+mb(u.parts.audit)+' · '+u.restorePoints+' restore point'+(u.restorePoints===1?'':'s')+' '+mb(u.parts.restore)+' (3 kept) · other '+mb(u.parts.other)+'</span>']);
+    el.innerHTML='<div style="margin-top:10px;font-size:12.5px;line-height:1.5">'+rows.map(function(r){ return '<div style="display:flex;gap:10px;padding:5px 0;border-top:1px solid #EEF0F3"><span style="flex:0 0 44%;color:#5B6472;font-weight:600">'+r[0]+'</span><span style="flex:1;min-width:0">'+r[1]+'</span></div>'; }).join("")+
+      (note?'<div style="margin-top:8px;padding:8px 10px;border-radius:8px;background:#FEF3F2;color:#B42318;font-weight:600">'+escp(note)+'</div>':'')+
+      (conflictPending?'<button class="hipbtn sm" id="wsResolve" style="margin-top:8px">Choose which copy to keep</button>':'')+
+      ' <button class="hipbtn ghost sm" id="wsRecheck" style="margin-top:8px">Re-check the cloud</button></div>';
+    if($("wsResolve")) $("wsResolve").onclick=function(){ conflictPrompt(conflictPending.cloud); };
+    $("wsRecheck").onclick=function(){ renderSyncDetail(true); };
+  }
+
+  function saveAccounts(){ lsSet("accounts", accounts); setUnsent(unsentCount()+1); pushSoon(); }
   function findAcct(e){ e=(e||"").trim().toLowerCase(); return accounts.filter(function(a){return a.email===e;})[0]; }
 
   /* audit */
-  function audit(action,target){ var l=lsGet("audit",[]); l.push({id:uid("a"),ts:new Date().toISOString(),email:curUser?curUser.email:"\u2014",name:curUser?curUser.name:"system",role:curUser?curUser.role:"\u2014",action:action,target:target||""}); if(l.length>8000)l=l.slice(-8000); lsSet("audit",l); pushSoon(); }
+  function audit(action,target,noPush){ var l=lsGet("audit",[]); l.push({id:uid("a"),ts:new Date().toISOString(),email:curUser?curUser.email:"\u2014",name:curUser?curUser.name:"system",role:curUser?curUser.role:"\u2014",action:action,target:target||""}); if(l.length>8000)l=l.slice(-8000); lsSet("audit",l); if(!noPush) pushSoon(); }
   // Global hook the clinical app calls for record-level access (only logs once signed in).
   window.__hipAudit=function(action,target){ if(!curUser) return; try{ audit(action, target||""); }catch(e){} };
   window.__isAdmin=function(){ return !!(curUser && curUser.role==="Admin"); };
@@ -8336,14 +8616,17 @@ window.startClinicApp = function(){
 
   /* vault (encrypts all app data at rest) */
   var vaultTimer=null;
-  window.__vaultSave=function(){ clearTimeout(vaultTimer); vaultTimer=setTimeout(saveVaultNow,600); };
-  async function saveVaultNow(){ if(!DKKey) return; try{
+  var vaultPending=false, lastPlainSaved=null;
+  window.__vaultSave=function(){ vaultPending=true; clearTimeout(vaultTimer); vaultTimer=setTimeout(saveVaultNow,600); };
+  function writeVault(blob){ if(lsSet("vault", blob)) return true; if(pruneRestorePoints(3)>0 && lsSet("vault", blob)) return true; return false; }
+  async function saveVaultNow(){ if(!DKKey) return; clearTimeout(vaultTimer); try{
     var plain=JSON.stringify(window.__vaultMem||{});
+    if(plain===lastPlainSaved && !storageBlocked){ vaultPending=false; return; }
     var blob;
     if(ZIP_OK){ blob=await gcmEnc(DKKey, await gzipB64(plain)); blob.z=1; }
     else { blob=await gcmEnc(DKKey, plain); }
-    if(lsSet("vault", blob)){ pushSoon(); }
-    else { storageFull(); }
+    if(writeVault(blob)){ vaultPending=false; storageBlocked=false; lastPlainSaved=plain; if(!window.__alphaReadOnly) setUnsent(unsentCount()+1); pushSoon(); }
+    else { storageBlocked=true; storageFull(); markSyncFailed("Browser storage is full: the last change was NOT saved on this device and nothing was uploaded. Do not close this tab. Export a backup from Security, then free space.","storage"); }
   }catch(e){} }
   /* Local write failed (quota). Never push - syncPush reads the vault back from
      localStorage, so pushing now would send the PREVIOUS vault to the cloud with a
@@ -8364,16 +8647,29 @@ window.startClinicApp = function(){
     }catch(e){}
   }
   async function loadVault(){ var blob=lsGet("vault",null); if(!blob){ window.__vaultMem={}; return; }
-    try{ var txt=await gcmDec(DKKey, blob); if(blob.z===1) txt=await gunzipB64(txt); window.__vaultMem=JSON.parse(txt)||{}; }
+    try{ var txt=await gcmDec(DKKey, blob); if(blob.z===1) txt=await gunzipB64(txt); window.__vaultMem=JSON.parse(txt)||{}; lastPlainSaved=JSON.stringify(window.__vaultMem); }
     catch(e){ window.__vaultMem={}; }
   }
 
   /* idle auto-logoff */
   var idle=null;
   function resetIdle(){ clearTimeout(idle); if(!curUser) return; idle=setTimeout(lockNow, Math.max(1,(secset.timeoutMin||15))*60000); }
-  async function lockNow(){ if(!curUser) return; audit("auto_logoff"); await saveVaultNow(); location.reload(); }
+  async function lockNow(){ if(!curUser) return; audit("auto_logoff"); await saveVaultNow();
+    // try to get unsent work up before the screen locks; the red state survives the reload if it fails
+    if(unsentCount()>0 && !syncHold && !conflictPending){ try{ await Promise.race([syncPush(true), new Promise(function(r){ setTimeout(r,6000); })]); }catch(e){} }
+    window.__allowUnload=true; location.reload(); }
+  // closing the tab with work that never reached the cloud asks first
+  window.addEventListener("beforeunload", function(e){
+    if(window.__allowUnload || !curUser || window.__alphaReadOnly) return;
+    var n=unsentCount();
+    if(n>0 || storageBlocked || vaultPending || syncInFlight){
+      var m=(n?plural(n,"change")+" have not reached the cloud. ":"")+(storageBlocked?"The last change could not be saved on this device. ":"")+"Leave anyway?";
+      e.preventDefault(); e.returnValue=m; return m;
+    }
+  });
+  document.addEventListener("visibilitychange", function(){ if(document.visibilityState==="hidden" && vaultPending) saveVaultNow(); });
   ["click","keydown","mousemove","touchstart","scroll"].forEach(function(ev){ document.addEventListener(ev, resetIdle, {passive:true}); });
-  window.addEventListener("pagehide", function(){ /* best-effort: vault already debounced-saved */ });
+  window.addEventListener("pagehide", function(){ if(vaultPending) saveVaultNow(); });
 
   /* password strength */
   function pwScore(p){ var s=0; if(!p)return 0; if(p.length>=8)s++; if(p.length>=12)s++; if(/[A-Z]/.test(p)&&/[a-z]/.test(p))s++; if(/\d/.test(p))s++; if(/[^A-Za-z0-9]/.test(p))s++; return Math.min(s,4); }
@@ -8446,6 +8742,7 @@ window.startClinicApp = function(){
   function resetWorkspace(){
     try{ var keys=[]; for(var i=0;i<localStorage.length;i++){ var k=localStorage.key(i); if(k&&k.indexOf(PFX)===0) keys.push(k); } keys.forEach(function(k){ localStorage.removeItem(k); }); }catch(e){}
     DKKey=null; dkRawMem=null; curUser=null; window.__vaultMem={};
+    window.__allowUnload=true;
     var done=false; function go(){ if(done) return; done=true; try{ location.reload(); }catch(e){} }
     setTimeout(go, 3000); // always reload, even if the network hangs
     if(syncEnabled){
@@ -8510,8 +8807,21 @@ window.startClinicApp = function(){
     $("hipGate").classList.remove("show");
     audit("sign_in");
     injectShield(); applyRoleGates(); wireNavAudit(); refreshShield(); resetIdle();
+    refreshSyncUI();
+    syncLiveness().catch(function(e){ syncHold=false; markSyncFailed("Could not check the cloud on sign-in ("+(e&&e.message||e)+").","network"); });
+    try{ var _u=storageUse(); if(_u.total>3*1048576) setTimeout(function(){ toast("Browser storage is "+mb(_u.total)+" of about 5 MB. See Security \u2192 Multi-device sync."); }, 2500); }catch(e){}
   }
-  function signOut(){ audit("sign_out"); saveVaultNow().then(function(){ location.reload(); }).catch(function(){ location.reload(); }); }
+  function signOut(force){
+    if(force!==true && (unsentCount()>0 || storageBlocked)){
+      var n=unsentCount();
+      modal('<div class="hiph">Changes not in the cloud</div><div class="hipsub">'+(storageBlocked?'The last change could not be saved on this device (browser storage is full). ':'')+(n?'<b>'+plural(n,"change")+'</b> on this device have not reached the cloud. ':'')+(syncErrMsg?escp(syncErrMsg)+' ':'')+'If you sign out they stay only on this device.</div>'+
+        '<button class="hipbtn" id="wsSoSync" style="margin-bottom:8px">Sync now, then sign out</button><button class="hipbtn ghost" id="wsSoCancel" style="margin-bottom:8px">Cancel</button><button class="hipbtn ghost sm" id="wsSoForce" style="color:#B42318">Sign out anyway</button><div class="hiperr" id="wsSoErr"></div>');
+      $("wsSoCancel").onclick=closeModal;
+      $("wsSoForce").onclick=function(){ audit("sign_out_unsynced", plural(n,"unsent change")); signOut(true); };
+      $("wsSoSync").onclick=async function(){ $("wsSoErr").textContent="Syncing\u2026"; try{ await saveVaultNow(); }catch(e){} await syncPush(true); if(syncState==="ok" && unsentCount()===0) signOut(true); else $("wsSoErr").textContent=syncErrMsg||"Still not synced."; };
+      return;
+    }
+    audit("sign_out"); window.__allowUnload=true; saveVaultNow().then(function(){ location.reload(); }).catch(function(){ location.reload(); }); }
 
   /* ---------- role gates ---------- */
   function isAdmin(){ return curUser && curUser.role==="Admin"; }
@@ -8560,7 +8870,7 @@ window.startClinicApp = function(){
       '<div class="hipsec"><h4>Session security</h4>'+
       '<div class="hipfld"><label>Auto sign-out after inactivity (minutes)</label><input id="hipTimeout" type="number" min="1" max="60" value="'+(secset.timeoutMin||15)+'"'+(isAdmin()?"":" disabled")+'></div>'+
       (isAdmin()?'<button class="hipbtn ghost sm" id="hipSaveTimeout">Save</button>':'<div class="hiphint">Only an administrator can change this.</div>')+'</div>'+
-      '<div class="hipsec"><h4>Multi-device sync</h4><div class="hiphint" style="margin-bottom:10px">Accounts and encrypted data sync to your cloud project so you can sign in from any device. Only encrypted data leaves this device. <b>Test data only</b> until the HIPAA project &amp; BAA are in place.</div><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span id="hipSyncState" style="font-size:12.5px;color:#5B6472;font-weight:600">\u2014</span><button class="hipbtn ghost sm" id="hipSyncNow">Sync now</button></div><label class="hip-ro"><input type="checkbox" id="hipReadOnly"> <span><b>Read-only mode</b> on this device. It can view and print but won\u2019t save changes to the cloud, so it can\u2019t overwrite another device. Turn this on for front-desk lookup devices; keep it off on the one device doing the editing.</span></label></div>'+
+      '<div class="hipsec"><h4>Multi-device sync</h4><div class="hiphint" style="margin-bottom:10px">Accounts and encrypted data sync to your cloud project so you can sign in from any device. Only encrypted data leaves this device. <b>Test data only</b> until the HIPAA project &amp; BAA are in place.</div><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span id="hipSyncState" style="font-size:12.5px;color:#5B6472;font-weight:600">\u2014</span><button class="hipbtn ghost sm" id="hipSyncNow">Sync now</button></div><div id="hipSyncDetail"></div><label class="hip-ro"><input type="checkbox" id="hipReadOnly"> <span><b>Read-only mode</b> on this device. It can view and print but won\u2019t save changes to the cloud, so it can\u2019t overwrite another device. Turn this on for front-desk lookup devices; keep it off on the one device doing the editing.</span></label></div>'+
       '<div class="hipsec"><h4>This workspace</h4><div class="hiphint">Its own encrypted vault, unique logins. All records are encrypted with AES-256-GCM; keys derived with PBKDF2-SHA256 ('+ITERS.toLocaleString()+' iterations). <b>Backup:</b> <span id="hipExpLink" style="color:#DC2626;font-weight:600;cursor:pointer">export encrypted backup</span>.</div></div>'+
       (isAdmin()?'<div class="hipsec"><h4>Import from standard app</h4><div class="hiphint" style="margin-bottom:12px">Load a backup exported from the standard AlphaPerformance app (its <b>Settings \u2192 Export</b>). This <b>replaces</b> this workspace\u2019s clients, memberships, product catalog, and books with the uploaded data, then reloads. Use test / non-identifiable data until your BAA and risk analysis are complete.</div><button class="hipbtn ghost sm" id="hipImport">Choose export file\u2026</button></div>':'');
   }
@@ -8631,13 +8941,14 @@ window.startClinicApp = function(){
         return '<div class="hipuser"><div class="hipav">'+escp(ini)+'</div><div class="bd"><div class="t">'+escp(a.name)+(a.email===curUser.email?' <span class="hipbadge2 n">you</span>':'')+'</div><div class="d">'+escp(a.email)+'</div></div><span class="hipbadge2 '+(a.role==="Admin"?"bad":a.role==="Provider"?"good":"n")+'">'+escp(a.role)+'</span>'+(a.email===curUser.email?'':'<button class="hipbtn ghost sm" data-e="'+escp(a.email)+'" style="margin-left:8px">Role</button><button class="hipbtn ghost sm" data-reset="'+escp(a.email)+'" style="margin-left:6px">Reset</button>')+'</div>'; }).join("")+'</div>';
   }
   function wireConsole(){
-    if($("hipSignOut")) $("hipSignOut").onclick=signOut;
+    if($("hipSignOut")) $("hipSignOut").onclick=function(){ signOut(false); };
     if($("hipChPw")) $("hipChPw").onclick=function(){ openChangePw(false); };
     if($("hipSaveTimeout")) $("hipSaveTimeout").onclick=function(){ var v=Math.max(1,Math.min(60,parseInt($("hipTimeout").value)||15)); secset.timeoutMin=v; lsSet("secset",secset); audit("settings_update","timeout="+v); resetIdle(); toast("Saved"); };
     if($("hipExpLink")) $("hipExpLink").onclick=exportBackup;
     if($("hipSyncNow")) $("hipSyncNow").onclick=syncNow;
     if($("hipReadOnly")){ $("hipReadOnly").checked=window.__alphaReadOnly; $("hipReadOnly").onchange=function(){ setReadOnly($("hipReadOnly").checked); }; }
     refreshSyncUI();
+    if($("hipSyncDetail")) renderSyncDetail(true);
     if($("hipImport")) $("hipImport").onclick=pickImportFile;
     if($("hipExpAud")) $("hipExpAud").onclick=exportAudit;
     Array.prototype.forEach.call(document.querySelectorAll("#hipConsoleBody button[data-f]"),function(b){ b.onclick=function(){ auditFilter=b.getAttribute("data-f"); renderConsole(); }; });
@@ -8768,6 +9079,7 @@ window.startClinicApp = function(){
     // let the supplement/account migration re-run against the imported catalog
     delete vm["alphaperf_thorne2"];
     audit("data_import", ((data.patients&&data.patients.length)||0)+" clients");
+    window.__allowUnload=true;
     saveVaultNow().then(function(){ location.reload(); }).catch(function(){ location.reload(); });
   }
   function toast(m){ var t=document.createElement("div"); t.textContent=m; t.style.cssText="position:fixed;left:50%;bottom:80px;transform:translateX(-50%);background:#0E1420;color:#fff;padding:11px 18px;border-radius:11px;font:600 13.5px 'Inter',sans-serif;z-index:9500;box-shadow:0 8px 24px -6px rgba(0,0,0,.4)"; document.body.appendChild(t); setTimeout(function(){t.style.transition=".3s";t.style.opacity="0";setTimeout(function(){t.remove();},300);},2200); }
@@ -8815,6 +9127,7 @@ window.startClinicApp = function(){
   var SYNC_TABLE = 'workspace_sync';
   var SEEN_KEY   = 'alphahipaa_cloud_seen';
   var originalFetch = window.fetch.bind(window);
+  window.__syncGuardRawFetch = originalFetch; // stamp-only reads must not be adopted as "seen"
 
   function ts(v) { var t = Date.parse(v || ''); return isNaN(t) ? 0 : t; }
   function readSeen() { try { return sessionStorage.getItem(SEEN_KEY) || ''; } catch (e) { return ''; } }
