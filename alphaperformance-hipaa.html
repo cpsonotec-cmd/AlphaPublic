@@ -8449,7 +8449,7 @@ window.startClinicApp = function(){
     var revAtStart=lsGet("vault_rev",null);
     var payload={ id:SYNC_ID, accounts:accounts, vault:lsGet("vault",null), updated_at:new Date().toISOString() };
     if(!auditSplit) payload.audit=lsGet("audit",[]);           // fallback: the access log rides in the main row as before
-    else if(lsGet("audit_row_ok",false)) payload.audit=null;     // the access log has its own row; stop carrying the old copy
+    else if(lsGet("audit_row_ok",false)) payload.audit=[];       // the access log has its own row; stop carrying the old copy (column is NOT NULL)
     var sess=await ensureSession(), token=sess.ok?sess.token:null, r;
     try{
       r=await pushRequest(payload, token);
@@ -8537,7 +8537,7 @@ window.startClinicApp = function(){
     accounts = remote.accounts || [];
     lsSet("accounts", accounts);
     if(remote.vault!=null) lsSet("vault", remote.vault); else { try{ localStorage.removeItem(PFX+"vault"); }catch(e){} }
-    lsSet("audit", Array.isArray(remote.audit) ? remote.audit : lsGet("audit",[]));
+    lsSet("audit", mergeAudit(lsGet("audit",[]), Array.isArray(remote.audit) ? remote.audit : []));   // append-only: never drop local entries
     if(remote.updated_at){ lsSet("synced", remote.updated_at); setSeen(remote.updated_at); persist("cloud_confirmed", {stamp:remote.updated_at, at:new Date().toISOString()}); }
     setUnsent(0); tabDel("sync_error");
     var r0="cloud-"+(remote.updated_at||Date.now()); lsSet("vault_rev", r0); lsSet("pushed_rev", r0); myVaultRev=r0;
