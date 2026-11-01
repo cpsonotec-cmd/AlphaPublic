@@ -8273,10 +8273,46 @@ window.startClinicApp = function(){
   function persist(k,v){ if(lsSet(k,v)){ try{ sessionStorage.removeItem(PFX+k); }catch(e){} return true; } try{ sessionStorage.setItem(PFX+k, JSON.stringify(v)); }catch(e){} return false; }
   function persisted(k,d){ var s=ssGetP(k); if(s!=null) return s; return lsGet(k,d); }
   function unpersist(k){ try{ localStorage.removeItem(PFX+k); }catch(e){} try{ sessionStorage.removeItem(PFX+k); }catch(e){} }
-  var unsentMem=+persisted("unsent",0)||0;
+  // Per-tab state lives in sessionStorage (survives this tab's reload, invisible to other tabs).
+  // Only genuinely shared facts (last confirmed cloud write, the vault itself and its revision) live in localStorage.
+  function tabGet(k,d){ try{ var r=sessionStorage.getItem(PFX+"tab_"+k); return r!=null?JSON.parse(r):d; }catch(e){ return d; } }
+  function tabSet(k,v){ try{ sessionStorage.setItem(PFX+"tab_"+k, JSON.stringify(v)); }catch(e){} }
+  function tabDel(k){ try{ sessionStorage.removeItem(PFX+"tab_"+k); }catch(e){} }
+  (function migrateSharedSyncState(){
+    try{
+      var oldN=+lsGet("unsent",0)||0;
+      if(oldN>0 && !lsGet("vault_rev",null)) lsSet("vault_rev", "legacy-"+Date.now()); // the stored vault was never confirmed: keep that fact, shared
+      var oldE=persisted("sync_error",null); if(oldE && !tabGet("sync_error",null)) tabSet("sync_error", oldE);
+      unpersist("unsent"); unpersist("sync_error");
+    }catch(e){}
+  })();
+  var unsentMem=+tabGet("unsent",0)||0;
   function unsentCount(){ return unsentMem; }
-  function setUnsent(n){ unsentMem=Math.max(0, n|0); persist("unsent", unsentMem); }
-  function syncError(){ return persisted("sync_error", null); }
+  function setUnsent(n){ unsentMem=Math.max(0, n|0); tabSet("unsent", unsentMem); }
+  function syncError(){ return tabGet("sync_error", null); }
+  // shared: has the vault stored on this computer changed since the last confirmed push (by any tab)?
+  function newRev(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+  function localDirty(){ var v=lsGet("vault_rev",null); return !!v && v!==lsGet("pushed_rev",null); }
+  var myVaultRev=null; // the vault revision this tab last wrote or loaded
+  window.addEventListener("storage", function(e){
+    if(e.key!==PFX+"vault_rev" || !curUser || !e.newValue) return;
+    var v=null; try{ v=JSON.parse(e.newValue); }catch(_){}
+    if(v && v!==myVaultRev) showTabWarning();
+  });
+  function showTabWarning(){
+    try{
+      var el=document.getElementById("wsTabWarn");
+      if(!el){ el=document.createElement("div"); el.id="wsTabWarn";
+        el.style.cssText="position:fixed;left:0;right:0;bottom:0;z-index:2147483644;background:#92400E;color:#fff;padding:11px 44px 11px 16px;font:600 13.5px/1.45 system-ui,-apple-system,sans-serif;text-align:center;box-shadow:0 -2px 12px rgba(0,0,0,.3)";
+        document.body.appendChild(el); }
+      var n=unsentCount();
+      el.innerHTML='This workspace just saved from another tab or window on this computer. Each tab saves its own full copy, so one tab\u2019s changes replace the other\u2019s. Keep only one tab open.'+
+        (n?' This tab has <b>'+plural(n,"change")+'</b> the other tab may not have: do not reload this tab until you have checked them.':' Reload this tab before ringing a sale.')+
+        ' <button type="button" aria-label="Hide" style="position:absolute;right:10px;top:5px;background:none;border:0;color:#fff;font-size:22px;cursor:pointer">\u00d7</button>';
+      el.querySelector("button").onclick=function(){ el.style.display="none"; };
+      el.style.display="block";
+    }catch(e){}
+  }
   function plural(n,w){ return n+" "+w+(n===1?"":"s"); }
 
   /* session: refresh an expiring token, never reconnect (a reconnect pulls and can overwrite unsent work) */
@@ -8330,13 +8366,14 @@ window.startClinicApp = function(){
   function setSeen(v){ try{ if(v) sessionStorage.setItem("alphahipaa_cloud_seen", v); }catch(e){} }
 
   /* success / failure */
-  function markSyncOk(stamp, unsentAtStart){
+  function markSyncOk(stamp, unsentAtStart, revAtStart){
+    if(revAtStart) lsSet("pushed_rev", revAtStart);
     var stored=lsSet("synced", stamp);
     setSeen(stamp);
     persist("cloud_confirmed", {stamp:stamp, at:new Date().toISOString()});
     // assert in the save path: the device stamp must equal the database's updated_at exactly
     if(!stored || lsGet("synced",null)!==stamp){ markSyncFailed("The cloud saved the upload, but this device could not record the confirmation (browser storage is full). Free space, then tap Sync now.","storage"); return; }
-    unpersist("sync_error"); lastAuditedErr="";
+    tabDel("sync_error"); lastAuditedErr="";
     setUnsent(unsentCount()-(unsentAtStart||0));
     syncState="ok"; syncErrMsg=""; syncOkThisSession=true;
     clearTimeout(syncRetryTimer); syncRetryTimer=null;
@@ -8347,7 +8384,7 @@ window.startClinicApp = function(){
   function markSyncFailed(msg, kind){
     var prev=syncError(), now=new Date().toISOString();
     syncState="error"; syncErrMsg=msg; syncOkThisSession=false;
-    persist("sync_error", {msg:msg, kind:kind||"", ts:now, since:(prev&&prev.since)||now});
+    tabSet("sync_error", {msg:msg, kind:kind||"", ts:now, since:(prev&&prev.since)||now});
     if(msg!==lastAuditedErr){ lastAuditedErr=msg; try{ audit("sync_failed", (kind||"")+": "+msg.slice(0,160), true); }catch(e){} }
     console.error("[sync] NOT synced: "+msg);
     showSyncFailBanner();
@@ -8409,7 +8446,10 @@ window.startClinicApp = function(){
   async function doSyncPush(isRetry){
     syncState="syncing"; refreshSyncUI();
     var unsentAtStart=unsentCount();
-    var payload={ id:SYNC_ID, accounts:accounts, vault:lsGet("vault",null), audit:lsGet("audit",[]), updated_at:new Date().toISOString() };
+    var revAtStart=lsGet("vault_rev",null);
+    var payload={ id:SYNC_ID, accounts:accounts, vault:lsGet("vault",null), updated_at:new Date().toISOString() };
+    if(!auditSplit) payload.audit=lsGet("audit",[]);           // fallback: the access log rides in the main row as before
+    else if(lsGet("audit_row_ok",false)) payload.audit=null;     // the access log has its own row; stop carrying the old copy
     var sess=await ensureSession(), token=sess.ok?sess.token:null, r;
     try{
       r=await pushRequest(payload, token);
@@ -8434,7 +8474,43 @@ window.startClinicApp = function(){
     if(tsv(back.stamp)>tsv(row.updated_at)){ markDrift(back.stamp, true); return; }   // another device saved right after this upload
     if(tsv(back.stamp)!==tsv(row.updated_at)){ markSyncFailed("Upload not confirmed: the cloud holds a copy from "+fmtTs(back.stamp)+", not the one just sent.","readback"); return; }
     dbRead={ok:true, stamp:back.stamp, at:new Date().toISOString()};
-    markSyncOk(back.stamp, unsentAtStart);
+    markSyncOk(back.stamp, unsentAtStart, revAtStart);
+  }
+  /* access log: its own row, read-merge-write. Entries are append-only with unique ids, so two devices
+     never overwrite each other's log. Keeps ~330 KB off every sale push. */
+  var AUDIT_ID="workspace_audit", auditSplit=true, auditTimer=null, auditInFlight=false;
+  function auditPushSoon(ms){ if(!syncEnabled) return; clearTimeout(auditTimer); auditTimer=setTimeout(pushAudit, ms==null?15000:ms); }
+  function mergeAudit(a,b){ var m={}, out=[]; (a||[]).concat(b||[]).forEach(function(x){ if(x && x.id && !m[x.id]){ m[x.id]=1; out.push(x); } }); out.sort(function(x,y){ return (x.ts||"")<(y.ts||"")?-1:(x.ts||"")>(y.ts||"")?1:0; }); return out.length>8000?out.slice(-8000):out; }
+  async function pushAudit(){
+    if(!syncEnabled || !auditSplit || syncHold || auditInFlight || !accounts.length) return;
+    auditInFlight=true;
+    try{
+      var sess=await ensureSession(), token=sess.ok?sess.token:null;
+      var g=await rawFetch(SYNC_URL+"/rest/v1/workspace_sync?id=eq."+AUDIT_ID+"&select=audit", {headers:syncHeaders(null, token)});
+      if(!g.ok && token){ token=null; g=await rawFetch(SYNC_URL+"/rest/v1/workspace_sync?id=eq."+AUDIT_ID+"&select=audit", {headers:syncHeaders(null, null)}); }
+      if(!g.ok) return;
+      var rows=await g.json(), cloudLog=(rows&&rows[0]&&rows[0].audit)||[];
+      // first time only: fold in the copy still carried by the main row
+      if(!lsGet("audit_row_ok",false)){ var m0=await syncPull(token); if(m0 && m0.ok && m0.row && Array.isArray(m0.row.audit)) cloudLog=mergeAudit(cloudLog, m0.row.audit); }
+      var merged=mergeAudit(lsGet("audit",[]), cloudLog);
+      var r=await rawFetch(SYNC_URL+"/rest/v1/workspace_sync?on_conflict=id&select=updated_at", {method:"POST",
+        headers:syncHeaders({"Content-Type":"application/json", Prefer:"resolution=merge-duplicates,return=representation"}, token),
+        body:JSON.stringify({id:AUDIT_ID, audit:merged, updated_at:new Date().toISOString()})});
+      var body=null; try{ body=await r.json(); }catch(e){}
+      var row=Array.isArray(body)?body[0]:body;
+      if(!r.ok || !row || !row.updated_at){
+        // the cloud will not take a separate access-log row (permissions): go back to carrying it in the main row
+        if(r.status!==0 && r.status<500){ auditSplit=false; console.warn("[sync] separate access-log row refused ("+r.status+"); carrying it in the main row"); pushSoon(); }
+        return;
+      }
+      lsSet("audit", mergeAudit(lsGet("audit",[]), merged)); // keep anything logged while the upload ran
+      lsSet("audit_row_ok", true);
+      // read-merge-write can race with another computer's upload; check our entries landed, otherwise go again shortly
+      try{ var v=await rawFetch(SYNC_URL+"/rest/v1/workspace_sync?id=eq."+AUDIT_ID+"&select=audit", {headers:syncHeaders(null, token)});
+        if(v.ok){ var vr=await v.json(), have={}; ((vr&&vr[0]&&vr[0].audit)||[]).forEach(function(x){ if(x&&x.id) have[x.id]=1; });
+          if(merged.some(function(x){ return x && x.id && !have[x.id]; })) auditPushSoon(5000+Math.floor(Math.random()*5000)); } }catch(e){}
+    }catch(e){}
+    finally{ auditInFlight=false; }
   }
   var pushTimer=null;
   function pushSoon(){ if(window.__alphaReadOnly) return; if(!syncEnabled) return; clearTimeout(pushTimer); pushTimer=setTimeout(function(){ syncPush(false); }, 1200); }
@@ -8461,9 +8537,10 @@ window.startClinicApp = function(){
     accounts = remote.accounts || [];
     lsSet("accounts", accounts);
     if(remote.vault!=null) lsSet("vault", remote.vault); else { try{ localStorage.removeItem(PFX+"vault"); }catch(e){} }
-    lsSet("audit", remote.audit || []);
+    lsSet("audit", Array.isArray(remote.audit) ? remote.audit : lsGet("audit",[]));
     if(remote.updated_at){ lsSet("synced", remote.updated_at); setSeen(remote.updated_at); persist("cloud_confirmed", {stamp:remote.updated_at, at:new Date().toISOString()}); }
-    setUnsent(0); unpersist("sync_error");
+    setUnsent(0); tabDel("sync_error");
+    var r0="cloud-"+(remote.updated_at||Date.now()); lsSet("vault_rev", r0); lsSet("pushed_rev", r0); myVaultRev=r0;
   }
   var bootConflict=null, bootPullErr="", bootAdopted=null;
   async function syncBoot(){
@@ -8497,6 +8574,8 @@ window.startClinicApp = function(){
       modal('<div class="hiph">Cloud sync is not working</div><div class="hipsub">'+escp(syncErrMsg)+'</div><div class="hipsub">You can keep working. The red <b>Not synced</b> pill and banner stay up until a save is confirmed by the cloud.</div><button class="hipbtn" id="wsLiveOk">Continue</button>');
       $("wsLiveOk").onclick=closeModal; return;
     }
+    if(localDirty() && unsentCount()===0) setUnsent(1);   // the vault on this computer changed after the last confirmed push
+    auditPushSoon(3000);
     var cloud=rd.stamp, local=lsGet("synced",null), n=unsentCount();
     if(bootConflict || (cloud && local && tsv(cloud)>tsv(local))){ syncHold=false; conflictPending={cloud:cloud||bootConflict.cloud}; conflictPrompt(conflictPending.cloud); return; }
     syncHold=false;
@@ -8622,7 +8701,7 @@ window.startClinicApp = function(){
   function findAcct(e){ e=(e||"").trim().toLowerCase(); return accounts.filter(function(a){return a.email===e;})[0]; }
 
   /* audit */
-  function audit(action,target,noPush){ var l=lsGet("audit",[]); l.push({id:uid("a"),ts:new Date().toISOString(),email:curUser?curUser.email:"\u2014",name:curUser?curUser.name:"system",role:curUser?curUser.role:"\u2014",action:action,target:target||""}); if(l.length>8000)l=l.slice(-8000); lsSet("audit",l); if(!noPush) pushSoon(); }
+  function audit(action,target,noPush){ var l=lsGet("audit",[]); l.push({id:uid("a"),ts:new Date().toISOString(),email:curUser?curUser.email:"\u2014",name:curUser?curUser.name:"system",role:curUser?curUser.role:"\u2014",action:action,target:target||""}); if(l.length>8000)l=l.slice(-8000); lsSet("audit",l); if(!noPush) auditPushSoon(); }
   // Global hook the clinical app calls for record-level access (only logs once signed in).
   window.__hipAudit=function(action,target){ if(!curUser) return; try{ audit(action, target||""); }catch(e){} };
   window.__isAdmin=function(){ return !!(curUser && curUser.role==="Admin"); };
@@ -8635,11 +8714,13 @@ window.startClinicApp = function(){
   function writeVault(blob){ if(lsSet("vault", blob)) return true; if(pruneRestorePoints(3)>0 && lsSet("vault", blob)) return true; return false; }
   async function saveVaultNow(){ if(!DKKey) return; clearTimeout(vaultTimer); try{
     var plain=JSON.stringify(window.__vaultMem||{});
-    if(plain===lastPlainSaved && !storageBlocked){ vaultPending=false; return; }
+    if(plain===lastPlainSaved && !storageBlocked && lsGet("vault_rev",null)===myVaultRev){ vaultPending=false; return; }
     var blob;
     if(ZIP_OK){ blob=await gcmEnc(DKKey, await gzipB64(plain)); blob.z=1; }
     else { blob=await gcmEnc(DKKey, plain); }
-    if(writeVault(blob)){ vaultPending=false; storageBlocked=false; lastPlainSaved=plain; if(!window.__alphaReadOnly) setUnsent(unsentCount()+1); pushSoon(); }
+    if(writeVault(blob)){ vaultPending=false; storageBlocked=false; lastPlainSaved=plain;
+      var rv=newRev(); myVaultRev=rv; lsSet("vault_rev", rv);
+      if(!window.__alphaReadOnly) setUnsent(unsentCount()+1); pushSoon(); }
     else { storageBlocked=true; storageFull(); markSyncFailed("Browser storage is full: the last change was NOT saved on this device and nothing was uploaded. Do not close this tab. Export a backup from Security, then free space.","storage"); }
   }catch(e){} }
   /* Local write failed (quota). Never push - syncPush reads the vault back from
@@ -8661,7 +8742,7 @@ window.startClinicApp = function(){
     }catch(e){}
   }
   async function loadVault(){ var blob=lsGet("vault",null); if(!blob){ window.__vaultMem={}; return; }
-    try{ var txt=await gcmDec(DKKey, blob); if(blob.z===1) txt=await gunzipB64(txt); window.__vaultMem=JSON.parse(txt)||{}; lastPlainSaved=JSON.stringify(window.__vaultMem); }
+    try{ var txt=await gcmDec(DKKey, blob); if(blob.z===1) txt=await gunzipB64(txt); window.__vaultMem=JSON.parse(txt)||{}; lastPlainSaved=JSON.stringify(window.__vaultMem); myVaultRev=lsGet("vault_rev",null); }
     catch(e){ window.__vaultMem={}; }
   }
 
@@ -8669,6 +8750,7 @@ window.startClinicApp = function(){
   var idle=null;
   function resetIdle(){ clearTimeout(idle); if(!curUser) return; idle=setTimeout(lockNow, Math.max(1,(secset.timeoutMin||15))*60000); }
   async function lockNow(){ if(!curUser) return; audit("auto_logoff"); await saveVaultNow();
+    try{ await Promise.race([pushAudit(), new Promise(function(r){ setTimeout(r,4000); })]); }catch(e){}
     // try to get unsent work up before the screen locks; the red state survives the reload if it fails
     if(unsentCount()>0 && !syncHold && !conflictPending){ try{ await Promise.race([syncPush(true), new Promise(function(r){ setTimeout(r,6000); })]); }catch(e){} }
     window.__allowUnload=true; location.reload(); }
@@ -8763,6 +8845,7 @@ window.startClinicApp = function(){
       var empty={ id:SYNC_ID, accounts:[], vault:null, audit:[], updated_at:new Date().toISOString() };
       fetch(SYNC_URL+"/rest/v1/workspace_sync?on_conflict=id", {method:"POST", headers:syncHeaders({"Content-Type":"application/json", Prefer:"resolution=merge-duplicates,return=minimal"}), body:JSON.stringify(empty)})
         .then(function(){ return fetch(SYNC_URL+"/rest/v1/workspace_sync?id=eq."+SYNC_ID, {method:"DELETE", headers:syncHeaders({Prefer:"return=minimal"})}); })
+        .then(function(){ return rawFetch(SYNC_URL+"/rest/v1/workspace_sync?id=eq.workspace_audit", {method:"DELETE", headers:syncHeaders({Prefer:"return=minimal"})}); })
         .then(go).catch(go);
     } else go();
   }
@@ -8835,7 +8918,8 @@ window.startClinicApp = function(){
       $("wsSoSync").onclick=async function(){ $("wsSoErr").textContent="Syncing\u2026"; try{ await saveVaultNow(); }catch(e){} await syncPush(true); if(syncState==="ok" && unsentCount()===0) signOut(true); else $("wsSoErr").textContent=syncErrMsg||"Still not synced."; };
       return;
     }
-    audit("sign_out"); window.__allowUnload=true; saveVaultNow().then(function(){ location.reload(); }).catch(function(){ location.reload(); }); }
+    audit("sign_out"); window.__allowUnload=true;
+    saveVaultNow().then(function(){ return Promise.race([pushAudit(), new Promise(function(r){ setTimeout(r,4000); })]); }).then(function(){ location.reload(); }).catch(function(){ location.reload(); }); }
 
   /* ---------- role gates ---------- */
   function isAdmin(){ return curUser && curUser.role==="Admin"; }
