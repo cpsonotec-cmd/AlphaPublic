@@ -5499,6 +5499,7 @@ window.startClinicApp = function(){
     posPromo=null; if($("posPromoCard")) $("posPromoCard").checked=false; if($("posPromoSel")) $("posPromoSel").value="";
     posCart=[]; posGC=null; if($("posGcNum")) $("posGcNum").value=""; $("posDiscount").value=""; $("posDiscountAmt").value=""; if(posSplitActive) toggleSplit(false); if(posDiscMode==="item") setDiscMode("order"); setPosClient(""); renderCart();
     if(p) renderAll();
+    try{ if(window.__syncCommit) window.__syncCommit("sale"); }catch(e){}   // push on commit; the sale is already saved locally either way
     toast("Sale recorded \u00b7 $"+money(total)+gcMsg);
   }
 
@@ -7860,7 +7861,7 @@ window.startClinicApp = function(){
         }
       });
   }
-  window.__cloudPull=function(){ try{ if(sb&&sbUser) cloudPull(); }catch(e){} };
+  // window.__cloudPull removed: nothing may pull without an explicit choice
   function subscribeRealtime(){
     if(sbChannel){ try{ sb.removeChannel(sbChannel); }catch(e){} }
     sbChannel = sb.channel("app_state_"+sbUser.id)
@@ -7870,9 +7871,8 @@ window.startClinicApp = function(){
           var incoming = payload["new"] && payload["new"].data;
           if(!incoming) return;
           if(incoming._w && incoming._w===lastWriteToken) return; // ignore our own write
-          if(panelOpen()){ pendingRemote=incoming; return; }   // don't disrupt active editing
-          applyRemoteState(incoming);
-          toast("Updated from another device");
+          // never apply automatically (a whole-database replace would erase this device's unsent work)
+          console.warn("[sync] another device saved the legacy cloud copy; not loaded automatically");
         })
       .subscribe();
   }
@@ -7925,14 +7925,11 @@ window.startClinicApp = function(){
     sbUser=user;
     setPill("syncing","Syncing…");
     hideAuth();
-    var hadLocal = patients.length>0 || members.length>0;
+    // No pull and no realtime subscription: the encrypted workspace sync is the source of truth, and a pull
+    // (a whole-database replace) only ever happens when a person picks it (Settings > Reload from cloud, or the sync Review screen).
     cloudReady=true;
-    cloudPull(hadLocal).then(function(){
-      cloudReady=true;
-      subscribeRealtime();
-      setPill("on","Synced");
-      refreshCloudUI();
-    });
+    setPill("on","Synced");
+    refreshCloudUI();
   }
   function onSignedOut(){
     sbUser=null; cloudReady=false;
@@ -8357,6 +8354,20 @@ window.startClinicApp = function(){
     refreshSyncUI();
     if(kind!=="conflict" && kind!=="storage" && kind!=="guard"){ clearTimeout(syncRetryTimer); syncRetryTimer=setTimeout(function(){ syncRetryTimer=null; syncPush(true); }, 60000); }
   }
+  // Detect, don't resolve: another device saved. No pull, and the register stays usable.
+  function driftTime(v){ var d=new Date(v); return d.toDateString()===new Date().toDateString() ? d.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}) : d.toLocaleString(); }
+  function driftMsg(cloud, replaced){
+    var n=unsentCount();
+    if(!n && !replaced) return "Another device saved at "+driftTime(cloud)+". This device has no unsent changes and has not loaded that copy. Review to load it.";
+    return "Another device saved at "+driftTime(cloud)+(replaced?", just after this device uploaded, so the cloud copy may not include this device\u2019s latest sales.":".")+
+      " This device\u2019s "+(n?plural(n,"change")+", including any sales, "+(n===1?"is":"are"):"work is")+" saved here"+(replaced?"":" but not uploaded")+". Nothing has been replaced on this device. Review before continuing.";
+  }
+  function markDrift(cloud, replaced){
+    conflictPending={cloud:cloud, replaced:!!replaced};
+    if(unsentCount()===0) setUnsent(1);
+    try{ audit("sync_other_device_saved", fmtTs(cloud)+(replaced?" (after this upload)":" (upload refused)"), true); }catch(e){}
+    markSyncFailed(driftMsg(cloud, replaced), "conflict");
+  }
   function showSyncFailBanner(){
     try{
       var e=syncError(); if(!e) return;
@@ -8366,13 +8377,15 @@ window.startClinicApp = function(){
         document.body.appendChild(el); }
       var n=unsentCount();
       el.innerHTML='<b>Not synced'+(n?' · '+plural(n,"unsent change")+' only on this device':'')+'.</b> '+escp(e.msg)+
-        ' <button type="button" id="wsSyncRetry" style="margin-left:8px;background:#fff;color:#B42318;border:0;border-radius:7px;padding:4px 10px;font-weight:700;cursor:pointer">'+(conflictPending?'Choose a copy':'Retry now')+'</button>'+
+        ' <button type="button" id="wsSyncRetry" style="margin-left:8px;background:#fff;color:#B42318;border:0;border-radius:7px;padding:4px 10px;font-weight:700;cursor:pointer">'+(conflictPending?'Review':'Retry now')+'</button>'+
+        (conflictPending?' <button type="button" id="wsSyncDismiss" style="background:transparent;color:#fff;border:1px solid rgba(255,255,255,.6);border-radius:7px;padding:3px 9px;font-weight:600;cursor:pointer">Dismiss</button>':'')+
         ' <button type="button" id="wsSyncDet" style="background:transparent;color:#fff;border:1px solid rgba(255,255,255,.6);border-radius:7px;padding:3px 9px;font-weight:600;cursor:pointer">Details</button>'+
         '<button type="button" id="wsSyncX" aria-label="Hide" style="position:absolute;right:10px;top:5px;background:none;border:0;color:#fff;font-size:22px;cursor:pointer">×</button>';
       el.style.display="block";
       $("wsSyncRetry").onclick=function(){ if(conflictPending) conflictPrompt(conflictPending.cloud); else syncNow(); };
       $("wsSyncDet").onclick=function(){ if(curUser) openConsole("overview"); };
       $("wsSyncX").onclick=function(){ el.style.display="none"; }; // the pill stays red until a confirmed push
+      if($("wsSyncDismiss")) $("wsSyncDismiss").onclick=function(){ el.style.display="none"; };
     }catch(e){}
   }
   function hideSyncFailBanner(){ var el=document.getElementById("wsSyncFail"); if(el) el.style.display="none"; }
@@ -8386,7 +8399,7 @@ window.startClinicApp = function(){
     if(window.__alphaReadOnly) return;
     if(!syncEnabled || !accounts.length) return;
     if(syncHold) return;
-    if(conflictPending){ markSyncFailed("Not uploading: another device saved to the cloud at "+fmtTs(conflictPending.cloud)+". Choose which copy to keep.","conflict"); return; }
+    if(conflictPending){ markSyncFailed(driftMsg(conflictPending.cloud, conflictPending.replaced),"conflict"); return; }
     if(storageBlocked){ markSyncFailed("Browser storage is full, so the last change could not be saved on this device and nothing was uploaded. Export a backup, then free space.","storage"); return; }
     if(syncInFlight){ pushSoon(); return; }
     syncInFlight=true;
@@ -8406,9 +8419,7 @@ window.startClinicApp = function(){
       markSyncFailed("Upload failed: no connection to the cloud. Your changes are only on this device.","network"); return;
     }
     var body=null; try{ body=await r.clone().json(); }catch(e){}
-    if(r.status===409 && body && body.blocked){
-      markSyncFailed("Upload refused: another tab or device saved to the cloud at "+fmtTs(body.cloud)+", after this tab loaded. Nothing was uploaded. Reload to get the cloud copy, then redo your change.","guard"); return;
-    }
+    if(r.status===409 && body && body.blocked){ markDrift(body.cloud, false); return; }
     if(!r.ok){
       if(!isRetry && (r.status>=500 || r.status===429)){ syncInFlight=false; setTimeout(function(){ syncPush(true); }, 2500); return; }
       var m=(body&&(body.message||body.msg))||("server returned "+r.status);
@@ -8420,6 +8431,7 @@ window.startClinicApp = function(){
     if(!row || !row.updated_at){ markSyncFailed("The cloud answered but returned no saved row, so nothing is confirmed"+(sess.expired?" (your cloud sign-in has expired; tap the red pill to sign in again)":"")+". Your changes are only on this device.", sess.expired?"auth":"norow"); return; }
     var back=await readCloudStamp(token);
     if(!back.ok){ markSyncFailed("Upload sent but could not be confirmed: reading the cloud back failed ("+back.msg+").","readback"); return; }
+    if(tsv(back.stamp)>tsv(row.updated_at)){ markDrift(back.stamp, true); return; }   // another device saved right after this upload
     if(tsv(back.stamp)!==tsv(row.updated_at)){ markSyncFailed("Upload not confirmed: the cloud holds a copy from "+fmtTs(back.stamp)+", not the one just sent.","readback"); return; }
     dbRead={ok:true, stamp:back.stamp, at:new Date().toISOString()};
     markSyncOk(back.stamp, unsentAtStart);
@@ -8436,8 +8448,7 @@ window.startClinicApp = function(){
     try{ localStorage.setItem("alphahipaa_readonly_device", on?"1":"0"); }catch(e){}
     updateReadOnlyUI();
     if(!on){
-      try{ if(typeof window.__cloudPull==="function") window.__cloudPull(); }catch(e){}
-      try{ if(typeof syncBoot==="function") syncBoot(); }catch(e){}
+      try{ syncLiveness(); }catch(e){}   // compares stamps; a newer cloud copy is offered, never loaded silently
       toast("Editing enabled on this device");
     } else {
       toast("Read-only on — this device won't change cloud data");
@@ -8470,8 +8481,7 @@ window.startClinicApp = function(){
         dbRead={ok:true, stamp:remote.updated_at, at:new Date().toISOString()};
         var newer=!localSynced || tsv(remote.updated_at)>tsv(localSynced);
         if(!accounts.length){ adoptRemote(remote); }
-        else if(newer && dirty){ bootConflict={cloud:remote.updated_at}; }   // never pull silently over unsent work
-        else if(newer){ adoptRemote(remote); bootAdopted=remote.updated_at; } // clean device: nothing to lose; reported after sign-in
+        else if(newer){ bootConflict={cloud:remote.updated_at}; }   // never pull silently: the person is asked after sign-in
         else setSeen(remote.updated_at);
       }
     } else bootPullErr=(res&&res.msg)||"no connection";
@@ -8506,12 +8516,13 @@ window.startClinicApp = function(){
     modal('<div class="hiph">Two different copies</div>'+
       '<div class="hipsub">Another device saved to the cloud at <b>'+escp(fmtTs(cloud))+'</b>, after this device last confirmed a cloud save ('+escp(fmtTs(local))+').'+
       (n?' This device also has <b>'+plural(n,"change")+'</b> that never reached the cloud.':'')+' Nothing has been replaced yet. Choose which copy to keep.</div>'+
-      '<button class="hipbtn" id="wsCfBak" style="margin-bottom:8px">Download this device’s backup first</button>'+
-      '<button class="hipbtn ghost" id="wsCfKeep" style="margin-bottom:8px">Keep this device’s copy and upload it</button>'+
-      '<button class="hipbtn ghost" id="wsCfCloud" style="margin-bottom:8px">Use the cloud copy'+(n?' (discards this device’s unsent changes)':'')+'</button>'+
+      (n?'<button class="hipbtn" id="wsCfBak" style="margin-bottom:8px">Download this device\u2019s backup first</button>'+
+         '<button class="hipbtn ghost" id="wsCfKeep" style="margin-bottom:8px">Keep this device\u2019s copy and upload it (replaces the other device\u2019s save)</button>'+
+         '<button class="hipbtn ghost" id="wsCfCloud" style="margin-bottom:8px">Use the cloud copy (discards this device\u2019s unsent changes)</button>'
+        :'<button class="hipbtn" id="wsCfCloud" style="margin-bottom:8px">Load the cloud copy (this device has no unsent changes)</button>')+
       '<button class="hipbtn ghost sm" id="wsCfLater">Decide later (nothing uploads until you choose)</button><div class="hiperr" id="wsCfErr"></div>');
-    $("wsCfBak").onclick=function(){ exportBackup(); };
-    $("wsCfKeep").onclick=function(){ setSeen(cloud); conflictPending=null; bootConflict=null; setUnsent(Math.max(1,unsentCount())); audit("sync_conflict_keep_local", fmtTs(cloud)); closeModal(); syncPush(true); };
+    if($("wsCfBak")) $("wsCfBak").onclick=function(){ exportBackup(); };
+    if($("wsCfKeep")) $("wsCfKeep").onclick=function(){ setSeen(cloud); conflictPending=null; bootConflict=null; setUnsent(Math.max(1,unsentCount())); audit("sync_conflict_keep_local", fmtTs(cloud)); closeModal(); syncPush(true); };
     $("wsCfCloud").onclick=async function(){
       $("wsCfErr").textContent="Loading the cloud copy…";
       var sess=await ensureSession(), res=await syncPull(sess.ok?sess.token:null);
@@ -8520,7 +8531,7 @@ window.startClinicApp = function(){
       audit("sync_conflict_use_cloud", fmtTs(res.row.updated_at), true);
       adoptRemote(res.row); window.__allowUnload=true; location.reload();
     };
-    $("wsCfLater").onclick=function(){ closeModal(); markSyncFailed("Not uploading: another device saved to the cloud at "+fmtTs(cloud)+". Choose which copy to keep.","conflict"); };
+    $("wsCfLater").onclick=function(){ closeModal(); markSyncFailed(driftMsg(cloud, conflictPending&&conflictPending.replaced),"conflict"); };
   }
   function syncLabel(){
     var n=unsentCount();
@@ -8537,6 +8548,9 @@ window.startClinicApp = function(){
   window.__wsPillClick=function(){ var e=syncError(); if(e && e.kind==="auth" && typeof window.__showCloudAuth==="function") window.__showCloudAuth(); else if(conflictPending) conflictPrompt(conflictPending.cloud); else if(curUser) openConsole("overview"); };
   window.__wsRetry=function(){ if(syncState==="error" && !conflictPending && !storageBlocked) syncPush(true); };
   window.__wsSyncNow=function(){ return syncNow(); };
+  // A completed sale writes the vault now (skipping the 600 ms edit debounce) and queues the push.
+  // The push keeps its 1.2 s debounce, so two sales rung within a second go up in one upload.
+  window.__syncCommit=function(kind){ if(!syncEnabled || window.__alphaReadOnly) return; saveVaultNow().catch(function(){}); };
   function refreshSyncUI(){
     var L=syncLabel(); paintPill(L);
     var el=$("hipSyncState");
