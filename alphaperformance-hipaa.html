@@ -766,6 +766,24 @@
   .cart-ent{display:inline-block;font-size:9px;font-weight:700;padding:1px 6px;border-radius:20px;margin-right:7px;vertical-align:middle}
   .cart-ent-alpha{background:#FCE7E6;color:#B42318}
   .cart-ent-mjs{background:#E5EDFB;color:#1D4ED8}
+  #gcModal.cc-wide{max-width:560px}
+  .cc-lead{font-size:15px;line-height:1.45;margin-bottom:12px}
+  .cc-card{border:2px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:12px}
+  .cc-card.cc-mjs{border-color:#93B4F3;background:#F3F7FE}
+  .cc-card.cc-alpha{border-color:#F3A9A3;background:#FEF4F3}
+  .cc-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .cc-ent{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:24px}
+  .cc-mjs .cc-ent{color:#1D4ED8} .cc-alpha .cc-ent{color:#B42318}
+  .cc-amt{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:34px;color:var(--ink)}
+  .cc-how{font-size:15px;margin:2px 0 6px}
+  .cc-note{font-size:13px;color:var(--muted);margin-bottom:6px}
+  .cc-items{font-size:12.5px;color:var(--muted);margin-bottom:10px}
+  .cc-check{display:flex;align-items:center;gap:10px;padding:12px;border-radius:10px;background:var(--card);border:1px solid var(--line);font-size:15px;font-weight:600;cursor:pointer;margin-top:6px}
+  .cc-check input{width:22px;height:22px;flex:0 0 auto}
+  .cc-check.on{background:#DCFCE7;border-color:#86EFAC}
+  .cc-none{font-size:14px;color:var(--muted);font-weight:600}
+  .cc-grand{font-size:16px;text-align:right;margin:4px 2px 8px}
+  .cc-grand b{font-size:20px}
   .pos-disc-mode-row{align-items:center}
   .pos-disc-seg{width:auto;margin:0}
   .pos-disc-seg button{padding:7px 12px;font-size:12px}
@@ -3751,6 +3769,7 @@ window.startClinicApp = function(){
   }
   // ----- issue modal -----
   function gcModalShow(title, body, foot){
+    $("gcModal").classList.remove("cc-wide");
     $("gcTitle").textContent=title; $("gcBody").innerHTML=body; $("gcFoot").innerHTML=foot||"";
     $("gcScrim").classList.add("show"); $("gcModal").classList.add("show"); $("gcModal").setAttribute("aria-hidden","false");
   }
@@ -5317,7 +5336,58 @@ window.startClinicApp = function(){
     var found=tiers.filter(function(x){ return nm.indexOf(x.name)>=0; })[0];
     return found?found.name:((tiers[0]&&tiers[0].name)||"General");
   }
-  function completeSale(){
+  // ---- Charge confirmation: what to charge to MJS and what to charge to Alpha ----
+  var ENT_FULL={mjs:"MJS", alpha:"Alpha"};
+  function chargeLinesFor(t, pay){
+    var pays = (t.payments && t.payments.length) ? t.payments : [{method:pay, amount:t.total}];
+    var collect=[], notes=[];
+    pays.forEach(function(pm){
+      var a=Math.round((+pm.amount||0)*100)/100; if(a<=0.004) return;
+      if(pm.method==="Gift Certificate") notes.push("Gift certificate "+(t.gcNum||"")+" covers $"+money(a));
+      else if(/invoice|account|unpaid/i.test(pm.method||"")) notes.push("Invoice (unpaid) $"+money(a)+": not collected now");
+      else collect.push({method:pm.method||"Payment", amount:a});
+    });
+    var byM={}, order=[]; collect.forEach(function(c){ if(byM[c.method]==null){ byM[c.method]=0; order.push(c.method); } byM[c.method]+=c.amount; });
+    collect=order.map(function(m){ return {method:m, amount:Math.round(byM[m]*100)/100}; });
+    return {collect:collect, notes:notes, total:collect.reduce(function(s,c){return s+c.amount;},0)};
+  }
+  function chargeVerb(method, amt, ent){
+    if(/cash/i.test(method)) return "I took $"+money(amt)+" cash for "+ent;
+    if(/card/i.test(method)) return "I charged $"+money(amt)+" to the "+ent+" card account";
+    if(/zelle/i.test(method)) return "I received $"+money(amt)+" by Zelle to "+ent;
+    if(/check/i.test(method)) return "I took a $"+money(amt)+" check made out to "+ent;
+    return "I collected $"+money(amt)+" ("+method+") for "+ent;
+  }
+  function openChargeConfirm(plan, pay, p){
+    var cards=plan.map(function(t, i){
+      var e=t.entity||"mjs", ent=ENT_FULL[e]||e, cl=chargeLinesFor(t, pay);
+      var items=(t.items||[]).map(function(l){ return esc(l.name)+(l.qty>1?" \u00d7"+l.qty:""); }).join(", ");
+      var checks = cl.collect.length ? cl.collect.map(function(c, j){
+          return '<label class="cc-check"><input type="checkbox" data-cc="'+i+'_'+j+'"> <span>'+esc(chargeVerb(c.method, c.amount, ent))+'</span></label>';
+        }).join("") : '<div class="cc-none">Nothing to collect for '+esc(ent)+'</div>';
+      return '<div class="cc-card cc-'+e+'"><div class="cc-head"><span class="cc-ent">'+esc(ent)+'</span><span class="cc-amt">$'+money(cl.total)+'</span></div>'+
+        (cl.collect.length?'<div class="cc-how">'+cl.collect.map(function(c){ return '<b>'+esc(c.method)+'</b> $'+money(c.amount); }).join(" \u00b7 ")+'</div>':'')+
+        (cl.notes.length?'<div class="cc-note">'+cl.notes.map(esc).join("<br>")+'</div>':'')+
+        '<div class="cc-items">'+items+'</div>'+checks+'</div>';
+    }).join("");
+    var grand=plan.reduce(function(s,t){ return s+chargeLinesFor(t,pay).total; },0);
+    var two=plan.length>1;
+    var body='<div class="cc-lead">'+(two?'This sale is split between <b>two companies</b>. Charge each one separately.':'Charge this sale to <b>'+esc(ENT_FULL[plan[0].entity||"mjs"]||"")+'</b>.')+
+      (p?' Client: <b>'+esc(p.name)+'</b>.':'')+'</div>'+cards+
+      (two?'<div class="cc-grand">Total to collect <b>$'+money(grand)+'</b></div>':'')+
+      '<div class="gc-hint">Tick each box after the money is actually taken. The sale is recorded only when every box is ticked.</div>';
+    var foot='<button class="btn-ghost" id="ccBack" type="button">Back to sale</button><button class="btn-primary" id="ccGo" type="button" disabled>Confirm and record sale</button>';
+    gcModalShow(two?"Charge MJS and Alpha separately":"Confirm the charge", body, foot);
+    $("gcModal").classList.add("cc-wide");
+    function upd(){ var boxes=document.querySelectorAll("#gcBody [data-cc]"); var all=Array.prototype.every.call(boxes,function(b){ return b.checked; }); $("ccGo").disabled=!all;
+      Array.prototype.forEach.call(boxes,function(b){ b.parentNode.classList.toggle("on", b.checked); }); }
+    Array.prototype.forEach.call(document.querySelectorAll("#gcBody [data-cc]"),function(b){ b.onchange=upd; });
+    upd();
+    $("ccBack").onclick=function(){ $("gcModal").classList.remove("cc-wide"); gcModalClose(); };
+    $("ccGo").onclick=function(){ if($("ccGo").disabled) return; $("gcModal").classList.remove("cc-wide"); gcModalClose(); completeSale({confirmed:true}); };
+  }
+  function completeSale(opts){
+    var chargeOk = !!(opts && opts.confirmed===true);
     if(!posCart.length){ toast("Add items first"); return; }
     var p=findPatient(posClientId);
     if(p){
@@ -5412,7 +5482,7 @@ window.startClinicApp = function(){
     // group cart by entity; one txn per entity
     var byEnt={}, entKeys=[];
     posCart.forEach(function(l){ var e=l.entity||"mjs"; if(!byEnt[e]){ byEnt[e]={items:[],sub:0,cost:0,net:0}; entKeys.push(e); } byEnt[e].items.push(l); byEnt[e].sub+=l.retail*l.qty; byEnt[e].cost+=l.cost*l.qty; byEnt[e].net+=lineNet(l); });
-    var saleGroup=txId(), allocT=0, allocD=0, allocAr=0;
+    var saleGroup=txId(), allocT=0, allocD=0, allocAr=0, plan=[];
     entKeys.forEach(function(e, idx){
       var g=byEnt[e], last=(idx===entKeys.length-1), share=sub>0?g.sub/sub:(1/entKeys.length), eTotal, eDisc, eAr, ePayments=null;
       if(perItemDisc){ eTotal=Math.round(g.net*100)/100; eDisc=Math.round((g.sub-g.net)*100)/100; }
@@ -5428,7 +5498,7 @@ window.startClinicApp = function(){
       eAr=Math.max(0, Math.min(eAr, eTotal));
       var gcGross=g.items.reduce(function(a,l){return a+(l.gcSell?l.retail*l.qty:0);},0);
       var gcSellAmt = gcGross>0 ? Math.min(eTotal, Math.round(gcGross*(g.sub>0?eTotal/g.sub:1)*100)/100) : 0;
-      txns.push({ id:txId(), date:saleDate, type:"sale", clientId:p?p.id:"", clientName:p?p.name:"Walk-in",
+      plan.push({ id:txId(), date:saleDate, type:"sale", clientId:p?p.id:"", clientName:p?p.name:"Walk-in",
         items:g.items.slice(), subtotal:g.sub, discountName:dn, discountPct:pct, discountAmt:eDisc, total:eTotal, cost:g.cost, profit:eTotal-g.cost,
         payment:paySummary, payments:ePayments, arAmount:eAr, source:"pos", entity:e, saleGroup:saleGroup,
         gcAmount:gcAmt>0?gcAmt:undefined, gcId:gcAmt>0?gcCert.id:undefined, gcKind:gcAmt>0?gcCert.kind:undefined, gcNum:gcAmt>0?gcCert.num:undefined,
@@ -5436,6 +5506,10 @@ window.startClinicApp = function(){
         promoId:promoRec?promoRec.pr.id:undefined, promoName:promoRec?promoRec.pr.name:undefined,
         promoAmount:promoRec?Math.round(g.items.reduce(function(a,l){return a+(l.promo?lineDisc(l):0);},0)*100)/100:undefined });
     });
+    // show who gets charged what, and wait until the person at the register confirms each charge
+    if(!chargeOk){ openChargeConfirm(plan, pay, p); return; }
+    var _cAt=new Date().toISOString(), _cBy=window.__curEmail?window.__curEmail():"";
+    plan.forEach(function(t){ t.chargeConfirmedAt=_cAt; t.chargeConfirmedBy=_cBy; txns.push(t); });
     saveTxns();
     if(promoRec){
       promoUses.push({ id:"pu"+Date.now().toString(36)+Math.random().toString(36).slice(2,5), promoId:promoRec.pr.id, promoName:promoRec.pr.name, clientId:p.id, clientName:p.name,
@@ -6373,7 +6447,7 @@ window.startClinicApp = function(){
     if($("posSplitAdd")) $("posSplitAdd").onclick=addSplitLine;
     Array.prototype.forEach.call(document.querySelectorAll("#posDiscMode [data-dmode]"),function(b){ b.onclick=function(){ setDiscMode(b.getAttribute("data-dmode")); }; });
     Array.prototype.forEach.call(document.querySelectorAll("#posSplitMode [data-spmode]"),function(b){ b.onclick=function(){ setSplitMode(b.getAttribute("data-spmode")); }; });
-    $("posComplete").onclick=completeSale;
+    $("posComplete").onclick=function(){ completeSale(); };
     if($("posCancel")) $("posCancel").onclick=function(){
       if(!posCart.length && !posClientId){ toast("Nothing to cancel"); return; }
       posPromo=null; if($("posPromoCard")) $("posPromoCard").checked=false; if($("posPromoSel")) $("posPromoSel").value="";
