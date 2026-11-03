@@ -715,6 +715,14 @@
   .pkg-dose:hover{background:var(--canvas)}
   .pkg-ul{margin:0 0 12px 18px;padding:0;font-size:14px;line-height:1.6}
   .pkg-guess{color:#92400E}
+  .pos-consult-alert{border:2px solid #F59E0B;background:#FFFBEB;border-radius:12px;padding:12px 14px;margin:6px 0 10px;font-size:14px}
+  .pos-consult-alert.hard{border-color:#DC2626;background:#FEF2F2}
+  .pos-consult-alert.ok{border-color:#86EFAC;background:#F0FDF4;color:#166534}
+  .pos-consult-alert .pca-text{color:#57534E;margin:3px 0 8px;font-size:13px}
+  .pos-consult-alert .pca-btns{display:flex;gap:8px;flex-wrap:wrap}
+  .pos-consult-alert .pca-btns button{padding:8px 14px;font-size:13px}
+  .consult-due-badge{background:#FEE2E2;color:#B91C1C}
+  .followup-alert.consult-alert-btn{background:#FEF2F2;border-color:#FCA5A5;color:#991B1B;margin-bottom:8px}
   .pkg-err{font-size:15px;line-height:1.5;padding:12px 14px;border-radius:12px;background:#FEE2E2;color:#7F1D1D}
   .pkg-sum{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13.5px;color:var(--muted);margin:4px 0 6px}
   .pkg-sum b{color:var(--ink)}
@@ -1589,6 +1597,7 @@
         <div class="pos-catalog-note">Each item posts to its own company (tagged in the list). Manage products &amp; prices in the <b>Items</b> tab.</div>
       </div>
 
+      <div id="posConsultAlert" class="pos-consult-alert" style="display:none"></div>
       <div id="posCart" class="pos-cart"></div>
 
       <div class="pos-foot">
@@ -2872,14 +2881,16 @@ window.startClinicApp = function(){
   }
   function renderFollowupBanner(){
     var el=$("followupBanner");
-    var due=patients.filter(isDue);
-    if(!due.length){ el.style.display="none"; el.innerHTML=""; return; }
+    var due=patients.filter(isDue), cu=patients.filter(consultDue);
+    if(!due.length && !cu.length){ el.style.display="none"; el.innerHTML=""; return; }
     el.style.display="block";
-    el.innerHTML='<button class="followup-alert" id="followupAlertBtn">'+
+    el.innerHTML=(cu.length?'<button class="followup-alert consult-alert-btn" id="consultAlertBtn"><span class="fa-text"><b>'+cu.length+'</b> new patient'+(cu.length===1?"":"s")+' seen without paying the first consult</span><span class="fa-cta">Review</span></button>':'')+
+      (!due.length?'':'<button class="followup-alert" id="followupAlertBtn">'+
       '<span class="fa-bell"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg></span>'+
       '<span class="fa-text"><b>'+due.length+'</b> client'+(due.length===1?"":"s")+' with no visit in '+followupDays()+'+ days</span>'+
-      '<span class="fa-cta">Review</span></button>';
-    $("followupAlertBtn").onclick=function(){ pFilter="due"; renderPatientChips(); renderPatientList(); window.scrollTo(0,0); };
+      '<span class="fa-cta">Review</span></button>');
+    if($("followupAlertBtn")) $("followupAlertBtn").onclick=function(){ pFilter="due"; renderPatientChips(); renderPatientList(); window.scrollTo(0,0); };
+    if($("consultAlertBtn")) $("consultAlertBtn").onclick=function(){ pFilter="cunpaid"; renderPatientChips(); renderPatientList(); window.scrollTo(0,0); };
   }
 
   // ---------- reports ----------
@@ -3603,6 +3614,85 @@ window.startClinicApp = function(){
     toast("Report exported");
   }
 
+  // ---------- First consult tracking (from 3 Nov 2026) ----------
+  // Every new patient pays for a first consult: at the first visit, the bloodwork review, or with the first treatment.
+  var CONSULT_TRACK_FROM="2026-11-03";
+  var _cpIdx=null, _cpKey="";
+  function consultPaidIndex(){
+    var key=txns.length+"|"+(txns.length?(txns[txns.length-1].id||""):"");
+    if(_cpIdx && _cpKey===key) return _cpIdx;
+    var m={}; txns.forEach(function(t){ if(t.type==="sale" && t.clientId && (t.items||[]).some(function(l){ return /consult/i.test(l.name||""); })) m[t.clientId]=t.date||true; });
+    _cpIdx=m; _cpKey=key; return m;
+  }
+  function consultPaid(p){ return !!(p && (consultPaidIndex()[p.id] || p.consultWaived)); }
+  var CP_DONE=/checkedout|checkedin|readytobeseen/i;
+  function activityDates(p){
+    var t=todayISO(), d=[];
+    (p.visitLog||[]).forEach(function(v){ if(v && v.date && v.date<=t) d.push(v.date); });
+    (p.appts||[]).forEach(function(a){ if(a && a.date && a.date<=t && CP_DONE.test(a.status||"")) d.push(a.date); });
+    if(p.consultDate && p.consultDate<=t) d.push(p.consultDate);
+    txns.forEach(function(x){ if(x.type==="sale" && x.clientId===p.id && x.date) d.push(x.date); });
+    return d;
+  }
+  // a client with no visit, consult or sale before tracking began
+  function newSinceTracking(p){ if(!p || p.active===false) return false; return !activityDates(p).some(function(d){ return d<CONSULT_TRACK_FROM; }); }
+  // seen (visit or sale) since tracking began, never paid a consult
+  function consultDue(p){ if(!newSinceTracking(p) || consultPaid(p)) return false; return activityDates(p).some(function(d){ return d>=CONSULT_TRACK_FROM; }); }
+  function consultProduct(){
+    var all=allPosProducts().filter(function(x){ return /consult/i.test(x.p.name||""); });
+    all.sort(function(a,b){ var s=function(x){ return (/initial|first|new/i.test(x.p.name)?-2:0)+((+x.p.price||0)>0?-1:0); }; return s(a)-s(b) || (a.p.name||"").length-(b.p.name||"").length; });
+    return all[0]||null;
+  }
+  function cartHasConsult(){ return posCart.some(function(l){ return /consult/i.test(l.name||""); }); }
+  function cartHasTreatment(){ return posCart.some(function(l){ return !l.gcSell && (l.cat==="Treatment" || treatments.indexOf(l.name)>=0); }); }
+  var posConsultWaive=null;
+  function addConsultToCart(){
+    var c=consultProduct();
+    if(!c){ toast("No consult product in the catalog yet. Add one in Items (name it \u201cInitial consult\u201d)."); return false; }
+    posCart.push({ name:c.p.name, retail:+c.p.price||0, cost:+c.p.cost||0, qty:1, cat:c.p.cat||"", entity:c.entity });
+    renderCart(); toast(c.p.name+" added"); return true;
+  }
+  function renderConsultAlert(){
+    var el=$("posConsultAlert"); if(!el) return;
+    var p=posClientId?findPatient(posClientId):null;
+    if(!p || !newSinceTracking(p) || consultPaid(p)){ el.style.display="none"; return; }
+    if(cartHasConsult()){ el.style.display="block"; el.className="pos-consult-alert ok"; el.innerHTML='<b>First consult included in this sale.</b>'; return; }
+    if(posConsultWaive){ el.style.display="block"; el.className="pos-consult-alert ok"; el.innerHTML='First consult waived by <b>'+esc(posConsultWaive.name)+'</b>: '+esc(posConsultWaive.reason); return; }
+    var c=consultProduct(), treat=cartHasTreatment();
+    el.style.display="block"; el.className="pos-consult-alert"+(treat?" hard":"");
+    el.innerHTML='<div class="pca-head"><b>New patient: first consult not paid yet.</b></div>'+
+      '<div class="pca-text">'+(treat?'This sale has their first treatment, so the consult must be paid with it.':'Charge it now, at the bloodwork review, or with the first treatment.')+'</div>'+
+      '<div class="pca-btns"><button type="button" class="btn-primary pca-add" id="pcaAdd">+ Add '+(c?esc(c.p.name)+' ($'+money(+c.p.price||0)+')':'consult')+'</button>'+
+      '<button type="button" class="btn-ghost pca-waive" id="pcaWaive">Waive</button></div>';
+    $("pcaAdd").onclick=addConsultToCart;
+    $("pcaWaive").onclick=function(){ openConsultWaive(null); };
+  }
+  function openConsultWaive(after){
+    gcModalShow("Waive the first consult?", '<div class="cc-lead">Every new patient pays for a first consult. Only waive it with a manager\u2019s OK.</div>'+
+      '<div class="pos-field"><label>Reason</label><input type="text" id="cwReason" autocomplete="off" placeholder="e.g. consult done at the other location"></div>'+
+      '<div class="pos-field"><label>Your first and last name</label><input type="text" id="cwName" autocomplete="off"></div>'+
+      '<div class="gc-hint">The waiver is saved on the client and in the access log.</div><div class="gc-bad" id="cwErr" style="font-size:13px;margin-top:6px"></div>',
+      '<button class="btn-ghost" id="cwCancel" type="button">Cancel</button><button class="btn-primary" id="cwGo" type="button">Waive consult</button>');
+    $("cwCancel").onclick=gcModalClose;
+    $("cwGo").onclick=function(){
+      var r=($("cwReason").value||"").trim(), n=($("cwName").value||"").trim().replace(/\s+/g," ");
+      if(r.length<3){ $("cwErr").textContent="Give a reason."; return; }
+      if(n.length<3 || n.indexOf(" ")<0){ $("cwErr").textContent="Type your first and last name."; return; }
+      posConsultWaive={name:n, reason:r, by:window.__curEmail?window.__curEmail():"", at:new Date().toISOString()};
+      gcModalClose(); renderCart(); if(after) after();
+    };
+  }
+  // first treatment without a paid consult: add it or waive it before the sale can go through
+  function consultGate(p){
+    if(!p || !newSinceTracking(p) || consultPaid(p) || cartHasConsult() || posConsultWaive || !cartHasTreatment()) return false;
+    var c=consultProduct();
+    gcModalShow("First consult not paid", '<div class="pkg-err">This is a new patient\u2019s <b>first treatment</b>. Their first consult has not been paid, so it must be charged with this sale.</div>',
+      '<button class="btn-ghost" id="cgBack" type="button">Back to sale</button><button class="btn-ghost" id="cgWaive" type="button">Waive</button><button class="btn-primary" id="cgAdd" type="button">Add '+(c?esc(c.p.name)+' ($'+money(+c.p.price||0)+')':'consult')+'</button>');
+    $("cgBack").onclick=gcModalClose;
+    $("cgAdd").onclick=function(){ gcModalClose(); addConsultToCart(); };
+    $("cgWaive").onclick=function(){ openConsultWaive(function(){ completeSale(); }); };
+    return true;
+  }
   // ---------- Packages ----------
   // A package rings each item at its package price, on its own company. No other discount can be added on top.
   // Each component links to a catalog product (editable on the Promotions page). price:null = that product's regular price.
@@ -3885,7 +3975,9 @@ window.startClinicApp = function(){
   function wirePackages(){
     // the new product from the 3 Nov list
     try{ ensureRegProducts(); var nm="Tesamorelin/Ipamorelin 12/3mg (0.6/150ug)";
-      if(!pkgProd(nm)){ regProducts.mjs.push({id:pid(), name:nm, price:375, cost:122, cat:"Treatment"}); saveRegProducts(); } }catch(e){}
+      if(!pkgProd(nm)){ regProducts.mjs.push({id:pid(), name:nm, price:375, cost:122, cat:"Treatment"}); saveRegProducts(); }
+      // 3 Nov 2026: a shot given while the client waits for their vial
+      if(!pkgProd("Testosterone shot")){ regProducts.mjs.push({id:pid(), name:"Testosterone shot", price:50, cost:0, cat:"Treatment"}); saveRegProducts(); } }catch(e){}
     pkgResolveAll();
     $("posPkgAdd").onclick=function(){ var pk=pkgById($("posPkgSel").value); if(!pk){ toast("Choose a package"); return; } addPackageToCart(pk); $("posPkgSel").value=""; };
   }
@@ -5275,6 +5367,7 @@ window.startClinicApp = function(){
     fillPosSelects(); renderCart();
   }
   function setPosClient(id){
+    if((id||"")!==posClientId) posConsultWaive=null;
     if(posPromo && posPromo.clientId!==(id||"")){ posPromo=null; promoClearLines(); if($("posPromoCard")) $("posPromoCard").checked=false; setTimeout(function(){ renderCart(); },0); if(id) toast("Promotion removed because the client changed"); }
     posClientId=id||"";
     var p=id?findPatient(id):null;
@@ -5289,6 +5382,7 @@ window.startClinicApp = function(){
     }
     updateDuesRow();
     renderPosVisit(p);
+    try{ renderConsultAlert(); }catch(e){}
     if(typeof renderCart==="function") renderCart();
   }
   var posVisitTreats={};
@@ -5613,6 +5707,7 @@ window.startClinicApp = function(){
     renderPosGc();
     renderPosPromo();
     renderPosPkg();
+    try{ renderConsultAlert(); }catch(e){}
     updateMembAlert();
     clearTimeout(window.__pkgDetT); window.__pkgDetT=setTimeout(function(){ try{ pkgDetect(); }catch(e){} }, 350);
     if(posSplitActive){ if(posSplitMode==="item") renderSplit(); else renderSplitSummary(); }
@@ -5755,6 +5850,7 @@ window.startClinicApp = function(){
         }
       }
     }
+    if(!chargeOk && consultGate(p)) return;
     var promoRec=null;
     if(posPromo){
       var _pr=promoById(posPromo.id);
@@ -5895,6 +5991,7 @@ window.startClinicApp = function(){
       var vNote=($("posVisitNote")&&$("posVisitNote").value||"").trim();
       var vTreats=posCart.filter(function(l){ return l.cat==="Treatment" || treatments.indexOf(l.name)>=0; }).map(function(l){ return l.name; });
       var vNoteFull=(vNote?vNote+" \u00b7 ":"")+itemNames.join(", ")+" \u00b7 $"+money(total);
+      if(posConsultWaive && !consultPaid(p) && !posCart.some(function(l){ return /consult/i.test(l.name||""); })){ p.consultWaived=posConsultWaive; if(window.__hipAudit) window.__hipAudit("consult_waived", p.id+" \u00b7 "+posConsultWaive.name+" \u00b7 "+posConsultWaive.reason); }
       p.visitLog = p.visitLog || [];
       p.visitLog.push({ id:"v"+Date.now().toString(36)+Math.random().toString(36).slice(2,5), date: saleDate, type:vType, treatments:vTreats, retail:0, cost:0, note: vNoteFull, saleId: saleGroup, fromRegister:true });
       if(posRefNeeded){
@@ -5927,7 +6024,7 @@ window.startClinicApp = function(){
     }
     if(window.__hipAudit) window.__hipAudit("sale", p?p.id:"walk-in");
     decrementInventoryForSale(posCart);
-    posPromo=null; posPkgDeclined={}; posPkgOverride=null; if($("posPromoCard")) $("posPromoCard").checked=false; if($("posPromoSel")) $("posPromoSel").value="";
+    posPromo=null; posPkgDeclined={}; posPkgOverride=null; posConsultWaive=null; if($("posPromoCard")) $("posPromoCard").checked=false; if($("posPromoSel")) $("posPromoSel").value="";
     posCart=[]; posGC=null; if($("posGcNum")) $("posGcNum").value=""; $("posDiscount").value=""; $("posDiscountAmt").value=""; if(posSplitActive) toggleSplit(false); if(posDiscMode==="item") setDiscMode("order"); setPosClient(""); renderCart();
     if(p) renderAll();
     try{ if(window.__syncCommit) window.__syncCommit("sale"); }catch(e){}   // push on commit; the sale is already saved locally either way
@@ -6808,7 +6905,7 @@ window.startClinicApp = function(){
     $("posComplete").onclick=function(){ completeSale(); };
     if($("posCancel")) $("posCancel").onclick=function(){
       if(!posCart.length && !posClientId){ toast("Nothing to cancel"); return; }
-      posPromo=null; posPkgDeclined={}; posPkgOverride=null; if($("posPromoCard")) $("posPromoCard").checked=false; if($("posPromoSel")) $("posPromoSel").value="";
+      posPromo=null; posPkgDeclined={}; posPkgOverride=null; posConsultWaive=null; if($("posPromoCard")) $("posPromoCard").checked=false; if($("posPromoSel")) $("posPromoSel").value="";
       posCart=[]; posGC=null; if($("posGcNum")) $("posGcNum").value=""; $("posDiscount").value=""; $("posDiscountAmt").value="";
       if(posSplitActive) toggleSplit(false);
       if(posDiscMode==="item") setDiscMode("order");
@@ -7016,7 +7113,7 @@ window.startClinicApp = function(){
 
   function seenToday(p){ var ls=lastSeenDate(p); if(!ls) return false; var t=new Date(); t.setHours(0,0,0,0); return daysBetween(t, parseISO(ls))===0; }
   function pCounts(){
-    var c={all:patients.length, lead:0, consult:0, bloodwork:0, treatment:0, lapsed:0, due:0, notx:0, inactive:0, today:0, reengage:0, cold:0};
+    var c={all:patients.length, lead:0, consult:0, bloodwork:0, treatment:0, lapsed:0, due:0, notx:0, inactive:0, today:0, reengage:0, cold:0, cunpaid:0};
     patients.forEach(function(p){
       if(p.active===false){ c.inactive++; return; }
       if(isColdLead(p)){ c.cold++; return; }
@@ -7024,6 +7121,7 @@ window.startClinicApp = function(){
       if(isDue(p)) c.due++;
       if(!(p.treatments&&p.treatments.length) && !onTreatmentNow(p)) c.notx++;
       if(seenToday(p)) c.today++;
+      if(consultDue(p)) c.cunpaid++;
       if(p.active!==false){ var _ds=daysSinceSeen(p); if(_ds!=null && _ds>=60) c.reengage++; }
     });
     return c;
@@ -7062,10 +7160,10 @@ window.startClinicApp = function(){
   }
   function renderPatientChips(){
     var c=pCounts();
-    var defs=[["all","All",c.all],["today","Seen today",c.today],["reengage","Not seen 60d+",c.reengage],["due","Follow-up",c.due],["lead","New lead",c.lead],["consult","Consult",c.consult],
+    var defs=[["all","All",c.all],["today","Seen today",c.today],["reengage","Not seen 60d+",c.reengage],["due","Follow-up",c.due],["cunpaid","Consult unpaid",c.cunpaid],["lead","New lead",c.lead],["consult","Consult",c.consult],
       ["bloodwork","Blood work",c.bloodwork],["treatment","On treatment",c.treatment],["lapsed","No recent activity",c.lapsed],["notx","Not on treatment",c.notx],["cold","Inactive lead",c.cold],["inactive","Inactive",c.inactive]];
     $("pChips").innerHTML=defs.map(function(d){
-      return '<button class="chip'+(pFilter===d[0]?" on":"")+(d[0]==="due"&&d[2]>0?" chip-due":"")+'" data-pfilter="'+d[0]+'">'+d[1]+
+      return '<button class="chip'+(pFilter===d[0]?" on":"")+((d[0]==="due"||d[0]==="cunpaid")&&d[2]>0?" chip-due":"")+'" data-pfilter="'+d[0]+'">'+d[1]+
         ' <span class="cnt">'+d[2]+'</span></button>';
     }).join("");
     Array.prototype.forEach.call(document.querySelectorAll("#pChips .chip"),function(ch){
@@ -7083,6 +7181,7 @@ window.startClinicApp = function(){
       if(pFilter==="cold") return isColdLead(p);
       if(isColdLead(p)) return false;
       if(pFilter==="due") return isDue(p);
+      if(pFilter==="cunpaid") return consultDue(p);
       if(pFilter==="today") return seenToday(p);
       if(pFilter==="reengage"){ var rd=daysSinceSeen(p); return rd!=null && rd>=60; }
       if(pFilter==="notx") return !(p.treatments&&p.treatments.length) && !onTreatmentNow(p);
@@ -7134,6 +7233,7 @@ window.startClinicApp = function(){
         ? '<div class="m-meta"><span class="treat-badges">'+p.treatments.map(function(tn){var dl=(p.doses&&p.doses[tn])?" "+p.doses[tn]:"";return '<span class="badge treat-badge">'+esc(tn+dl)+'</span>';}).join("")+'</span></div>' : '';
       var memberB = p.isMember ? '<span class="badge tier-badge">Member'+(p.tier?" · "+esc(p.tier):"")+'</span>' : '';
       var discB = p.discount ? '<span class="badge disc-badge">'+esc(p.discount)+'</span>' : '';
+      if(consultDue(p)) discB+='<span class="badge consult-due-badge">Consult unpaid</span>';
       promoUses.forEach(function(u){ if(u.clientId===p.id) discB+='<span class="badge promo-badge" title="Used '+esc(u.date||"")+'">Promo: '+esc(u.promoName||"")+'</span>'; });
       var dsn = daysSinceSeen(p);
       var dueB = isDue(p) ? '<span class="badge due-badge">'+dsn+'d no visit</span>' : '';
