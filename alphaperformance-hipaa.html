@@ -714,6 +714,28 @@
   .pkg-dose{display:flex;justify-content:space-between;width:100%;padding:13px 14px;margin-bottom:8px;border:1px solid var(--line);border-radius:10px;background:var(--card);font-size:15px;cursor:pointer;color:var(--ink)}
   .pkg-dose:hover{background:var(--canvas)}
   .pkg-ul{margin:0 0 12px 18px;padding:0;font-size:14px;line-height:1.6}
+  .pkg-guess{color:#92400E}
+  .pkg-err{font-size:15px;line-height:1.5;padding:12px 14px;border-radius:12px;background:#FEE2E2;color:#7F1D1D}
+  .pkg-sum{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13.5px;color:var(--muted);margin:4px 0 6px}
+  .pkg-sum b{color:var(--ink)}
+  .pkg-tablewrap{overflow-x:auto;margin:6px 0 12px;border:1px solid var(--line);border-radius:12px}
+  .pkg-table{width:100%;border-collapse:collapse;font-size:14px;min-width:620px}
+  .pkg-table th{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);text-align:left;padding:10px 10px;background:var(--canvas);border-bottom:1px solid var(--line)}
+  .pkg-table td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+  .pkg-table .num{text-align:right;white-space:nowrap}
+  .pkg-table tfoot td{background:var(--canvas);font-weight:600;border-bottom:0}
+  .pkg-psel{width:100%;min-width:200px;padding:8px;border:1px solid var(--line);border-radius:9px;font-size:13.5px;background:var(--card);color:var(--ink)}
+  .pkg-pin{width:100px;padding:8px;border:1px solid var(--line);border-radius:9px;font-size:14px;text-align:right;background:var(--card);color:var(--ink)}
+  .pkg-sub{font-size:11.5px;color:var(--muted);margin-top:3px}
+  .pkg-empty{text-align:center;color:var(--muted);padding:18px}
+  .pkg-totals{border-radius:12px;background:#FEF3C7;padding:12px 16px;margin-bottom:10px}
+  .pkg-totals>div{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:3px 0}
+  .pkg-totals>div>b{font-family:'Space Grotesk',sans-serif;font-size:24px}
+  .pkg-totals .pkg-save{color:#166534}
+  .pkg-totals .pkg-tsub{font-size:12.5px;color:#78350F;flex-wrap:wrap}
+  .pkg-actions{display:flex;gap:10px;align-items:center;margin-top:12px}
+  #pkgPage .pos-field label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:6px}
+  #pkgPage #pkgName{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font-size:15px;background:var(--card);color:var(--ink)}
   .pkg-offer{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;padding:12px 14px;border-radius:12px;background:#FEF3C7;margin-bottom:8px;font-size:14px}
   .pkg-offer-p{font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:700}
   .pkg-offer-s{font-weight:700;color:#166534}
@@ -1283,6 +1305,7 @@
       <a class="nav-link" data-view="inventory"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7l-8-4-8 4 8 4 8-4z"/><path d="M4 7v10l8 4 8-4V7"/><path d="M12 11v10"/></svg><span>Items</span></a>
       <a class="nav-link" data-view="giftcerts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M12 8v13M3 12h18M12 8c-2-4-6-3-5 0 .5 1.5 3 1.5 5 0zM12 8c2-4 6-3 5 0-.5 1.5-3 1.5-5 0z"/></svg><span>Gift Certificates</span></a>
       <a class="nav-link" data-view="promos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4l-7.2 7.2a2 2 0 01-2.8 0L3 13V3h10l7.6 7.6a2 2 0 010 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg><span>Promotions</span></a>
+      <a class="nav-link" data-view="packages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><path d="M3.3 7L12 12l8.7-5M12 22V12"/></svg><span>Packages</span></a>
       <a class="nav-link" data-view="reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="4" width="3" height="14"/></svg><span>Analytics</span></a>
       <button class="nav-acct-head" id="acctHead" type="button">
         <span>Accounting</span>
@@ -1699,13 +1722,9 @@
       <div id="gcList"></div>
     </div>
   </div>
+  <div id="packagesView" style="display:none"><div id="pkgPage"></div></div>
   <div id="promosView" style="display:none">
     <div class="rep-card"><div class="inv-statgrid" id="prStats"></div></div>
-    <div class="rep-card">
-      <div class="rep-h">Packages</div>
-      <div class="gc-hint" style="margin:0 0 12px">Ring a package from the Register, or ring its items separately and the Register offers the package. Tap a package to link its items to catalog products or change prices.</div>
-      <div id="pkgList"></div>
-    </div>
     <div class="rep-card">
       <div class="inv-tools"><div class="rep-h" style="flex:1;margin:0">Promotions</div><button class="btn-primary inv-add" id="prNewBtn">+ New promotion</button></div>
       <div class="gc-hint" style="margin:0 0 12px">Tap a promotion to edit it. Staff apply promotions in the Register; each redemption is tied to the client and the sale.</div>
@@ -3610,24 +3629,72 @@ window.startClinicApp = function(){
   var packages = load("alphaperf_packages", null);
   function savePackages(){ store.set("alphaperf_packages", JSON.stringify(packages)); if(typeof schedulePush==="function") schedulePush(); }
   if(!Array.isArray(packages)){ packages=JSON.parse(JSON.stringify(PKG_SEED)); savePackages(); }
-  var posPkgDeclined={};
+  var posPkgDeclined={}, posPkgOverride=null;   // override: {name, by, at} once someone types their name to allow a discount on a package sale
+  function pkgNamesInCart(){ var m={}; posCart.forEach(function(l){ if(l.pkg) m[l.pkg.name]=1; }); return Object.keys(m); }
+  // returns true when the discount must wait (popup shown); onAllowed runs after a successful override
+  function pkgDiscountBlocked(what, onAllowed){
+    if(!cartHasPkg() || posPkgOverride) return false;
+    var names=pkgNamesInCart().join(", ");
+    gcModalShow("Packages can\u2019t be discounted",
+      '<div class="pkg-err"><b>'+esc(what)+'</b> is not allowed: this sale includes the <b>'+esc(names)+'</b> package, and package prices already include the discount.</div>'+
+      '<div class="pos-field" style="margin-top:12px"><label>To override, type your full name</label><input type="text" id="pkgOvrName" autocomplete="off" placeholder="First and last name"></div>'+
+      '<div class="gc-hint">The override and your name are saved with the sale and in the access log.</div><div class="gc-bad" id="pkgOvrErr" style="font-size:13px;margin-top:6px"></div>',
+      '<button class="btn-ghost" id="pkgOvrNo" type="button">Cancel (no discount)</button><button class="btn-primary" id="pkgOvrYes" type="button">Override</button>');
+    setTimeout(function(){ try{ $("pkgOvrName").focus(); }catch(e){} }, 50);
+    $("pkgOvrNo").onclick=function(){ gcModalClose(); renderCart(); };
+    function go(){
+      var nm=($("pkgOvrName").value||"").trim().replace(/\s+/g," ");
+      if(nm.length<3 || nm.indexOf(" ")<0){ $("pkgOvrErr").textContent="Type your first and last name to override."; return; }
+      posPkgOverride={name:nm, by:window.__curEmail?window.__curEmail():"", at:new Date().toISOString(), what:what, packages:names};
+      if(window.__hipAudit) window.__hipAudit("package_discount_override", nm+" \u00b7 "+what+" \u00b7 "+names);
+      gcModalClose(); toast("Discount override by "+nm);
+      try{ onAllowed&&onAllowed(); }catch(e){} renderCart();
+    }
+    $("pkgOvrYes").onclick=go;
+    $("pkgOvrName").onkeydown=function(e){ if(e.key==="Enter"){ e.preventDefault(); go(); } };
+    return true;
+  }
   function pkgById(id){ return packages.filter(function(x){return x.id===id;})[0]||null; }
   function pkgProducts(){ ensureRegProducts(); var out=[]; ["mjs","alpha"].forEach(function(e){ (regProducts[e]||[]).forEach(function(p){ out.push({p:p, e:e}); }); }); return out; }
   function pkgProd(name){ if(!name) return null; var all=pkgProducts(); for(var i=0;i<all.length;i++) if(all[i].p.name===name) return all[i]; return null; }
   function pkgRx(s){ try{ return new RegExp(s,"i"); }catch(e){ return null; } }
+  // "educated guess" matching: names typed slightly differently from the catalog still find the right product
+  var PKG_SYN=[[/\bsemorelin\b|\bsermorelin\b|\bserm\b/g,"sermorelin"],[/\btrt\b|\btestosterone( cypionate| enanthate)?\b|\btest cyp\b/g,"trt"],[/\btirz\w*\b|\bmounjaro\b|\bzepbound\b/g,"tirzepatide"],
+    [/\btesa\w*\b/g,"tesamorelin"],[/\bipa\w*\b/g,"ipamorelin"],[/\ba-?\s?gpc\b|\balpha[\s-]?gpc\b/g,"alphagpc"],[/\bb[\s-]?complex\b|\bb[\s-]?12\b|\bvitamin b\b/g,"bvit"],
+    [/\bfish oil\b|\bomega[\s-]?3\b/g,"epa"],[/\bmemberships?\b|\bdues\b/g,"membership"],[/\bdim\b/g,"hormone advantage"]];
+  function pkgNorm(s){ s=(s||"").toLowerCase(); PKG_SYN.forEach(function(p){ s=s.replace(p[0],p[1]); }); return s.replace(/\([^)]*\)/g," ").replace(/[^a-z0-9.]+/g," ").replace(/\b(monthly|month|plan|program|package|pkg|the|per|and|with|supply|refill)\b/g," ").replace(/\s+/g," ").trim(); }
+  function pkgSim(a,b){
+    a=pkgNorm(a); b=pkgNorm(b); if(!a||!b) return 0;
+    var ta=a.split(" ").filter(function(t){return t.length>1;}), tb=b.split(" ");
+    var hit=ta.filter(function(t){ return tb.some(function(u){ return u===t || (t.length>3 && u.length>3 && (u.indexOf(t)===0 || t.indexOf(u)===0)); }); }).length;
+    var tok=ta.length?hit/ta.length:0;
+    function bg(s){ var m={}; s=s.replace(/ /g,""); for(var i=0;i<s.length-1;i++){ var g=s.substr(i,2); m[g]=(m[g]||0)+1; } return m; }
+    var A=bg(a), B=bg(b), inter=0, na=0, nb=0, g;
+    for(g in A){ na+=A[g]; if(B[g]) inter+=Math.min(A[g],B[g]); } for(g in B) nb+=B[g];
+    return 0.65*tok + 0.35*((na+nb)?2*inter/(na+nb):0);
+  }
+  function pkgGuess(label, ent){
+    var sc=pkgProducts().map(function(x){ return {x:x, s:pkgSim(label, x.p.name)+(ent && x.e===ent?0.05:0)}; }).sort(function(a,b){ return b.s-a.s; });
+    if(!sc.length || sc[0].s<0.5) return null;
+    return {best:sc[0].x, alt:(sc[1] && sc[1].s>=0.45 && sc[0].s-sc[1].s<0.12) ? sc[1].x.p.name : ""};
+  }
   // link a component to the best-matching catalog product the first time it is needed
   function pkgResolve(c){
     if(c.product && pkgProd(c.product)) return false;
-    var rx=pkgRx(c.find||""); if(!rx) return false;
-    var all=pkgProducts(), cands=all.filter(function(x){ return rx.test(x.p.name) && (!c.ent || x.e===c.ent); });
-    if(!cands.length) cands=all.filter(function(x){ return rx.test(x.p.name); });
-    if(!cands.length) return false;
+    var rx=c.find?pkgRx(c.find):null;
+    var all=pkgProducts(), cands=rx?all.filter(function(x){ return rx.test(x.p.name) && (!c.ent || x.e===c.ent); }):[];
+    if(!cands.length && rx) cands=all.filter(function(x){ return rx.test(x.p.name); });
+    if(!cands.length){
+      // no pattern hit: best educated guess from the name
+      var g=pkgGuess(c.label||c.product||"", c.ent); if(!g) return false;
+      c.product=g.best.p.name; c.ent=g.best.e; c.guess=true; c.guessAlt=g.alt||""; return true;
+    }
     var monthly=/monthly/i.test(c.label||"");
     cands.sort(function(a,b){
       var sa=(monthly&&/monthly/i.test(a.p.name)?-2:0)+(c.price!=null&&+a.p.price===+c.price?-1:0), sb=(monthly&&/monthly/i.test(b.p.name)?-2:0)+(c.price!=null&&+b.p.price===+c.price?-1:0);
       return sa-sb || a.p.name.length-b.p.name.length;
     });
-    c.product=cands[0].p.name; c.ent=cands[0].e; return true;
+    c.product=cands[0].p.name; c.ent=cands[0].e; c.guess=true; c.guessAlt=""; return true;
   }
   function pkgResolveAll(){ var ch=false; packages.forEach(function(pk){ (pk.components||[]).forEach(function(c){ if(pkgResolve(c)) ch=true; }); }); if(ch) savePackages(); }
   function pkgCounts(c, name){ if(name===c.product) return true; var rx=c.counts?pkgRx(c.counts):null; return !!(rx && rx.test(name||"")); }
@@ -3645,10 +3712,9 @@ window.startClinicApp = function(){
   function cartHasPkg(){ return posCart.some(function(l){ return !!l.pkg; }); }
   function addPackageToCart(pk, dosePick){
     if(!pk) return;
-    if(typeof posPromo!=="undefined" && posPromo){ toast("Remove the promotion first: a package can't be combined with a promotion"); return; }
     pkgResolveAll();
     var missing=(pk.components||[]).filter(function(c){ return !pkgProd(c.product); });
-    if(missing.length){ toast(pk.name+": link "+missing.map(function(c){return c.label;}).join(", ")+" to a product on the Promotions page first"); return; }
+    if(missing.length){ toast(pk.name+": link "+missing.map(function(c){return c.label;}).join(", ")+" to a product on the Packages tab first"); return; }
     var pick=(pk.components||[]).filter(function(c){ return c.pickDose; })[0];
     if(pick && !dosePick){ pkgChooseDose(pk, pick); return; }
     var gid="g"+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
@@ -3712,48 +3778,106 @@ window.startClinicApp = function(){
     if(act.some(function(pk){return pk.id===cur;})) sel.value=cur;
     var has=cartHasPkg(), info=$("posPkgInfo");
     info.style.display=has?"block":"none";
-    if(has){ var names={}; posCart.forEach(function(l){ if(l.pkg) names[l.pkg.name]=1; }); info.innerHTML='<b>'+esc(Object.keys(names).join(", "))+'</b> at package prices. No other discount can be added.'; }
-    // lock every discount control while a package is in the cart
-    ["posDiscount","posDiscountAmt"].forEach(function(id){ var el=$(id); if(el){ el.disabled=has; if(has) el.value=""; } });
-    var mode=$("posDiscMode"); if(mode && !(typeof posPromo!=="undefined" && posPromo)){ mode.style.pointerEvents=has?"none":""; mode.style.opacity=has?".45":""; }
-    var pa=$("posPromoApply"); if(pa) pa.disabled=has;
+    if(has) info.innerHTML='<b>'+esc(pkgNamesInCart().join(", "))+'</b> at package prices. '+(posPkgOverride?'<span class="gc-bad">Discount override by '+esc(posPkgOverride.name)+'.</span>':'Packages are exempt from other discounts.');
+    ["posDiscount","posDiscountAmt"].forEach(function(id){ var el=$(id); if(el) el.disabled=false; });
   }
-  // package editor (Promotions page)
-  function renderPackagesCard(){
-    var el=$("pkgList"); if(!el) return;
+  // package setup page (its own tab)
+  var pkgEdit=null;   // {orig:id or "", draft:{...}} while editing
+  function pkgEnt(c){ var pr=pkgProd(c.product); return pr?pr.e:(c.ent||"mjs"); }
+  function pkgRegular(c){ return c.price==null||c.price===""; }
+  function pkgRowNums(c){
+    var pr=pkgProd(c.product), cost=pr?(+pr.p.cost||0):0, ala=pr?(+pr.p.price||0):0;
+    return {linked:!!pr, cost:cost, ala:ala, price:pkgRegular(c)?null:+c.price, varies:!!c.pickDose};
+  }
+  function pkgTotals(pk){
+    var t={cost:0, ala:0, price:0, varies:false, missing:0, ents:{}};
+    (pk.components||[]).forEach(function(c){
+      var n=pkgRowNums(c); if(!n.linked) t.missing++;
+      if(n.varies){ t.varies=true; if(n.price!=null){ t.price+=n.price; } return; }
+      var p=n.price==null?n.ala:n.price;
+      t.cost+=n.cost; t.ala+=n.ala; t.price+=p;
+      var e=pkgEnt(c); t.ents[e]=(t.ents[e]||0)+p;
+    });
+    ["cost","ala","price"].forEach(function(k){ t[k]=Math.round(t[k]*100)/100; });
+    t.save=Math.round((t.ala-t.price)*100)/100;
+    return t;
+  }
+  function renderPackagesPage(){
+    var el=$("pkgPage"); if(!el) return;
     pkgResolveAll();
-    el.innerHTML=packages.map(function(pk){
-      var t=pkgPriceText(pk), miss=(pk.components||[]).filter(function(c){ return !pkgProd(c.product); }).length;
-      var ents={}; (pk.components||[]).forEach(function(c){ var pr=pkgProd(c.product); var e=pr?pr.e:c.ent; ents[e]=(ents[e]||0)+(c.price==null||c.price===""?0:+c.price); });
-      var split=Object.keys(ents).map(function(e){ return (e==="alpha"?"Alpha":"MJS")+(t.varies?"":" $"+money(ents[e])); }).join(" · ");
-      return '<div class="pr-card" data-pkid="'+esc(pk.id)+'"><div class="pr-head"><div class="pr-name">'+esc(pk.name)+'</div><span class="gc-chip gc-'+(pk.active!==false?'open':'void')+'">'+(pk.active!==false?'On':'Off')+'</span></div>'+
-        '<div class="pr-ben"><span class="gc-tag">'+(t.varies?'Price varies with dose':'$'+money(t.price))+'</span>'+'<span class="gc-tag">'+esc(split)+'</span></div>'+
-        '<div class="pr-rules">'+(pk.components||[]).map(function(c){ return esc(c.label)+(c.price==null||c.price===""?' (regular price)':' $'+money(+c.price)); }).join(" · ")+'</div>'+
-        (miss?'<div class="gc-bad" style="font-size:12.5px">'+miss+' item'+(miss>1?'s':'')+' not linked to a catalog product yet. Tap to fix.</div>':'')+'</div>';
-    }).join("");
-    Array.prototype.forEach.call(el.querySelectorAll("[data-pkid]"),function(c){ c.onclick=function(){ openPkgEditor(c.getAttribute("data-pkid")); }; });
+    if(pkgEdit){ renderPkgEditor(); return; }
+    el.innerHTML='<div class="rep-card"><div class="inv-tools"><div class="rep-h" style="flex:1;margin:0">Packages</div><button class="btn-primary inv-add" id="pkgNewBtn">+ New package</button></div>'+
+      '<div class="gc-hint" style="margin:0 0 12px">Ring a package from the Register, or ring its items separately and the Register offers the package. Tap a package to edit it.</div>'+
+      (packages.length?packages.map(function(pk){
+        var t=pkgTotals(pk), split=Object.keys(t.ents).map(function(e){ return (e==="alpha"?"Alpha":"MJS")+" $"+money(t.ents[e]); }).join(" · ");
+        return '<div class="pr-card" data-pkid="'+esc(pk.id)+'"><div class="pr-head"><div class="pr-name">'+esc(pk.name)+'</div><span class="gc-chip gc-'+(pk.active!==false?'open':'void')+'">'+(pk.active!==false?'On':'Off')+'</span></div>'+
+          '<div class="pkg-sum"><span>Package <b>$'+money(t.price)+(t.varies?' + dose':'')+'</b></span><span>À la carte $'+money(t.ala)+(t.varies?' + dose':'')+'</span><span>Customer saves <b>$'+money(t.save)+'</b></span><span>Cost $'+money(t.cost)+'</span></div>'+
+          '<div class="pr-rules">'+(pk.components||[]).length+' items'+(split?' · '+esc(split):'')+'</div>'+
+          (t.missing?'<div class="gc-bad" style="font-size:12.5px">'+t.missing+' item'+(t.missing>1?'s':'')+' not linked to a catalog product. Tap to fix.</div>':'')+
+          ((function(){ var g=(pk.components||[]).filter(function(c){ return c.guess && pkgProd(c.product); }).length; return g?'<div class="pkg-guess" style="font-size:12.5px">'+g+' item'+(g>1?'s':'')+' matched automatically. Tap to check, then Save.</div>':''; })())+'</div>';
+      }).join(""):'<div class="pos-cart-empty">No packages yet.</div>')+'</div>';
+    $("pkgNewBtn").onclick=function(){ pkgEdit={orig:"", draft:{id:"pkg-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5), name:"", active:true, components:[]}}; renderPackagesPage(); };
+    Array.prototype.forEach.call(el.querySelectorAll("[data-pkid]"),function(c){ c.onclick=function(){ var pk=pkgById(c.getAttribute("data-pkid")); if(!pk) return; pkgEdit={orig:pk.id, draft:JSON.parse(JSON.stringify(pk))}; renderPackagesPage(); }; });
   }
-  function openPkgEditor(id){
-    var pk=pkgById(id); if(!pk) return;
-    var draft=JSON.parse(JSON.stringify(pk)), all=pkgProducts();
-    var optsHtml=function(sel){ return '<option value="">Not linked</option>'+["mjs","alpha"].map(function(e){ return '<optgroup label="'+(e==="alpha"?"Alpha":"MJS")+'">'+all.filter(function(x){return x.e===e;}).map(function(x){ return '<option value="'+esc(x.p.name)+'"'+(x.p.name===sel?' selected':'')+'>'+esc(x.p.name)+' ($'+money(+x.p.price||0)+')</option>'; }).join("")+'</optgroup>'; }).join(""); };
-    function paint(){
-      $("pkgComps").innerHTML=draft.components.map(function(c,i){
-        return '<div class="pkg-erow"><div class="pkg-elabel">'+esc(c.label)+'</div><select data-pkp="'+i+'">'+optsHtml(c.product)+'</select>'+
-          '<input type="number" min="0" step="0.01" data-pkm="'+i+'" value="'+(c.price==null?"":c.price)+'" placeholder="Regular" inputmode="decimal"></div>';
-      }).join("");
-      Array.prototype.forEach.call(document.querySelectorAll("[data-pkp]"),function(s){ s.onchange=function(){ var c=draft.components[+s.getAttribute("data-pkp")], pr=pkgProd(s.value); c.product=s.value||""; if(pr) c.ent=pr.e; }; });
-      Array.prototype.forEach.call(document.querySelectorAll("[data-pkm]"),function(inp){ inp.oninput=function(){ var v=inp.value.trim(); draft.components[+inp.getAttribute("data-pkm")].price = v===""?null:Math.max(0,parseFloat(v)||0); }; });
-    }
-    gcModalShow("Edit package", '<div class="pos-field"><label>Name</label><input type="text" id="pkgName" value="'+esc(draft.name)+'"></div>'+
-      (draft.note?'<div class="gc-hint" style="margin-bottom:8px">'+esc(draft.note)+'</div>':'')+
-      '<div class="pos-field"><label>Items: catalog product and package price (blank = regular price)</label><div id="pkgComps"></div></div>'+
-      '<label class="pr-check"><input type="checkbox" id="pkgActive"'+(draft.active!==false?' checked':'')+'> Package is on</label>'+
-      '<div class="gc-hint">Each item posts to the company of its product. A package can’t be combined with other discounts or promotions.</div>',
-      '<button class="btn-ghost" id="pkgCancel" type="button">Cancel</button><button class="btn-primary" id="pkgSave" type="button">Save</button>');
-    paint();
-    $("pkgCancel").onclick=gcModalClose;
-    $("pkgSave").onclick=function(){ draft.name=($("pkgName").value||"").trim()||pk.name; draft.active=$("pkgActive").checked; packages[packages.indexOf(pk)]=draft; savePackages(); gcModalClose(); renderPackagesCard(); renderPosPkg(); toast("Package saved"); };
+  function pkgProductOptions(sel){
+    var all=pkgProducts();
+    return '<option value="">Choose a product</option>'+["mjs","alpha"].map(function(e){ return '<optgroup label="'+(e==="alpha"?"Alpha":"MJS")+'">'+all.filter(function(x){return x.e===e;}).map(function(x){ return '<option value="'+esc(x.p.name)+'"'+(x.p.name===sel?' selected':'')+'>'+esc(x.p.name)+'</option>'; }).join("")+'</optgroup>'; }).join("");
+  }
+  function renderPkgEditor(){
+    var el=$("pkgPage"), d=pkgEdit.draft;
+    var rows=(d.components||[]).map(function(c,i){
+      var n=pkgRowNums(c), e=pkgEnt(c);
+      return '<tr><td><select class="pkg-psel" data-pkp="'+i+'">'+pkgProductOptions(c.product)+'</select>'+
+          (c.pickDose?'<div class="pkg-sub">Dose chosen at checkout, at its regular price'+(c.counts?'; any dose counts':'')+'</div>':(c.counts?'<div class="pkg-sub">Other doses ('+esc(c.label||"")+') also count when rung separately</div>':''))+
+          (!n.linked&&c.label?'<div class="pkg-sub gc-bad">Not linked: '+esc(c.label)+'</div>':'')+
+          (n.linked&&c.guess?'<div class="pkg-sub pkg-guess">Matched automatically from \u201c'+esc(c.label||"")+'\u201d. Please check'+(c.guessAlt?' (also close: '+esc(c.guessAlt)+')':'')+'.</div>':'')+'</td>'+
+        '<td><span class="cart-ent cart-ent-'+e+'">'+(e==="alpha"?"Alpha":"MJS")+'</span></td>'+
+        '<td class="num">'+(n.varies?'varies':'$'+money(n.cost))+'</td>'+
+        '<td class="num">'+(n.varies?'varies':'$'+money(n.ala))+'</td>'+
+        '<td class="num">'+(n.varies?'<span class="pkg-sub">regular</span>':'<input type="number" min="0" step="0.01" class="pkg-pin" data-pkm="'+i+'" value="'+(n.price==null?money(n.ala).replace(/,/g,""):n.price)+'" inputmode="decimal">')+'</td>'+
+        '<td><button type="button" class="cart-del" data-pkx="'+i+'" aria-label="Remove item">&times;</button></td></tr>';
+    }).join("");
+    var t=pkgTotals(d);
+    el.innerHTML='<div class="rep-card">'+
+      '<div class="inv-tools"><button class="btn-ghost" id="pkgBack" type="button">← Packages</button><div class="rep-h" style="flex:1;margin:0 0 0 8px">'+(pkgEdit.orig?'Edit package':'New package')+'</div></div>'+
+      '<div class="gc-row2"><div class="pos-field"><label>Package name</label><input type="text" id="pkgName" value="'+esc(d.name)+'" placeholder="e.g. TRT+"></div>'+
+      '<div class="pos-field"><label>&nbsp;</label><label class="pr-check" style="margin:8px 0"><input type="checkbox" id="pkgActive"'+(d.active!==false?' checked':'')+'> Package is on (shows in the Register)</label></div></div>'+
+      '<div class="pkg-tablewrap"><table class="pkg-table"><thead><tr><th>Item</th><th>Company</th><th class="num">Cost</th><th class="num">À la carte</th><th class="num">Package price</th><th></th></tr></thead>'+
+      '<tbody>'+(rows||'<tr><td colspan="6" class="pkg-empty">No items yet. Add the first item below.</td></tr>')+'</tbody>'+
+      '<tfoot><tr><td colspan="2"><button type="button" class="pos-split-toggle" id="pkgAddItem">+ Add item</button></td><td class="num">$'+money(t.cost)+'</td><td class="num">$'+money(t.ala)+'</td><td class="num"><b>$'+money(t.price)+'</b></td><td></td></tr></tfoot></table></div>'+
+      '<div class="pkg-totals">'+
+        '<div><span>Package price</span><b>$'+money(t.price)+(t.varies?' + Tirzepatide dose':'')+'</b></div>'+
+        '<div><span>Customer savings</span><b class="pkg-save">$'+money(t.save)+'</b></div>'+
+        '<div class="pkg-tsub"><span>À la carte $'+money(t.ala)+' · Cost $'+money(t.cost)+' · Margin $'+money(t.price-t.cost)+'</span><span>'+Object.keys(t.ents).map(function(e){ return (e==="alpha"?"Alpha":"MJS")+" $"+money(t.ents[e]); }).join(" · ")+'</span></div>'+
+      '</div>'+
+      '<div class="gc-hint">Each item posts to the company of its product. A package can’t be combined with other discounts or promotions.</div>'+
+      '<div class="pkg-actions">'+(pkgEdit.orig?'<button class="btn-danger" id="pkgDel" type="button">Delete package</button>':'')+'<span style="flex:1"></span><button class="btn-ghost" id="pkgCancel" type="button">Cancel</button><button class="btn-primary" id="pkgSave" type="button">Save package</button></div>'+
+      '</div>';
+    $("pkgName").oninput=function(){ d.name=this.value; };
+    $("pkgActive").onchange=function(){ d.active=this.checked; };
+    Array.prototype.forEach.call(el.querySelectorAll("[data-pkp]"),function(s){ s.onchange=function(){ var c=d.components[+s.getAttribute("data-pkp")], pr=pkgProd(s.value); c.product=s.value; c.guess=false; c.guessAlt=""; if(pr){ c.ent=pr.e; if(!c.label||!c.pickDose) c.label=pr.p.name; if(!c.pickDose) c.price=+pr.p.price||0; } setTimeout(renderPkgEditor,0); }; });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-pkm]"),function(inp){
+      inp.onchange=function(){ var c=d.components[+inp.getAttribute("data-pkm")], v=inp.value.trim(); c.price=v===""?null:Math.max(0, Math.round((parseFloat(v)||0)*100)/100); setTimeout(renderPkgEditor,0); };
+    });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-pkx]"),function(b){ b.onclick=function(){ d.components.splice(+b.getAttribute("data-pkx"),1); setTimeout(renderPkgEditor,0); }; });
+    $("pkgAddItem").onclick=function(){ d.components.push({label:"", product:"", ent:"mjs", price:null}); renderPkgEditor(); };
+    $("pkgBack").onclick=$("pkgCancel").onclick=function(){ pkgEdit=null; renderPackagesPage(); };
+    $("pkgSave").onclick=function(){
+      d.name=(d.name||"").trim();
+      if(!d.name){ toast("Enter a package name"); return; }
+      d.components=d.components.filter(function(c){ return c.product || c.label; });
+      if(!d.components.length){ toast("Add at least one item"); return; }
+      var unl=d.components.filter(function(c){ return !pkgProd(c.product); });
+      if(unl.length){ toast("Choose a product for every item"); renderPkgEditor(); return; }
+      if(packages.some(function(x){ return x.id!==pkgEdit.orig && x.name.toLowerCase()===d.name.toLowerCase(); })){ toast("Another package already has that name"); return; }
+      d.components.forEach(function(c){ c.guess=false; c.guessAlt=""; });   // saved by a person = checked
+      if(pkgEdit.orig){ var cur=pkgById(pkgEdit.orig); packages[packages.indexOf(cur)]=d; } else packages.push(d);
+      savePackages(); pkgEdit=null; renderPackagesPage(); renderPosPkg(); toast("Package saved");
+    };
+    if($("pkgDel")) $("pkgDel").onclick=function(){
+      askConfirm({ title:"Delete "+(d.name||"this package")+"?", message:"Past sales keep their package prices. The package will no longer show in the Register.", okLabel:"Delete",
+        onConfirm:function(){ packages=packages.filter(function(x){ return x.id!==pkgEdit.orig; }); savePackages(); pkgEdit=null; renderPackagesPage(); renderPosPkg(); toast("Package deleted"); } });
+    };
   }
   function wirePackages(){
     // the new product from the 3 Nov list
@@ -3814,7 +3938,7 @@ window.startClinicApp = function(){
     renderPosPromo();
   }
   function applyPosPromo(){
-    if(cartHasPkg()){ toast("A promotion can't be combined with a package"); return; }
+    if(pkgDiscountBlocked("A promotion", function(){ applyPosPromo(); })) return;
     var pr=promoById($("posPromoSel").value), p=posClientId?findPatient(posClientId):null;
     var cardOk=$("posPromoCard")&&$("posPromoCard").checked;
     if(!pr){ toast("Choose a promotion"); return; }
@@ -3851,7 +3975,6 @@ window.startClinicApp = function(){
   }
   function promoBenefitText(b){ return (PROMO_KINDS[b.kind]||b.kind)+": "+(b.type==="pct"?(+b.value||0)+"% off":"$"+money(+b.value||0)+" off"); }
   function renderPromos(){
-    renderPackagesCard();
     var all=promos.slice(), tot={n:promoUses.length, disc:promoUses.reduce(function(s,u){return s+(+u.discount||0);},0), blocked:promoAttempts.filter(function(a){return !a.overridden;}).length};
     $("prStats").innerHTML=
       '<div class="inv-stat"><div class="inv-stat-val">'+all.filter(function(x){return promoWindow(x)==="live";}).length+'</div><div class="inv-stat-lbl">Live promotions</div></div>'+
@@ -4139,7 +4262,8 @@ window.startClinicApp = function(){
     inventory:["Items","Products & services"],
     register:["Register","Point of sale"],
     giftcerts:["Gift Certificates","Issue, track and redeem certificates"],
-    promos:["Promotions","Packages, offers, redemptions and misuse checks"],
+    promos:["Promotions","Offers, redemptions and misuse checks"],
+    packages:["Packages","Set up packages: cost, \u00e0 la carte and package prices"],
     expenses:["Expenses","Record business costs"],
     gl:["General Ledger","Double-entry transactions"],
     coa:["Chart of Accounts","Your account structure"],
@@ -4157,6 +4281,7 @@ window.startClinicApp = function(){
     $("inventoryView").style.display = v==="inventory" ? "block" : "none";
     $("giftcertsView").style.display = v==="giftcerts" ? "block" : "none";
     $("promosView").style.display = v==="promos" ? "block" : "none";
+    $("packagesView").style.display = v==="packages" ? "block" : "none";
     $("booksView").style.display = ACCT_VIEWS[v] ? "block" : "none";
     Array.prototype.forEach.call(document.querySelectorAll(".nav-link"),function(b){
       b.classList.toggle("active", b.getAttribute("data-view")===v);
@@ -4171,6 +4296,7 @@ window.startClinicApp = function(){
     if(v==="inventory") renderInventory();
     if(v==="giftcerts") renderGiftCerts();
     if(v==="promos") renderPromos();
+    if(v==="packages"){ pkgEdit=null; renderPackagesPage(); }
     if(ACCT_VIEWS[v]) renderAccounting(v);
     updateAddButton();
     window.scrollTo(0,0);
@@ -5421,8 +5547,9 @@ window.startClinicApp = function(){
     if(posPromo) promoReapply();
     var perItem = posDiscMode==="item";
     var _hasPkg = cartHasPkg();
-    if(_hasPkg){ posCart.forEach(function(l){ l.discPct=0; l.discAmt=0; }); if($("posDiscount")) $("posDiscount").value=""; if($("posDiscountAmt")) $("posDiscountAmt").value=""; }
-    var _lk = (posPromo || _hasPkg) ? " disabled" : "";
+    if(_hasPkg && !posPkgOverride){ posCart.forEach(function(l){ l.discPct=0; l.discAmt=0; }); if($("posDiscount")) $("posDiscount").value=""; if($("posDiscountAmt")) $("posDiscountAmt").value=""; }
+    if(!_hasPkg) posPkgOverride=null;
+    var _lk = posPromo ? " disabled" : "";
     if(!posCart.length){ el.innerHTML='<div class="pos-cart-empty">No items yet — add treatments or an item above.</div>'; }
     else {
       el.innerHTML=posCart.map(function(l,i){
@@ -5444,8 +5571,8 @@ window.startClinicApp = function(){
       }).join("");
       Array.prototype.forEach.call(el.querySelectorAll("[data-cq]"),function(b){ b.onclick=function(){ var p=b.getAttribute("data-cq").split("|"); var i=+p[0]; posCart[i].qty=Math.max(1, posCart[i].qty+(p[1]==="+"?1:-1)); renderCart(); }; });
       Array.prototype.forEach.call(el.querySelectorAll("[data-crm]"),function(b){ b.onclick=function(){ var l=posCart[+b.getAttribute("data-crm")]; if(l && l.pkg){ removePkgGroup(l.pkg.gid); toast(l.pkg.name+" package removed"); } else posCart.splice(+b.getAttribute("data-crm"),1); renderCart(); }; });
-      Array.prototype.forEach.call(el.querySelectorAll("[data-cdpct]"),function(s){ s.onchange=function(){ posCart[+s.getAttribute("data-cdpct")].discPct=+s.value||0; renderCart(); }; });
-      Array.prototype.forEach.call(el.querySelectorAll("[data-cdamt]"),function(inp){ inp.onchange=function(){ posCart[+inp.getAttribute("data-cdamt")].discAmt=Math.max(0,parseFloat(inp.value)||0); renderCart(); }; });
+      Array.prototype.forEach.call(el.querySelectorAll("[data-cdpct]"),function(s){ s.onchange=function(){ var i=+s.getAttribute("data-cdpct"), v=+s.value||0; function ap(){ posCart[i].discPct=v; renderCart(); } if(v && pkgDiscountBlocked(v+"% off "+posCart[i].name, ap)) return; ap(); }; });
+      Array.prototype.forEach.call(el.querySelectorAll("[data-cdamt]"),function(inp){ inp.onchange=function(){ var i=+inp.getAttribute("data-cdamt"), v=Math.max(0,parseFloat(inp.value)||0); function ap(){ posCart[i].discAmt=v; renderCart(); } if(v && pkgDiscountBlocked("$"+money(v)+" off "+posCart[i].name, ap)) return; ap(); }; });
     }
     var sub=posCart.reduce(function(s,l){return s+l.retail*l.qty;},0);
     var cost=posCart.reduce(function(s,l){return s+l.cost*l.qty;},0);
@@ -5622,8 +5749,8 @@ window.startClinicApp = function(){
       if(_pd<=0){ toast("Nothing in the cart qualifies for "+_pr.name+". Add the consult or item, or remove the promotion."); return; }
       promoRec={pr:_pr, disc:_pd, lines:posCart.filter(function(l){return l.promo;}).map(function(l){return l.name;})};
     }
-    if(cartHasPkg()){
-      if(posPromo){ toast("A promotion can't be combined with a package. Remove one of them."); return; }
+    if(cartHasPkg() && !posPkgOverride){
+      if(posPromo){ removePosPromo(); }
       posCart.forEach(function(l){ l.discPct=0; l.discAmt=0; }); $("posDiscount").value=""; $("posDiscountAmt").value="";
     }
     var saleDate = (p && $("posVisitDate") && $("posVisitDate").value) ? $("posVisitDate").value : todayISO();
@@ -5721,7 +5848,8 @@ window.startClinicApp = function(){
     // show who gets charged what, and wait until the person at the register confirms each charge
     if(!chargeOk){ openChargeConfirm(plan, pay, p); return; }
     var _cAt=new Date().toISOString(), _cBy=window.__curEmail?window.__curEmail():"";
-    plan.forEach(function(t){ t.chargeConfirmedAt=_cAt; t.chargeConfirmedBy=_cBy; txns.push(t); });
+    var _ovr=(cartHasPkg() && posPkgOverride && (sub-total>0.004 || promoRec)) ? posPkgOverride : null;
+    plan.forEach(function(t){ t.chargeConfirmedAt=_cAt; t.chargeConfirmedBy=_cBy; if(_ovr) t.pkgDiscountOverride=_ovr; txns.push(t); });
     saveTxns();
     if(promoRec){
       promoUses.push({ id:"pu"+Date.now().toString(36)+Math.random().toString(36).slice(2,5), promoId:promoRec.pr.id, promoName:promoRec.pr.name, clientId:p.id, clientName:p.name,
@@ -5782,7 +5910,7 @@ window.startClinicApp = function(){
     }
     if(window.__hipAudit) window.__hipAudit("sale", p?p.id:"walk-in");
     decrementInventoryForSale(posCart);
-    posPromo=null; posPkgDeclined={}; if($("posPromoCard")) $("posPromoCard").checked=false; if($("posPromoSel")) $("posPromoSel").value="";
+    posPromo=null; posPkgDeclined={}; posPkgOverride=null; if($("posPromoCard")) $("posPromoCard").checked=false; if($("posPromoSel")) $("posPromoSel").value="";
     posCart=[]; posGC=null; if($("posGcNum")) $("posGcNum").value=""; $("posDiscount").value=""; $("posDiscountAmt").value=""; if(posSplitActive) toggleSplit(false); if(posDiscMode==="item") setDiscMode("order"); setPosClient(""); renderCart();
     if(p) renderAll();
     try{ if(window.__syncCommit) window.__syncCommit("sale"); }catch(e){}   // push on commit; the sale is already saved locally either way
@@ -6653,8 +6781,9 @@ window.startClinicApp = function(){
     if($("posEditToggle")) $("posEditToggle").onclick=function(){ var f=$("posEditForm"); if(!f) return; var show=f.style.display==="none"; f.style.display=show?"block":"none"; if(show) renderPosEdit(); };
     $("posAddCustom").onclick=addCustomToCart;
     $("posAddDues").onclick=addDuesToCart;
-    $("posDiscount").onchange=renderCart;
-    $("posDiscountAmt").oninput=renderCart;
+    $("posDiscount").onchange=function(){ var v=$("posDiscount").value; if(v && pkgDiscountBlocked("A "+(discountByName(v)||"")+"% order discount ("+v+")", function(){ $("posDiscount").value=v; })) return; renderCart(); };
+    $("posDiscountAmt").oninput=function(){ if(cartHasPkg() && !posPkgOverride) return; renderCart(); };
+    $("posDiscountAmt").onchange=function(){ var v=Math.max(0,parseFloat($("posDiscountAmt").value)||0); if(v && pkgDiscountBlocked("$"+money(v)+" off the order", function(){ $("posDiscountAmt").value=v; })) return; renderCart(); };
     if($("posSplitToggle")) $("posSplitToggle").onclick=function(){ toggleSplit(!posSplitActive); };
     if($("posSplitAdd")) $("posSplitAdd").onclick=addSplitLine;
     Array.prototype.forEach.call(document.querySelectorAll("#posDiscMode [data-dmode]"),function(b){ b.onclick=function(){ setDiscMode(b.getAttribute("data-dmode")); }; });
@@ -6662,7 +6791,7 @@ window.startClinicApp = function(){
     $("posComplete").onclick=function(){ completeSale(); };
     if($("posCancel")) $("posCancel").onclick=function(){
       if(!posCart.length && !posClientId){ toast("Nothing to cancel"); return; }
-      posPromo=null; posPkgDeclined={}; if($("posPromoCard")) $("posPromoCard").checked=false; if($("posPromoSel")) $("posPromoSel").value="";
+      posPromo=null; posPkgDeclined={}; posPkgOverride=null; if($("posPromoCard")) $("posPromoCard").checked=false; if($("posPromoSel")) $("posPromoSel").value="";
       posCart=[]; posGC=null; if($("posGcNum")) $("posGcNum").value=""; $("posDiscount").value=""; $("posDiscountAmt").value="";
       if(posSplitActive) toggleSplit(false);
       if(posDiscMode==="item") setDiscMode("order");
