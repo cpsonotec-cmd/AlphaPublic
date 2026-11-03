@@ -837,6 +837,9 @@
   .pd-item:hover,.pd-item.active{background:var(--canvas)}
   .pd-co{font-size:9px;font-weight:700;padding:2px 6px;border-radius:20px;flex-shrink:0}
   .pd-co-alpha{background:#FCE7E6;color:#B42318}.pd-co-mjs{background:#E5EDFB;color:#1D4ED8}
+  .pd-co-both{background:linear-gradient(90deg,#E5EDFB 50%,#FCE7E6 50%);color:#5B21B6}
+  .pd-group-pkg{background:#FEF3C7;color:#92400E}
+  .pd-pkg-n{font-size:11.5px;color:var(--muted);margin-left:4px}
   .pd-name{flex:1;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .pd-price{font-weight:600;font-variant-numeric:tabular-nums;font-size:13.5px}
   .recur-badge{background:#E7F6EF;color:#0a7d53}
@@ -5233,18 +5236,32 @@ window.startClinicApp = function(){
     var prefer=["Supplement","Treatment","Membership","Products"];
     order.sort(function(a,b){ var ia=prefer.indexOf(a), ib=prefer.indexOf(b); return (ia<0?99:ia)-(ib<0?99:ib) || a.localeCompare(b); });
     var abbr={mjs:"MJS", alpha:"Alpha"};
-    var html=order.map(function(g){
+    // Packages: their own group (they often charge both companies). Typing "package" lists them all.
+    var pkgHtml="", pkgRows=[];
+    try{
+      pkgResolveAll();
+      var wantAll=!q || /^(pa|pac|pack|packa|packag|package|packages|pkg|bun|bund|bundl|bundle)/.test(q);
+      pkgRows=packages.filter(function(pk){ return pk.active!==false && (wantAll || (pk.name||"").toLowerCase().indexOf(q)>=0); });
+      pkgHtml = pkgRows.length ? '<div class="pd-group pd-group-pkg">Packages</div>'+pkgRows.map(function(pk){
+        var t=pkgTotals(pk), ents=Object.keys(t.ents); (pk.components||[]).forEach(function(c){ var e=pkgEnt(c); if(ents.indexOf(e)<0) ents.push(e); });
+        var co = ents.length>1 ? '<span class="pd-co pd-co-both">MJS + Alpha</span>' : '<span class="pd-co pd-co-'+(ents[0]||"mjs")+'">'+abbr[ents[0]||"mjs"]+'</span>';
+        var n=(pk.components||[]).length;
+        return '<div class="cd-item pd-item pd-pkg" data-pick="pkg|'+esc(pk.id)+'">'+co+'<span class="pd-name">'+esc(pk.name)+' <span class="pd-pkg-n">'+n+' item'+(n===1?'':'s')+(t.missing?' \u00b7 needs setup':'')+'</span></span><span class="pd-price">'+(t.varies?'$'+money(t.price)+' + dose':'$'+money(t.price))+'</span></div>';
+      }).join("") : "";
+    }catch(e){ pkgHtml=""; }
+    var html=pkgHtml+order.map(function(g){
       var label=g==="Supplement"?"Supplements":g==="Treatment"?"Treatments":g;
       var items=groups[g].slice().sort(function(a,b){return (a.p.name||"").localeCompare(b.p.name||"");});
       return '<div class="pd-group">'+esc(label)+'</div>'+items.map(function(x){
         return '<div class="cd-item pd-item" data-pick="'+x.entity+'|'+x.p.id+'"><span class="pd-co pd-co-'+x.entity+'">'+abbr[x.entity]+'</span><span class="pd-name">'+esc(x.p.name)+'</span><span class="pd-price">$'+money(x.p.price)+'</span></div>';
       }).join("");
     }).join("");
-    if(!rows.length) html='<div class="cd-empty">No items match "'+esc(q)+'"</div>';
+    if(!rows.length && !pkgRows.length) html='<div class="cd-empty">No items match "'+esc(q)+'"</div>';
     var dd=$("posProdDrop"); dd.innerHTML=html; dd.style.display="block";
     Array.prototype.forEach.call(dd.querySelectorAll(".pd-item"),function(it){ it.onmousedown=function(e){ e.preventDefault(); var v=it.getAttribute("data-pick").split("|"); addProdByKey(v[0], v[1]); }; });
   }
   function addProdByKey(ent, id){
+    if(ent==="pkg"){ var inp0=$("posProdInput"); if(inp0){ inp0.value=""; } if($("posProdDrop")) $("posProdDrop").style.display="none"; addPackageToCart(pkgById(id)); return; }
     var p=(regProducts[ent]||[]).filter(function(x){return x.id===id;})[0]; if(!p) return;
     posCart.push({ name:p.name, retail:+p.price||0, cost:+p.cost||0, qty:1, cat:p.cat||"", entity:ent });
     renderCart();
