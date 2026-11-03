@@ -8665,8 +8665,30 @@ window.startClinicApp = function(){
   var $=function(id){return document.getElementById(id);};
   var PFX="alphahipaa_";
   var enc=new TextEncoder(), dec=new TextDecoder();
-  function lsGet(k,d){ try{ var r=localStorage.getItem(PFX+k); return r?JSON.parse(r):d; }catch(e){ return d; } }
-  function lsSet(k,v){ try{ localStorage.setItem(PFX+k, JSON.stringify(v)); return true; }
+  /* ---------- large storage (IndexedDB) for the vault, access log and restore points ----------
+     localStorage is capped by the browser at about 5 MB per site. IndexedDB is not: Chrome and Edge allow a large share of free
+     disk, Safari about 1 GB to start. Reads stay synchronous through an in-memory copy; writes go to IndexedDB. */
+  var BIGKEYS={vault:1, audit:1}, BIG={}, BIGP={}, IDB=null, idbOk=false, idbPending=0, idbInfo={migrated:"", persisted:null, usage:null, quota:null, bak:0};
+  function idbReq(r){ return new Promise(function(res){ r.onsuccess=function(){ res(r.result); }; r.onerror=function(){ res(undefined); }; }); }
+  function idbOpen(){ return new Promise(function(res){ try{ var r=indexedDB.open("alphahipaa",1);
+    r.onupgradeneeded=function(){ var db=r.result; if(!db.objectStoreNames.contains("kv")) db.createObjectStore("kv"); };
+    r.onsuccess=function(){ res(r.result); }; r.onerror=function(){ res(null); }; r.onblocked=function(){ res(null); }; }catch(e){ res(null); } }); }
+  function idbGet(k){ try{ return idbReq(IDB.transaction("kv","readonly").objectStore("kv").get(k)); }catch(e){ return Promise.resolve(undefined); } }
+  function idbKeys(){ try{ return idbReq(IDB.transaction("kv","readonly").objectStore("kv").getAllKeys()).then(function(k){ return k||[]; }); }catch(e){ return Promise.resolve([]); } }
+  function idbTx(fn){ idbPending++; return new Promise(function(res){ try{ var tx=IDB.transaction("kv","readwrite"); fn(tx.objectStore("kv"));
+    tx.oncomplete=function(){ idbPending--; res(true); }; tx.onerror=tx.onabort=function(e){ idbPending--; try{ if(e&&e.preventDefault) e.preventDefault(); }catch(_){} res(false); };
+    }catch(e){ idbPending--; res(false); } }); }
+  function idbPut(k,v){ return idbTx(function(s){ s.put(v,k); }); }
+  function idbDel(k){ return idbTx(function(s){ s.delete(k); }); }
+  function idbFlush(ms){ var t0=Date.now(); return new Promise(function(res){ (function w(){ if(idbPending<=0 || Date.now()-t0>(ms||8000)) res(); else setTimeout(w,50); })(); }); }
+  function bigFail(k){ storageBlocked=true; try{ markSyncFailed("This device could not save its "+(k==="audit"?"access log":"data")+" (storage is full or blocked). Do not close this tab. Export a backup from Security, then free space.","storage"); }catch(e){} }
+  function bigDel(k){ delete BIG[k]; delete BIGP[k]; if(idbOk) idbDel(k); }
+  function lsGet(k,d){
+    if(idbOk && BIGKEYS[k]){ if(BIGP[k]!==undefined) return BIGP[k]; var b=BIG[k]; if(b==null) return d; try{ BIGP[k]=JSON.parse(b); return BIGP[k]; }catch(e){ return d; } }
+    try{ var r=localStorage.getItem(PFX+k); return r?JSON.parse(r):d; }catch(e){ return d; } }
+  function lsSet(k,v){
+    if(idbOk && BIGKEYS[k]){ var s=JSON.stringify(v); BIG[k]=s; BIGP[k]=v; idbPut(k,s).then(function(ok){ if(!ok) bigFail(k); }); return true; }
+    try{ localStorage.setItem(PFX+k, JSON.stringify(v)); return true; }
     catch(e){ try{ console.error("[storage] write failed for "+k+": "+(e&&e.name||e)); }catch(_){} return false; } }
   function escp(s){ return (s==null?"":String(s)).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
   function uid(p){ return (p||"")+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
@@ -8705,6 +8727,55 @@ window.startClinicApp = function(){
   function genRecoveryKey(){ var by=crypto.getRandomValues(new Uint8Array(20)), s=""; for(var i=0;i<20;i++) s+=REC_ALPHA[by[i]%REC_ALPHA.length]; return s.match(/.{1,5}/g).join("-"); }
   function normRec(s){ return (s||"").toUpperCase().replace(/[^A-Z0-9]/g,""); }
   async function makeRecovery(dkRaw, recKey){ var salt=randB64(16), kek=await deriveKEK(normRec(recKey), salt), wrapped=await wrapDK(kek, dkRaw); return {salt:salt, wrapped:wrapped}; }
+
+  // move the vault and access log out of localStorage: copy, read back, compare, and only then delete the old copy
+  async function storageInit(){
+    if(!window.indexedDB) return;
+    IDB=await idbOpen(); if(!IDB) return;
+    try{
+      var iv=await idbGet("vault"), ia=await idbGet("audit"), lv=null, la=null;
+      try{ lv=localStorage.getItem(PFX+"vault"); la=localStorage.getItem(PFX+"audit"); }catch(e){}
+      // a copy still in localStorage was written by an older version of the app, so it is the newer one
+      if(lv!=null){ if(!(await idbPut("vault", lv)) || (await idbGet("vault"))!==lv){ IDB=null; return; } iv=lv; }
+      if(la!=null){ var merged=la; if(ia!=null){ try{ merged=JSON.stringify(mergeAudit(JSON.parse(ia)||[], JSON.parse(la)||[])); }catch(e){} }
+        if(!(await idbPut("audit", merged)) || (await idbGet("audit"))!==merged){ IDB=null; return; } ia=merged; }
+      BIG.vault=(iv==null?null:iv); BIG.audit=(ia==null?null:ia); idbOk=true;
+      if(lv!=null || la!=null){ try{ localStorage.removeItem(PFX+"vault"); localStorage.removeItem(PFX+"audit"); }catch(e){}
+        if(!(await idbGet("migrated"))) await idbPut("migrated", new Date().toISOString()); console.info("[storage] vault and access log moved to large storage"); }
+      idbInfo.migrated=(await idbGet("migrated"))||"";
+      await moveRestorePoints();
+    }catch(e){ console.error("[storage] large storage unavailable; staying on localStorage", e); idbOk=false; IDB=null; }
+  }
+  async function moveRestorePoints(){
+    var ks=[]; try{ for(var i=0;i<localStorage.length;i++){ var k=localStorage.key(i); if(isRestoreKey(k)) ks.push(k); } }catch(e){}
+    for(var j=0;j<ks.length;j++){
+      var k=ks[j], v=null; try{ v=localStorage.getItem(k); }catch(e){}
+      if(!v || v==="null"){ try{ localStorage.removeItem(k); }catch(e){} continue; }
+      var t=rpTime(k), rec={name:k, at:t?new Date(t).toISOString():new Date().toISOString(), vault:v};
+      if(await idbPut("bak:"+k, rec)){ var back=await idbGet("bak:"+k); if(back && back.vault===v){ try{ localStorage.removeItem(k); }catch(e){} } }
+    }
+    await pruneIdbBak(10);
+  }
+  async function idbBakList(){
+    var keys=(await idbKeys()).filter(function(k){ return String(k).indexOf("bak:")===0; }), out=[];
+    for(var i=0;i<keys.length;i++){ var r=await idbGet(keys[i]); if(r) out.push({key:keys[i], name:r.name, at:r.at||"", size:(r.vault||"").length}); }
+    out.sort(function(a,b){ return a.at<b.at?1:a.at>b.at?-1:0; }); idbInfo.bak=out.length; return out;
+  }
+  async function pruneIdbBak(keep){ var l=await idbBakList(); for(var i=keep;i<l.length;i++){ await idbDel(l[i].key); } if(l.length>keep) idbInfo.bak=keep; }
+  // helpers for the reconcile skill and for support: raw encrypted vault and restore points that work with either storage
+  window.__vaultRaw=function(){ return idbOk ? (BIG.vault||null) : localStorage.getItem(PFX+"vault"); };
+  window.__restorePoint=async function(label){
+    var raw=window.__vaultRaw(); if(!raw) return {ok:false, reason:"no vault on this device"};
+    var name="__vaultbak_"+String(label||"manual").replace(/[^A-Za-z0-9_-]/g,"")+"_"+new Date().toISOString().slice(0,19).replace(/:/g,"-");
+    if(!idbOk){ try{ localStorage.setItem(name, raw); return {ok:true, name:name, where:"localStorage"}; }catch(e){ return {ok:false, reason:"browser storage is full"}; } }
+    var ok=await idbPut("bak:"+name, {name:name, at:new Date().toISOString(), vault:raw});
+    var back=ok?await idbGet("bak:"+name):null; ok=!!(back && back.vault===raw);
+    if(ok) await pruneIdbBak(10);
+    return {ok:ok, name:name, where:"large storage", size:raw.length};
+  };
+  window.__restorePoints=async function(){ if(!idbOk) return []; return (await idbBakList()).map(function(x){ return {name:x.name, at:x.at, size:x.size}; }); };
+  window.__restorePointData=async function(name){ if(!idbOk) return localStorage.getItem(name); var r=await idbGet("bak:"+name); return r?r.vault:null; };
+  window.__storageInfo=function(){ return {largeStorage:idbOk, vaultBytes:(BIG.vault||"").length, auditBytes:(BIG.audit||"").length, restorePoints:idbInfo.bak, migrated:idbInfo.migrated, persisted:idbInfo.persisted, usage:idbInfo.usage, quota:idbInfo.quota}; };
 
   /* state */
   var accounts=lsGet("accounts",[]);
@@ -9279,7 +9350,7 @@ window.startClinicApp = function(){
     if(!keepRecords){ lsSet("rec_queue", {}); lsSet("rec_cursor", 0); }  // records came from the adopted copy: re-read every row
     accounts = remote.accounts || [];
     lsSet("accounts", accounts);
-    if(remote.vault!=null) lsSet("vault", remote.vault); else { try{ localStorage.removeItem(PFX+"vault"); }catch(e){} }
+    if(remote.vault!=null) lsSet("vault", remote.vault); else { bigDel("vault"); try{ localStorage.removeItem(PFX+"vault"); }catch(e){} }
     lsSet("audit", mergeAudit(lsGet("audit",[]), Array.isArray(remote.audit) ? remote.audit : []));   // append-only: never drop local entries
     if(remote.updated_at){ lsSet("synced", remote.updated_at); setSeen(remote.updated_at); persist("cloud_confirmed", {stamp:remote.updated_at, at:new Date().toISOString()}); }
     setUnsent(0); tabDel("sync_error");
@@ -9351,7 +9422,7 @@ window.startClinicApp = function(){
       if(res && !res.ok && sess.ok) res=await syncPull(null);
       if(!res || !res.ok || !res.row){ $("wsCfErr").textContent="Could not load the cloud copy ("+((res&&res.msg)||"no data")+"). Nothing was changed."; return; }
       audit("sync_conflict_use_cloud", fmtTs(res.row.updated_at), true);
-      await adoptRemoteKeepRecords(res.row); window.__allowUnload=true; location.reload();
+      await adoptRemoteKeepRecords(res.row); await idbFlush(); window.__allowUnload=true; location.reload();
     };
     $("wsCfLater").onclick=function(){ closeModal(); markSyncFailed(driftMsg(cloud, conflictPending&&conflictPending.replaced),"conflict"); };
   }
@@ -9397,6 +9468,7 @@ window.startClinicApp = function(){
     var tot=0, parts={vault:0, audit:0, restore:0, other:0}, rp=0;
     try{ for(var i=0;i<localStorage.length;i++){ var k=localStorage.key(i), v=localStorage.getItem(k)||"", sz=k.length+v.length; tot+=sz;
       if(k===PFX+"vault") parts.vault+=sz; else if(k===PFX+"audit") parts.audit+=sz; else if(isRestoreKey(k)){ parts.restore+=sz; rp++; } else parts.other+=sz; } }catch(e){}
+    if(idbOk){ parts.bigVault=(BIG.vault||"").length; parts.bigAudit=(BIG.audit||"").length; }
     return {total:tot, parts:parts, restorePoints:rp};
   }
   function mb(n){ return (n/1048576).toFixed(2)+" MB"; }
@@ -9416,7 +9488,10 @@ window.startClinicApp = function(){
   }
   async function renderSyncDetail(fetchNow){
     var el=$("hipSyncDetail"); if(!el) return;
-    if(fetchNow){ el.dataset.loading="1"; await readCloudStampAuto(); el.dataset.loading=""; }
+    if(fetchNow){ el.dataset.loading="1"; await readCloudStampAuto();
+      try{ if(navigator.storage && navigator.storage.estimate){ var est=await navigator.storage.estimate(); idbInfo.usage=est.usage; idbInfo.quota=est.quota; } if(navigator.storage && navigator.storage.persisted) idbInfo.persisted=await navigator.storage.persisted(); }catch(e){}
+      if(idbOk){ try{ await idbBakList(); }catch(e){} }
+      el.dataset.loading=""; }
     var local=lsGet("synced",null), n=unsentCount(), err=syncError(), u=storageUse();
     var rows=[];
     var dbTxt = !dbRead ? "not read yet" : dbRead.ok ? fmtTs(dbRead.stamp)+' <span style="color:#98A2B3">(read from the database '+timeAgo(dbRead.at)+')</span>' : '<span style="color:#B42318">could not read: '+escp(dbRead.msg||"")+'</span>';
@@ -9433,7 +9508,12 @@ window.startClinicApp = function(){
     rows.push(['Cloud sign-in', escp(authNote||"not checked yet")]);
     if(err) rows.push(['Last failure', '<span style="color:#B42318">'+escp(err.msg)+'</span> <span style="color:#98A2B3">('+escp(fmtTs(err.ts))+(err.since&&err.since!==err.ts?', failing since '+escp(fmtTs(err.since)):'')+')</span>']);
     var warn=u.total>3*1048576;
-    rows.push(['Browser storage used', '<b style="color:'+(warn?"#B42318":"inherit")+'">'+mb(u.total)+'</b> of about 5 MB'+(warn?' · <b style="color:#B42318">nearly full</b>':'')+'<br><span style="color:#98A2B3">vault '+mb(u.parts.vault)+' · access log '+mb(u.parts.audit)+' · '+u.restorePoints+' restore point'+(u.restorePoints===1?'':'s')+' '+mb(u.parts.restore)+' (3 kept) · other '+mb(u.parts.other)+'</span>']);
+    if(idbOk){
+      rows.push(['Storage', 'Large storage (no 5 MB limit): data '+mb(u.parts.bigVault||0)+' \u00b7 access log '+mb(u.parts.bigAudit||0)+' \u00b7 '+idbInfo.bak+' restore point'+(idbInfo.bak===1?'':'s')+
+        (idbInfo.quota?'<br><span style="color:#98A2B3">'+mb(idbInfo.usage||0)+' used of '+(idbInfo.quota>1073741824?(idbInfo.quota/1073741824).toFixed(1)+' GB':mb(idbInfo.quota))+' available to this app'+(idbInfo.persisted===true?' \u00b7 protected from automatic clearing':idbInfo.persisted===false?' \u00b7 not yet protected from automatic clearing':'')+'</span>':'')]);
+      rows.push(['Small storage', '<b style="color:'+(warn?"#B42318":"inherit")+'">'+mb(u.total)+'</b> of about 5 MB'+(warn?' \u00b7 <b style="color:#B42318">nearly full</b>':'')+' <span style="color:#98A2B3">(settings only)</span>']);
+    } else
+    rows.push(['Browser storage used', '<b style="color:'+(warn?"#B42318":"inherit")+'">'+mb(u.total)+'</b> of about 5 MB'+(warn?' \u00b7 <b style="color:#B42318">nearly full</b>':'')+'<br><span style="color:#98A2B3">vault '+mb(u.parts.vault)+' \u00b7 access log '+mb(u.parts.audit)+' \u00b7 '+u.restorePoints+' restore point'+(u.restorePoints===1?'':'s')+' '+mb(u.parts.restore)+' (3 kept) \u00b7 other '+mb(u.parts.other)+'</span>']);
     el.innerHTML='<div style="margin-top:10px;font-size:12.5px;line-height:1.5">'+rows.map(function(r){ return '<div style="display:flex;gap:10px;padding:5px 0;border-top:1px solid #EEF0F3"><span style="flex:0 0 44%;color:#5B6472;font-weight:600">'+r[0]+'</span><span style="flex:1;min-width:0">'+r[1]+'</span></div>'; }).join("")+
       (note?'<div style="margin-top:8px;padding:8px 10px;border-radius:8px;background:#FEF3F2;color:#B42318;font-weight:600">'+escp(note)+'</div>':'')+
       (conflictPending?'<button class="hipbtn sm" id="wsResolve" style="margin-top:8px">Choose which copy to keep</button>':'')+
@@ -9458,14 +9538,16 @@ window.startClinicApp = function(){
   var vaultTimer=null;
   var vaultPending=false, lastPlainSaved=null;
   window.__vaultSave=function(){ vaultPending=true; clearTimeout(vaultTimer); vaultTimer=setTimeout(saveVaultNow,600); };
-  function writeVault(blob){ if(lsSet("vault", blob)) return true; if(pruneRestorePoints(3)>0 && lsSet("vault", blob)) return true; return false; }
+  async function writeVault(blob){
+    if(idbOk){ var s=JSON.stringify(blob), ok=await idbPut("vault", s); if(ok){ BIG.vault=s; BIGP.vault=blob; } return ok; }   // on failure the previous copy stays intact
+    if(lsSet("vault", blob)) return true; if(pruneRestorePoints(3)>0 && lsSet("vault", blob)) return true; return false; }
   async function saveVaultNow(){ if(!DKKey) return; clearTimeout(vaultTimer); try{
     var plain=JSON.stringify(window.__vaultMem||{});
     if(plain===lastPlainSaved && !storageBlocked && lsGet("vault_rev",null)===myVaultRev){ vaultPending=false; return; }
     var blob;
     if(ZIP_OK){ blob=await gcmEnc(DKKey, await gzipB64(plain)); blob.z=1; }
     else { blob=await gcmEnc(DKKey, plain); }
-    if(writeVault(blob)){ vaultPending=false; storageBlocked=false; lastPlainSaved=plain;
+    if(await writeVault(blob)){ vaultPending=false; storageBlocked=false; lastPlainSaved=plain;
       var rv=newRev(); myVaultRev=rv; lsSet("vault_rev", rv);
       if(!window.__alphaReadOnly) setUnsent(unsentCount()+1); pushSoon(); }
     else { storageBlocked=true; storageFull(); markSyncFailed("Browser storage is full: the last change was NOT saved on this device and nothing was uploaded. Do not close this tab. Export a backup from Security, then free space.","storage"); }
@@ -9496,7 +9578,7 @@ window.startClinicApp = function(){
   /* idle auto-logoff */
   var idle=null;
   function resetIdle(){ clearTimeout(idle); if(!curUser) return; idle=setTimeout(lockNow, Math.max(1,(secset.timeoutMin||15))*60000); }
-  async function lockNow(){ if(!curUser) return; audit("auto_logoff"); await saveVaultNow();
+  async function lockNow(){ if(!curUser) return; audit("auto_logoff"); await saveVaultNow(); await idbFlush(4000);
     try{ await Promise.race([pushAudit(), new Promise(function(r){ setTimeout(r,4000); })]); }catch(e){}
     // try to get unsent work up before the screen locks; the red state survives the reload if it fails
     if(unsentCount()>0 && !syncHold && !conflictPending){ try{ await Promise.race([syncPush(true), new Promise(function(r){ setTimeout(r,6000); })]); }catch(e){} }
@@ -9505,7 +9587,7 @@ window.startClinicApp = function(){
   window.addEventListener("beforeunload", function(e){
     if(window.__allowUnload || !curUser || window.__alphaReadOnly) return;
     var n=unsentCount()+recPending();
-    if(n>0 || storageBlocked || vaultPending || syncInFlight || recSt.pushing){
+    if(n>0 || storageBlocked || vaultPending || syncInFlight || recSt.pushing || idbPending>0){
       var m=(n?plural(n,"change")+" have not reached the cloud. ":"")+(storageBlocked?"The last change could not be saved on this device. ":"")+"Leave anyway?";
       e.preventDefault(); e.returnValue=m; return m;
     }
@@ -9583,6 +9665,7 @@ window.startClinicApp = function(){
     };
   }
   function resetWorkspace(){
+    try{ if(IDB) idbTx(function(s){ s.clear(); }); BIG={}; BIGP={}; }catch(e){}
     try{ var keys=[]; for(var i=0;i<localStorage.length;i++){ var k=localStorage.key(i); if(k&&k.indexOf(PFX)===0) keys.push(k); } keys.forEach(function(k){ localStorage.removeItem(k); }); }catch(e){}
     DKKey=null; dkRawMem=null; curUser=null; window.__vaultMem={};
     window.__allowUnload=true;
@@ -9653,6 +9736,7 @@ window.startClinicApp = function(){
     audit("sign_in");
     injectShield(); applyRoleGates(); wireNavAudit(); refreshShield(); resetIdle();
     refreshSyncUI();
+    try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persist().then(function(p){ idbInfo.persisted=p; }); }catch(e){}
     syncLiveness().then(function(){ return recStart(); }).catch(function(e){ syncHold=false; markSyncFailed("Could not check the cloud on sign-in ("+(e&&e.message||e)+").","network"); });
     try{ var _u=storageUse(); if(_u.total>3*1048576) setTimeout(function(){ toast("Browser storage is "+mb(_u.total)+" of about 5 MB. See Security \u2192 Multi-device sync."); }, 2500); }catch(e){}
   }
@@ -9667,7 +9751,7 @@ window.startClinicApp = function(){
       return;
     }
     audit("sign_out"); window.__allowUnload=true;
-    saveVaultNow().then(function(){ return Promise.race([pushAudit(), new Promise(function(r){ setTimeout(r,4000); })]); }).then(function(){ location.reload(); }).catch(function(){ location.reload(); }); }
+    saveVaultNow().then(function(){ return Promise.race([pushAudit(), new Promise(function(r){ setTimeout(r,4000); })]); }).then(function(){ return idbFlush(4000); }).then(function(){ location.reload(); }).catch(function(){ location.reload(); }); }
 
   /* ---------- role gates ---------- */
   function isAdmin(){ return curUser && curUser.role==="Admin"; }
@@ -9926,7 +10010,7 @@ window.startClinicApp = function(){
     delete vm["alphaperf_thorne2"];
     audit("data_import", ((data.patients&&data.patients.length)||0)+" clients");
     window.__allowUnload=true;
-    saveVaultNow().then(function(){ location.reload(); }).catch(function(){ location.reload(); });
+    saveVaultNow().then(function(){ return idbFlush(); }).then(function(){ location.reload(); }).catch(function(){ location.reload(); });
   }
   function toast(m){ var t=document.createElement("div"); t.textContent=m; t.style.cssText="position:fixed;left:50%;bottom:80px;transform:translateX(-50%);background:#0E1420;color:#fff;padding:11px 18px;border-radius:11px;font:600 13.5px 'Inter',sans-serif;z-index:9500;box-shadow:0 8px 24px -6px rgba(0,0,0,.4)"; document.body.appendChild(t); setTimeout(function(){t.style.transition=".3s";t.style.opacity="0";setTimeout(function(){t.remove();},300);},2200); }
 
@@ -9937,7 +10021,7 @@ window.startClinicApp = function(){
   } else {
     $("hipGate").classList.add("show");
     $("hipAuthBody").innerHTML='<div class="hiph">Checking for your workspace\u2026</div><div class="hipsub">Loading accounts from the cloud.</div>';
-    syncBoot().then(function(){ showGate(); }).catch(function(){ showGate(); });
+    storageInit().catch(function(){}).then(function(){ return syncBoot(); }).then(function(){ showGate(); }).catch(function(){ showGate(); });
   }
 })();
 
