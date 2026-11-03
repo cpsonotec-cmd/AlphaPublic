@@ -708,6 +708,19 @@
   .pos-gc-ctl select#posPromoSel{max-width:170px;padding:9px 10px;border:1px solid var(--line);border-radius:9px;font-size:14px;background:var(--card);color:var(--ink)}
   .pos-promo-card{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin:2px 0 8px;padding:9px 12px;border:1px dashed var(--line);border-radius:10px;background:var(--canvas)}
   .cart-promo-tag{background:#EDE9FE;color:#5B21B6}
+  .cart-pkg-tag{display:inline-block;margin-left:8px;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:20px;background:#FEF3C7;color:#92400E;vertical-align:middle}
+  .cart-wrap.cart-in-pkg{border-left:3px solid #F59E0B;padding-left:6px}
+  .pos-gc-ctl select#posPkgSel{max-width:200px;padding:9px 10px;border:1px solid var(--line);border-radius:9px;font-size:14px;background:var(--card);color:var(--ink)}
+  .pkg-dose{display:flex;justify-content:space-between;width:100%;padding:13px 14px;margin-bottom:8px;border:1px solid var(--line);border-radius:10px;background:var(--card);font-size:15px;cursor:pointer;color:var(--ink)}
+  .pkg-dose:hover{background:var(--canvas)}
+  .pkg-ul{margin:0 0 12px 18px;padding:0;font-size:14px;line-height:1.6}
+  .pkg-offer{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;padding:12px 14px;border-radius:12px;background:#FEF3C7;margin-bottom:8px;font-size:14px}
+  .pkg-offer-p{font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:700}
+  .pkg-offer-s{font-weight:700;color:#166534}
+  .pkg-erow{display:grid;grid-template-columns:1fr;gap:6px;padding:8px 0;border-top:1px solid var(--line)}
+  .pkg-elabel{font-size:13px;font-weight:700}
+  .pkg-erow select,.pkg-erow input{padding:9px 8px;border:1px solid var(--line);border-radius:9px;font-size:13px;background:var(--card);color:var(--ink);min-width:0}
+  @media(min-width:560px){ .pkg-erow{grid-template-columns:1fr 1.4fr 90px;align-items:center} }
   .promo-badge{background:#EDE9FE;color:#5B21B6}
   .pr-card{border:1px solid var(--line);border-radius:12px;padding:13px 14px;margin-bottom:10px;cursor:pointer;background:var(--card)}
   .pr-card:hover{background:var(--canvas)}
@@ -1553,6 +1566,8 @@
       <div id="posCart" class="pos-cart"></div>
 
       <div class="pos-foot">
+        <div class="pos-line pos-promo-line"><span>Package</span><span class="pos-gc-ctl"><select id="posPkgSel"></select><button type="button" id="posPkgAdd" class="btn-ghost pos-gc-apply">Add</button></span></div>
+        <div class="pos-gc-info" id="posPkgInfo" style="display:none"></div>
         <div class="pos-line pos-promo-line"><span>Promotion</span><span class="pos-gc-ctl"><select id="posPromoSel"></select><button type="button" id="posPromoApply" class="btn-ghost pos-gc-apply">Apply</button><button type="button" id="posPromoRemove" class="btn-ghost pos-gc-apply" style="display:none">Remove</button></span></div>
         <label class="pos-promo-card" id="posPromoCardRow" style="display:none"><input type="checkbox" id="posPromoCard"> I collected the promotion card from the client</label>
         <div class="pos-gc-info" id="posPromoInfo" style="display:none"></div>
@@ -1686,6 +1701,11 @@
   </div>
   <div id="promosView" style="display:none">
     <div class="rep-card"><div class="inv-statgrid" id="prStats"></div></div>
+    <div class="rep-card">
+      <div class="rep-h">Packages</div>
+      <div class="gc-hint" style="margin:0 0 12px">Ring a package from the Register, or ring its items separately and the Register offers the package. Tap a package to link its items to catalog products or change prices.</div>
+      <div id="pkgList"></div>
+    </div>
     <div class="rep-card">
       <div class="inv-tools"><div class="rep-h" style="flex:1;margin:0">Promotions</div><button class="btn-primary inv-add" id="prNewBtn">+ New promotion</button></div>
       <div class="gc-hint" style="margin:0 0 12px">Tap a promotion to edit it. Staff apply promotions in the Register; each redemption is tied to the client and the sale.</div>
@@ -3561,6 +3581,187 @@ window.startClinicApp = function(){
     toast("Report exported");
   }
 
+  // ---------- Packages ----------
+  // A package rings each item at its package price, on its own company. No other discount can be added on top.
+  // Each component links to a catalog product (editable on the Promotions page). price:null = that product's regular price.
+  var PKG_SEED=[
+    { id:"pkg-trt-plus", name:"TRT+", active:true, components:[
+      {label:"TRT monthly", find:"^trt\\b|testosterone", ent:"mjs", price:175},
+      {label:"Sermorelin", find:"serm|semor", ent:"mjs", price:175} ] },
+    { id:"pkg-glp-plus", name:"GLP+", active:true, note:"Tirzepatide at its regular price for the dose, plus Sermorelin for $100 (50% off).", components:[
+      {label:"Tirzepatide (any dose)", find:"tirzepatide", ent:"mjs", price:null, pickDose:true, counts:"tirzepatide"},
+      {label:"Sermorelin", find:"serm|semor", ent:"mjs", price:100} ] },
+    { id:"pkg-body-comp", name:"Alpha Body Comp", active:true, components:[
+      {label:"TRT monthly", find:"^trt\\b|testosterone", ent:"mjs", price:175},
+      {label:"Tirzepatide 2.5mg to 7.5mg (rings as 7.5mg)", find:"tirzepatide\\D*7\\.5", ent:"mjs", price:300, counts:"tirzepatide\\D*(2\\.5|5|7\\.5)\\s*mg"},
+      {label:"Tesamorelin/Ipamorelin 12/3mg", find:"tesamorelin.*ipamorelin|tesa.*ipa", ent:"mjs", price:325},
+      {label:"Monthly membership", find:"membership", ent:"alpha", price:50} ] },
+    { id:"pkg-body-comp-plus", name:"Alpha Body Comp +", active:true, components:[
+      {label:"TRT monthly", find:"^trt\\b|testosterone", ent:"mjs", price:175},
+      {label:"Tirzepatide 2.5mg to 7.5mg (rings as 7.5mg)", find:"tirzepatide\\D*7\\.5", ent:"mjs", price:275, counts:"tirzepatide\\D*(2\\.5|5|7\\.5)\\s*mg"},
+      {label:"Tesamorelin/Ipamorelin 12/3mg", find:"tesamorelin.*ipamorelin|tesa.*ipa", ent:"mjs", price:325},
+      {label:"Monthly membership", find:"membership", ent:"alpha", price:50},
+      {label:"Creatine A-GPC", find:"creatine|a-?gpc", ent:"alpha", price:50},
+      {label:"Hormone Advantage", find:"hormone advantage", ent:"alpha", price:50},
+      {label:"Vitamin B Complex 12", find:"b.?complex|b-?12", ent:"alpha", price:30},
+      {label:"Super EPA", find:"super epa", ent:"alpha", price:45},
+      {label:"Mitopure", find:"mitopure", ent:"alpha", price:150} ] }
+  ];
+  var packages = load("alphaperf_packages", null);
+  function savePackages(){ store.set("alphaperf_packages", JSON.stringify(packages)); if(typeof schedulePush==="function") schedulePush(); }
+  if(!Array.isArray(packages)){ packages=JSON.parse(JSON.stringify(PKG_SEED)); savePackages(); }
+  var posPkgDeclined={};
+  function pkgById(id){ return packages.filter(function(x){return x.id===id;})[0]||null; }
+  function pkgProducts(){ ensureRegProducts(); var out=[]; ["mjs","alpha"].forEach(function(e){ (regProducts[e]||[]).forEach(function(p){ out.push({p:p, e:e}); }); }); return out; }
+  function pkgProd(name){ if(!name) return null; var all=pkgProducts(); for(var i=0;i<all.length;i++) if(all[i].p.name===name) return all[i]; return null; }
+  function pkgRx(s){ try{ return new RegExp(s,"i"); }catch(e){ return null; } }
+  // link a component to the best-matching catalog product the first time it is needed
+  function pkgResolve(c){
+    if(c.product && pkgProd(c.product)) return false;
+    var rx=pkgRx(c.find||""); if(!rx) return false;
+    var all=pkgProducts(), cands=all.filter(function(x){ return rx.test(x.p.name) && (!c.ent || x.e===c.ent); });
+    if(!cands.length) cands=all.filter(function(x){ return rx.test(x.p.name); });
+    if(!cands.length) return false;
+    var monthly=/monthly/i.test(c.label||"");
+    cands.sort(function(a,b){
+      var sa=(monthly&&/monthly/i.test(a.p.name)?-2:0)+(c.price!=null&&+a.p.price===+c.price?-1:0), sb=(monthly&&/monthly/i.test(b.p.name)?-2:0)+(c.price!=null&&+b.p.price===+c.price?-1:0);
+      return sa-sb || a.p.name.length-b.p.name.length;
+    });
+    c.product=cands[0].p.name; c.ent=cands[0].e; return true;
+  }
+  function pkgResolveAll(){ var ch=false; packages.forEach(function(pk){ (pk.components||[]).forEach(function(c){ if(pkgResolve(c)) ch=true; }); }); if(ch) savePackages(); }
+  function pkgCounts(c, name){ if(name===c.product) return true; var rx=c.counts?pkgRx(c.counts):null; return !!(rx && rx.test(name||"")); }
+  function pkgLine(c, pk, gid, prodName){
+    var pr=pkgProd(prodName||c.product);
+    var retail=(c.price==null||c.price==="") ? (pr?(+pr.p.price||0):0) : +c.price;
+    return { name:pr?pr.p.name:(c.product||c.label), retail:retail, cost:pr?(+pr.p.cost||0):0, qty:1, entity:pr?pr.e:(c.ent||"mjs"), cat:pr?(pr.p.cat||""):"",
+      pkg:{id:pk.id, name:pk.name, gid:gid}, listRetail:pr?(+pr.p.price||0):retail };
+  }
+  function pkgPriceText(pk){
+    var fixed=0, varies=false, reg=0;
+    (pk.components||[]).forEach(function(c){ var pr=pkgProd(c.product); if(c.price==null||c.price===""){ varies=true; } else fixed+=+c.price; if(pr) reg+=(+pr.p.price||0); });
+    return {price:fixed, varies:varies, regular:reg, save:varies?null:Math.max(0,Math.round((reg-fixed)*100)/100)};
+  }
+  function cartHasPkg(){ return posCart.some(function(l){ return !!l.pkg; }); }
+  function addPackageToCart(pk, dosePick){
+    if(!pk) return;
+    if(typeof posPromo!=="undefined" && posPromo){ toast("Remove the promotion first: a package can't be combined with a promotion"); return; }
+    pkgResolveAll();
+    var missing=(pk.components||[]).filter(function(c){ return !pkgProd(c.product); });
+    if(missing.length){ toast(pk.name+": link "+missing.map(function(c){return c.label;}).join(", ")+" to a product on the Promotions page first"); return; }
+    var pick=(pk.components||[]).filter(function(c){ return c.pickDose; })[0];
+    if(pick && !dosePick){ pkgChooseDose(pk, pick); return; }
+    var gid="g"+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+    (pk.components||[]).forEach(function(c){ posCart.push(pkgLine(c, pk, gid, c.pickDose?dosePick:null)); });
+    posCart.forEach(function(l){ l.discPct=0; l.discAmt=0; });
+    renderCart(); toast(pk.name+" added at package prices");
+  }
+  function pkgChooseDose(pk, c){
+    var rx=pkgRx(c.counts||c.find||""), opts=pkgProducts().filter(function(x){ return rx && rx.test(x.p.name); });
+    if(!opts.length){ toast("No "+c.label+" products found in the catalog"); return; }
+    gcModalShow(pk.name+": choose the dose", '<div class="gc-hint" style="margin:0 0 10px">'+esc(pk.note||"")+'</div>'+opts.map(function(x,i){ return '<button type="button" class="pkg-dose" data-pd="'+i+'"><span>'+esc(x.p.name)+'</span><b>$'+money(+x.p.price||0)+'</b></button>'; }).join(""), '<button class="btn-ghost" id="pkgDoseCancel" type="button">Cancel</button>');
+    $("pkgDoseCancel").onclick=gcModalClose;
+    Array.prototype.forEach.call(document.querySelectorAll("[data-pd]"),function(b){ b.onclick=function(){ var x=opts[+b.getAttribute("data-pd")]; gcModalClose(); addPackageToCart(pk, x.p.name); }; });
+  }
+  function removePkgGroup(gid){ posCart=posCart.filter(function(l){ return !(l.pkg && l.pkg.gid===gid); }); }
+  // items rung separately that together make a package: offer the package
+  function pkgDetect(){
+    if(!posCart.length || ($("gcModal") && $("gcModal").classList.contains("show"))) return;
+    if(typeof posPromo!=="undefined" && posPromo) return;
+    pkgResolveAll();
+    var loose=posCart.map(function(l,i){ return {l:l,i:i}; }).filter(function(x){ return !x.l.pkg && !x.l.gcSell; });
+    var list=packages.filter(function(pk){ return pk.active!==false && (pk.components||[]).length; }).sort(function(a,b){ return b.components.length-a.components.length; });
+    for(var k=0;k<list.length;k++){
+      var pk=list[k], used=[], match=[];
+      var all=pk.components.every(function(c){
+        var hit=loose.filter(function(x){ return used.indexOf(x.i)<0 && pkgCounts(c, x.l.name); })[0];
+        if(!hit) return false; used.push(hit.i); match.push({c:c, x:hit}); return true;
+      });
+      if(!all) continue;
+      var sig=pk.id+":"+used.slice().sort().join(",");
+      if(posPkgDeclined[sig]) continue;
+      var reg=0, price=0;
+      match.forEach(function(m){ reg+=m.x.l.retail; var ln=pkgLine(m.c, pk, "x", m.c.pickDose?m.x.l.name:null); price+=ln.retail; });
+      reg=Math.round(reg*100)/100; price=Math.round(price*100)/100;
+      if(price>=reg-0.004){ continue; }
+      pkgOffer(pk, match, used, sig, reg, price); return;
+    }
+  }
+  function pkgOffer(pk, match, used, sig, reg, price){
+    var body='<div class="cc-lead">These items make up the <b>'+esc(pk.name)+'</b> package:</div>'+
+      '<ul class="pkg-ul">'+match.map(function(m){ return '<li>'+esc(m.x.l.name)+'</li>'; }).join("")+'</ul>'+
+      '<div class="pkg-offer"><div>Separately <s>$'+money(reg)+'</s></div><div class="pkg-offer-p">Package $'+money(price)+'</div><div class="pkg-offer-s">Saves $'+money(reg-price)+'</div></div>'+
+      '<div class="gc-hint">The package price replaces any other discount on this sale.</div>';
+    gcModalShow("Use the "+pk.name+" package?", body, '<button class="btn-ghost" id="pkgNo" type="button">Keep separate</button><button class="btn-primary" id="pkgYes" type="button">Use package price</button>');
+    $("pkgNo").onclick=function(){ posPkgDeclined[sig]=1; gcModalClose(); };
+    $("pkgYes").onclick=function(){
+      gcModalClose();
+      var gid="g"+Date.now().toString(36)+Math.random().toString(36).slice(2,5), add=[];
+      match.forEach(function(m){ add.push(pkgLine(m.c, pk, gid, m.c.pickDose?m.x.l.name:null)); });
+      used.forEach(function(i){ var l=posCart[i]; if(l.qty>1) l.qty--; else l._drop=true; });
+      posCart=posCart.filter(function(l){ return !l._drop; }).concat(add);
+      posCart.forEach(function(l){ l.discPct=0; l.discAmt=0; });
+      if($("posDiscount")) $("posDiscount").value=""; if($("posDiscountAmt")) $("posDiscountAmt").value="";
+      renderCart(); toast(pk.name+" package applied");
+    };
+  }
+  function renderPosPkg(){
+    var sel=$("posPkgSel"); if(!sel) return;
+    var cur=sel.value, act=packages.filter(function(pk){ return pk.active!==false; });
+    sel.innerHTML='<option value="">Choose a package</option>'+act.map(function(pk){ var t=pkgPriceText(pk); return '<option value="'+esc(pk.id)+'">'+esc(pk.name)+(t.varies?' (varies)':' $'+money(t.price))+'</option>'; }).join("");
+    if(act.some(function(pk){return pk.id===cur;})) sel.value=cur;
+    var has=cartHasPkg(), info=$("posPkgInfo");
+    info.style.display=has?"block":"none";
+    if(has){ var names={}; posCart.forEach(function(l){ if(l.pkg) names[l.pkg.name]=1; }); info.innerHTML='<b>'+esc(Object.keys(names).join(", "))+'</b> at package prices. No other discount can be added.'; }
+    // lock every discount control while a package is in the cart
+    ["posDiscount","posDiscountAmt"].forEach(function(id){ var el=$(id); if(el){ el.disabled=has; if(has) el.value=""; } });
+    var mode=$("posDiscMode"); if(mode && !(typeof posPromo!=="undefined" && posPromo)){ mode.style.pointerEvents=has?"none":""; mode.style.opacity=has?".45":""; }
+    var pa=$("posPromoApply"); if(pa) pa.disabled=has;
+  }
+  // package editor (Promotions page)
+  function renderPackagesCard(){
+    var el=$("pkgList"); if(!el) return;
+    pkgResolveAll();
+    el.innerHTML=packages.map(function(pk){
+      var t=pkgPriceText(pk), miss=(pk.components||[]).filter(function(c){ return !pkgProd(c.product); }).length;
+      var ents={}; (pk.components||[]).forEach(function(c){ var pr=pkgProd(c.product); var e=pr?pr.e:c.ent; ents[e]=(ents[e]||0)+(c.price==null||c.price===""?0:+c.price); });
+      var split=Object.keys(ents).map(function(e){ return (e==="alpha"?"Alpha":"MJS")+(t.varies?"":" $"+money(ents[e])); }).join(" · ");
+      return '<div class="pr-card" data-pkid="'+esc(pk.id)+'"><div class="pr-head"><div class="pr-name">'+esc(pk.name)+'</div><span class="gc-chip gc-'+(pk.active!==false?'open':'void')+'">'+(pk.active!==false?'On':'Off')+'</span></div>'+
+        '<div class="pr-ben"><span class="gc-tag">'+(t.varies?'Price varies with dose':'$'+money(t.price))+'</span>'+'<span class="gc-tag">'+esc(split)+'</span></div>'+
+        '<div class="pr-rules">'+(pk.components||[]).map(function(c){ return esc(c.label)+(c.price==null||c.price===""?' (regular price)':' $'+money(+c.price)); }).join(" · ")+'</div>'+
+        (miss?'<div class="gc-bad" style="font-size:12.5px">'+miss+' item'+(miss>1?'s':'')+' not linked to a catalog product yet. Tap to fix.</div>':'')+'</div>';
+    }).join("");
+    Array.prototype.forEach.call(el.querySelectorAll("[data-pkid]"),function(c){ c.onclick=function(){ openPkgEditor(c.getAttribute("data-pkid")); }; });
+  }
+  function openPkgEditor(id){
+    var pk=pkgById(id); if(!pk) return;
+    var draft=JSON.parse(JSON.stringify(pk)), all=pkgProducts();
+    var optsHtml=function(sel){ return '<option value="">Not linked</option>'+["mjs","alpha"].map(function(e){ return '<optgroup label="'+(e==="alpha"?"Alpha":"MJS")+'">'+all.filter(function(x){return x.e===e;}).map(function(x){ return '<option value="'+esc(x.p.name)+'"'+(x.p.name===sel?' selected':'')+'>'+esc(x.p.name)+' ($'+money(+x.p.price||0)+')</option>'; }).join("")+'</optgroup>'; }).join(""); };
+    function paint(){
+      $("pkgComps").innerHTML=draft.components.map(function(c,i){
+        return '<div class="pkg-erow"><div class="pkg-elabel">'+esc(c.label)+'</div><select data-pkp="'+i+'">'+optsHtml(c.product)+'</select>'+
+          '<input type="number" min="0" step="0.01" data-pkm="'+i+'" value="'+(c.price==null?"":c.price)+'" placeholder="Regular" inputmode="decimal"></div>';
+      }).join("");
+      Array.prototype.forEach.call(document.querySelectorAll("[data-pkp]"),function(s){ s.onchange=function(){ var c=draft.components[+s.getAttribute("data-pkp")], pr=pkgProd(s.value); c.product=s.value||""; if(pr) c.ent=pr.e; }; });
+      Array.prototype.forEach.call(document.querySelectorAll("[data-pkm]"),function(inp){ inp.oninput=function(){ var v=inp.value.trim(); draft.components[+inp.getAttribute("data-pkm")].price = v===""?null:Math.max(0,parseFloat(v)||0); }; });
+    }
+    gcModalShow("Edit package", '<div class="pos-field"><label>Name</label><input type="text" id="pkgName" value="'+esc(draft.name)+'"></div>'+
+      (draft.note?'<div class="gc-hint" style="margin-bottom:8px">'+esc(draft.note)+'</div>':'')+
+      '<div class="pos-field"><label>Items: catalog product and package price (blank = regular price)</label><div id="pkgComps"></div></div>'+
+      '<label class="pr-check"><input type="checkbox" id="pkgActive"'+(draft.active!==false?' checked':'')+'> Package is on</label>'+
+      '<div class="gc-hint">Each item posts to the company of its product. A package can’t be combined with other discounts or promotions.</div>',
+      '<button class="btn-ghost" id="pkgCancel" type="button">Cancel</button><button class="btn-primary" id="pkgSave" type="button">Save</button>');
+    paint();
+    $("pkgCancel").onclick=gcModalClose;
+    $("pkgSave").onclick=function(){ draft.name=($("pkgName").value||"").trim()||pk.name; draft.active=$("pkgActive").checked; packages[packages.indexOf(pk)]=draft; savePackages(); gcModalClose(); renderPackagesCard(); renderPosPkg(); toast("Package saved"); };
+  }
+  function wirePackages(){
+    // the new product from the 3 Nov list
+    try{ ensureRegProducts(); var nm="Tesamorelin/Ipamorelin 12/3mg (0.6/150ug)";
+      if(!pkgProd(nm)){ regProducts.mjs.push({id:pid(), name:nm, price:375, cost:122, cat:"Treatment"}); saveRegProducts(); } }catch(e){}
+    pkgResolveAll();
+    $("posPkgAdd").onclick=function(){ var pk=pkgById($("posPkgSel").value); if(!pk){ toast("Choose a package"); return; } addPackageToCart(pk); $("posPkgSel").value=""; };
+  }
   // ---------- Promotions: register + page ----------
   var posPromo=null; // {id, clientId, override, cardOk}
   function promoIsConsultLine(l){ return !l.gcSell && /consult/i.test(l.name||""); }
@@ -3613,6 +3814,7 @@ window.startClinicApp = function(){
     renderPosPromo();
   }
   function applyPosPromo(){
+    if(cartHasPkg()){ toast("A promotion can't be combined with a package"); return; }
     var pr=promoById($("posPromoSel").value), p=posClientId?findPatient(posClientId):null;
     var cardOk=$("posPromoCard")&&$("posPromoCard").checked;
     if(!pr){ toast("Choose a promotion"); return; }
@@ -3649,6 +3851,7 @@ window.startClinicApp = function(){
   }
   function promoBenefitText(b){ return (PROMO_KINDS[b.kind]||b.kind)+": "+(b.type==="pct"?(+b.value||0)+"% off":"$"+money(+b.value||0)+" off"); }
   function renderPromos(){
+    renderPackagesCard();
     var all=promos.slice(), tot={n:promoUses.length, disc:promoUses.reduce(function(s,u){return s+(+u.discount||0);},0), blocked:promoAttempts.filter(function(a){return !a.overridden;}).length};
     $("prStats").innerHTML=
       '<div class="inv-stat"><div class="inv-stat-val">'+all.filter(function(x){return promoWindow(x)==="live";}).length+'</div><div class="inv-stat-lbl">Live promotions</div></div>'+
@@ -3936,7 +4139,7 @@ window.startClinicApp = function(){
     inventory:["Items","Products & services"],
     register:["Register","Point of sale"],
     giftcerts:["Gift Certificates","Issue, track and redeem certificates"],
-    promos:["Promotions","Offers, redemptions and misuse checks"],
+    promos:["Promotions","Packages, offers, redemptions and misuse checks"],
     expenses:["Expenses","Record business costs"],
     gl:["General Ledger","Double-entry transactions"],
     coa:["Chart of Accounts","Your account structure"],
@@ -5217,7 +5420,9 @@ window.startClinicApp = function(){
     var el=$("posCart");
     if(posPromo) promoReapply();
     var perItem = posDiscMode==="item";
-    var _lk = posPromo ? " disabled" : "";
+    var _hasPkg = cartHasPkg();
+    if(_hasPkg){ posCart.forEach(function(l){ l.discPct=0; l.discAmt=0; }); if($("posDiscount")) $("posDiscount").value=""; if($("posDiscountAmt")) $("posDiscountAmt").value=""; }
+    var _lk = (posPromo || _hasPkg) ? " disabled" : "";
     if(!posCart.length){ el.innerHTML='<div class="pos-cart-empty">No items yet — add treatments or an item above.</div>'; }
     else {
       el.innerHTML=posCart.map(function(l,i){
@@ -5231,13 +5436,14 @@ window.startClinicApp = function(){
             '<input type="number" class="cart-disc-amt" data-cdamt="'+i+'" value="'+(l.discAmt||"")+'" placeholder="$ off" min="0" step="0.01" inputmode="decimal"'+_lk+'>'+
             (d>0?'<span class="cart-disc-tag">−$'+money(d)+'</span>':'')+(l.promo?'<span class="cart-disc-tag cart-promo-tag">Promo</span>':'')+'</div>'
           : '';
-        return '<div class="cart-wrap"><div class="cart-line"><span class="cart-name">'+etag+esc(l.name)+'</span>'+
-          (l.gcSell?'<span class="cart-qty"><span>1</span></span>':'<span class="cart-qty"><button data-cq="'+i+'|-">−</button><span>'+l.qty+'</span><button data-cq="'+i+'|+">+</button></span>')+
+        var pkgTag = l.pkg ? '<span class="cart-pkg-tag">'+esc(l.pkg.name)+(l.listRetail>l.retail?' \u00b7 reg $'+money(l.listRetail):'')+'</span>' : '';
+        return '<div class="cart-wrap'+(l.pkg?' cart-in-pkg':'')+'"><div class="cart-line"><span class="cart-name">'+etag+esc(l.name)+pkgTag+'</span>'+
+          ((l.gcSell||l.pkg)?'<span class="cart-qty"><span>1</span></span>':'<span class="cart-qty"><button data-cq="'+i+'|-">−</button><span>'+l.qty+'</span><button data-cq="'+i+'|+">+</button></span>')+
           priceCell+
           '<button class="cart-del" data-crm="'+i+'" aria-label="Remove"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>'+discRow+'</div>';
       }).join("");
       Array.prototype.forEach.call(el.querySelectorAll("[data-cq]"),function(b){ b.onclick=function(){ var p=b.getAttribute("data-cq").split("|"); var i=+p[0]; posCart[i].qty=Math.max(1, posCart[i].qty+(p[1]==="+"?1:-1)); renderCart(); }; });
-      Array.prototype.forEach.call(el.querySelectorAll("[data-crm]"),function(b){ b.onclick=function(){ posCart.splice(+b.getAttribute("data-crm"),1); renderCart(); }; });
+      Array.prototype.forEach.call(el.querySelectorAll("[data-crm]"),function(b){ b.onclick=function(){ var l=posCart[+b.getAttribute("data-crm")]; if(l && l.pkg){ removePkgGroup(l.pkg.gid); toast(l.pkg.name+" package removed"); } else posCart.splice(+b.getAttribute("data-crm"),1); renderCart(); }; });
       Array.prototype.forEach.call(el.querySelectorAll("[data-cdpct]"),function(s){ s.onchange=function(){ posCart[+s.getAttribute("data-cdpct")].discPct=+s.value||0; renderCart(); }; });
       Array.prototype.forEach.call(el.querySelectorAll("[data-cdamt]"),function(inp){ inp.onchange=function(){ posCart[+inp.getAttribute("data-cdamt")].discAmt=Math.max(0,parseFloat(inp.value)||0); renderCart(); }; });
     }
@@ -5262,7 +5468,9 @@ window.startClinicApp = function(){
       '<div class="pos-tot-row grand"><span>Total</span><span>$'+money(total)+'</span></div>'+gcTotRows();
     renderPosGc();
     renderPosPromo();
+    renderPosPkg();
     updateMembAlert();
+    clearTimeout(window.__pkgDetT); window.__pkgDetT=setTimeout(function(){ try{ pkgDetect(); }catch(e){} }, 350);
     if(posSplitActive){ if(posSplitMode==="item") renderSplit(); else renderSplitSummary(); }
   }
   function hasMembershipInCart(){ return posCart.some(function(l){ return l.cat==="Membership" || /membership|dues/i.test(l.name); }); }
@@ -5413,6 +5621,10 @@ window.startClinicApp = function(){
       var _pd=promoCartDiscount();
       if(_pd<=0){ toast("Nothing in the cart qualifies for "+_pr.name+". Add the consult or item, or remove the promotion."); return; }
       promoRec={pr:_pr, disc:_pd, lines:posCart.filter(function(l){return l.promo;}).map(function(l){return l.name;})};
+    }
+    if(cartHasPkg()){
+      if(posPromo){ toast("A promotion can't be combined with a package. Remove one of them."); return; }
+      posCart.forEach(function(l){ l.discPct=0; l.discAmt=0; }); $("posDiscount").value=""; $("posDiscountAmt").value="";
     }
     var saleDate = (p && $("posVisitDate") && $("posVisitDate").value) ? $("posVisitDate").value : todayISO();
     var perItemDisc = posDiscMode==="item";
@@ -5570,7 +5782,7 @@ window.startClinicApp = function(){
     }
     if(window.__hipAudit) window.__hipAudit("sale", p?p.id:"walk-in");
     decrementInventoryForSale(posCart);
-    posPromo=null; if($("posPromoCard")) $("posPromoCard").checked=false; if($("posPromoSel")) $("posPromoSel").value="";
+    posPromo=null; posPkgDeclined={}; if($("posPromoCard")) $("posPromoCard").checked=false; if($("posPromoSel")) $("posPromoSel").value="";
     posCart=[]; posGC=null; if($("posGcNum")) $("posGcNum").value=""; $("posDiscount").value=""; $("posDiscountAmt").value=""; if(posSplitActive) toggleSplit(false); if(posDiscMode==="item") setDiscMode("order"); setPosClient(""); renderCart();
     if(p) renderAll();
     try{ if(window.__syncCommit) window.__syncCommit("sale"); }catch(e){}   // push on commit; the sale is already saved locally either way
@@ -6450,7 +6662,7 @@ window.startClinicApp = function(){
     $("posComplete").onclick=function(){ completeSale(); };
     if($("posCancel")) $("posCancel").onclick=function(){
       if(!posCart.length && !posClientId){ toast("Nothing to cancel"); return; }
-      posPromo=null; if($("posPromoCard")) $("posPromoCard").checked=false; if($("posPromoSel")) $("posPromoSel").value="";
+      posPromo=null; posPkgDeclined={}; if($("posPromoCard")) $("posPromoCard").checked=false; if($("posPromoSel")) $("posPromoSel").value="";
       posCart=[]; posGC=null; if($("posGcNum")) $("posGcNum").value=""; $("posDiscount").value=""; $("posDiscountAmt").value="";
       if(posSplitActive) toggleSplit(false);
       if(posDiscMode==="item") setDiscMode("order");
@@ -7701,7 +7913,7 @@ window.startClinicApp = function(){
       app:"AlphaPerformance", schema:4, exportedAt:new Date().toISOString(),
       members:members, tiers:tiers, patients:patients, treatments:treatments,
       visitTypes:visitTypes, discounts:discounts, pricing:treatmentPricing, settings:settings,
-      txns:txns, giftcerts:giftcerts, promos:promos, promoUses:promoUses, promoAttempts:promoAttempts, regProducts:regProducts,
+      txns:txns, giftcerts:giftcerts, promos:promos, promoUses:promoUses, promoAttempts:promoAttempts, packages:packages, regProducts:regProducts,
       books:{ accounts:{ mjs:load("alphaperf_accounts_mjs",[]), alpha:load("alphaperf_accounts_alpha",[]) },
               journals:{ mjs:load("alphaperf_journals_mjs",[]), alpha:load("alphaperf_journals_alpha",[]) } },
       bookslock:booksLock
@@ -7744,6 +7956,7 @@ window.startClinicApp = function(){
           patients.forEach(function(p){ if(!Array.isArray(p.visitLog)) p.visitLog=[]; if(!Array.isArray(p.treatments)) p.treatments=[]; });
           if(Array.isArray(data.txns)){ txns=data.txns; store.set("alphaperf_txns", JSON.stringify(txns)); }
           if(Array.isArray(data.giftcerts)){ giftcerts=data.giftcerts; store.set("alphaperf_giftcerts", JSON.stringify(giftcerts)); }
+          if(Array.isArray(data.packages)){ packages=data.packages; savePackages(); }
           if(Array.isArray(data.promos)){ promos=data.promos; savePromos(); } if(Array.isArray(data.promoUses)){ promoUses=data.promoUses; savePromoUses(); } if(Array.isArray(data.promoAttempts)){ promoAttempts=data.promoAttempts; savePromoAttempts(); }
           if(data.regProducts){ ensureRegProducts();
             if(Array.isArray(data.regProducts.mjs)) regProducts.mjs=data.regProducts.mjs;
@@ -7798,7 +8011,7 @@ window.startClinicApp = function(){
   function serializeState(){
     return { v:4, tiers:tiers, patients:patients, treatments:treatments, visitTypes:visitTypes, discounts:discounts, pricing:treatmentPricing,
              settings:{ name:settings.name, accent:settings.accent, followupDays:settings.followupDays },
-             txns:txns, giftcerts:giftcerts, promos:promos, promoUses:promoUses, promoAttempts:promoAttempts,
+             txns:txns, giftcerts:giftcerts, promos:promos, promoUses:promoUses, promoAttempts:promoAttempts, packages:packages,
              regProducts:(ensureRegProducts(), regProducts),
              books:{ accounts:{ mjs:load("alphaperf_accounts_mjs",[]), alpha:load("alphaperf_accounts_alpha",[]) },
                      journals:{ mjs:load("alphaperf_journals_mjs",[]), alpha:load("alphaperf_journals_alpha",[]) } },
@@ -7848,6 +8061,7 @@ window.startClinicApp = function(){
     }
     if(Array.isArray(d.txns)){ txns=d.txns; store.set("alphaperf_txns", JSON.stringify(txns)); }
     if(Array.isArray(d.giftcerts)){ giftcerts=d.giftcerts; store.set("alphaperf_giftcerts", JSON.stringify(giftcerts)); }
+    if(Array.isArray(d.packages)){ packages=d.packages; store.set("alphaperf_packages", JSON.stringify(packages)); }
     if(Array.isArray(d.promos)){ promos=d.promos; store.set("alphaperf_promos", JSON.stringify(promos)); } if(Array.isArray(d.promoUses)){ promoUses=d.promoUses; store.set("alphaperf_promouses", JSON.stringify(promoUses)); } if(Array.isArray(d.promoAttempts)){ promoAttempts=d.promoAttempts; store.set("alphaperf_promoattempts", JSON.stringify(promoAttempts)); }
     if(d.regProducts){ ensureRegProducts();
       if(Array.isArray(d.regProducts.mjs)) regProducts.mjs=d.regProducts.mjs;
@@ -8138,6 +8352,7 @@ window.startClinicApp = function(){
   });
   wireGiftCerts();
   wirePromos();
+  wirePackages();
   // ---- per-record sync support ----
   // every synced record needs a stable, unique id (older imports may lack one)
   (function ensureRecordIds(){
@@ -9554,7 +9769,7 @@ window.startClinicApp = function(){
     put("alphaperf_pricing", data.pricing);
     put("alphaperf_txns", data.txns);
     put("alphaperf_giftcerts", data.giftcerts);
-    put("alphaperf_promos", data.promos); put("alphaperf_promouses", data.promoUses); put("alphaperf_promoattempts", data.promoAttempts);
+    put("alphaperf_packages", data.packages); put("alphaperf_promos", data.promos); put("alphaperf_promouses", data.promoUses); put("alphaperf_promoattempts", data.promoAttempts);
     if(data.settings){ var s; try{ s=JSON.parse(JSON.stringify(data.settings)); }catch(e){ s={}; } delete s.supabaseUrl; delete s.supabaseKey; put("alphaperf_settings", s); }
     if(data.regProducts){ put("alphaperf_regprod_mjs", data.regProducts.mjs); put("alphaperf_regprod_alpha", data.regProducts.alpha); }
     if(data.books){
