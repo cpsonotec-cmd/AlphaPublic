@@ -741,7 +741,29 @@
   .pkg-totals>div>b{font-family:'Space Grotesk',sans-serif;font-size:24px}
   .pkg-totals .pkg-save{color:#166534}
   .pkg-totals .pkg-tsub{font-size:12.5px;color:#78350F;flex-wrap:wrap}
-  .pkg-actions{display:flex;gap:10px;align-items:center;margin-top:12px}
+  .pkg-actions{display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap}
+  .sub-step{border-top:1px solid var(--line);padding:14px 0 6px}
+  .sub-sh{font-weight:700;font-size:15px;margin-bottom:10px}
+  .sub-client{font-size:15px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .sub-csearch{position:relative}
+  .sub-in,.sub-sel,#subClientQ{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font-size:15px;background:var(--card);color:var(--ink);margin-bottom:8px;box-sizing:border-box}
+  .sub-qty{width:64px;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:14px;background:var(--card);color:var(--ink)}
+  .sub-addr3{display:grid;grid-template-columns:2fr .7fr 1fr;gap:8px}
+  .sub-card4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  @media(max-width:620px){ .sub-card4{grid-template-columns:1fr 1fr} }
+  .sub-warn{background:#FEF3C7;color:#78350F;border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.45;margin-bottom:12px}
+  .sub-terms{background:var(--canvas);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:13.5px;line-height:1.55;margin-bottom:10px}
+  .sub-agreed{background:#DCFCE7;color:#14532D;border-radius:10px;padding:12px 14px;font-size:13.5px;line-height:1.5}
+  .sub-agreed details{margin:8px 0}
+  .sub-err{color:#991B1B;font-weight:600;font-size:13.5px;min-height:1px;margin:6px 0}
+  .sub-mini{padding:6px 10px;font-size:12.5px}
+  .sub-actions{margin-top:8px}
+  .sub-actions .btn-primary{padding:10px 14px}
+  .sub-frow{cursor:default;flex-wrap:wrap}
+  .sub-track{padding:9px 10px;border:1px solid var(--line);border-radius:9px;font-size:13px;background:var(--card);color:var(--ink);width:170px}
+  .sub-done{padding:9px 13px}
+  .sub-confirm{font-weight:600}
+  .sub-ccnote{margin-top:8px;padding:8px 10px;border-radius:9px;background:#DCFCE7;color:#14532D;font-size:13.5px}
   #pkgPage .pos-field label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:6px}
   #pkgPage #pkgName{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font-size:15px;background:var(--card);color:var(--ink)}
   .pkg-offer{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;padding:12px 14px;border-radius:12px;background:#FEF3C7;margin-bottom:8px;font-size:14px}
@@ -1317,6 +1339,7 @@
       <a class="nav-link" data-view="giftcerts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M12 8v13M3 12h18M12 8c-2-4-6-3-5 0 .5 1.5 3 1.5 5 0zM12 8c2-4 6-3 5 0-.5 1.5-3 1.5-5 0z"/></svg><span>Gift Certificates</span></a>
       <a class="nav-link" data-view="promos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4l-7.2 7.2a2 2 0 01-2.8 0L3 13V3h10l7.6 7.6a2 2 0 010 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg><span>Promotions</span></a>
       <a class="nav-link" data-view="packages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><path d="M3.3 7L12 12l8.7-5M12 22V12"/></svg><span>Packages</span></a>
+      <a class="nav-link" data-view="subs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-3-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M12 7v5l3 2"/></svg><span>Subscriptions</span></a>
       <a class="nav-link" data-view="reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="4" width="3" height="14"/></svg><span>Analytics</span></a>
       <button class="nav-acct-head" id="acctHead" type="button">
         <span>Accounting</span>
@@ -1735,6 +1758,7 @@
     </div>
   </div>
   <div id="packagesView" style="display:none"><div id="pkgPage"></div></div>
+  <div id="subsView" style="display:none"><div id="subsPage"></div></div>
   <div id="promosView" style="display:none">
     <div class="rep-card"><div class="inv-statgrid" id="prStats"></div></div>
     <div class="rep-card">
@@ -3693,6 +3717,266 @@ window.startClinicApp = function(){
     $("cgWaive").onclick=function(){ openConsultWaive(function(){ completeSale(); }); };
     return true;
   }
+  // ---------- Subscriptions: monthly supplement shipments ----------
+  // Card safety: the full card number and CVV are never stored here. The card is saved in the
+  // payment processor (card on file); this app keeps only brand, last 4, expiry and where it is saved.
+  var subs = load("alphaperf_subs", []); if(!Array.isArray(subs)) subs=[];
+  function saveSubs(){ store.set("alphaperf_subs", JSON.stringify(subs)); if(typeof schedulePush==="function") schedulePush(); }
+  var SUB_DISC=5, SUB_PROCESSORS=["QuickBooks Payments","Square","Stripe","Card terminal","Other"];
+  var subEdit=null, posSubCharge=null, subFilter="due";
+  function subById(id){ for(var i=0;i<subs.length;i++) if(subs[i].id===id) return subs[i]; return null; }
+  function subProd(name, ent){ ensureRegProducts(); var h=null; ["mjs","alpha"].forEach(function(e){ if(ent && e!==ent) return; (regProducts[e]||[]).forEach(function(p){ if(!h && p.name===name) h={p:p,e:e}; }); }); return h || (ent?subProd(name):null); }
+  function subIsSupp(pr){ return !!pr && (pr.p.cat==="Supplement"); }
+  function subLines(s){
+    return (s.items||[]).map(function(it){
+      var pr=subProd(it.name, it.entity), price=pr?(+pr.p.price||0):0, qty=Math.max(1,+it.qty||1), supp=subIsSupp(pr);
+      var gross=Math.round(price*qty*100)/100, disc=supp?Math.round(gross*SUB_DISC)/100:0;
+      return {name:it.name, entity:pr?pr.e:(it.entity||"mjs"), qty:qty, price:price, cost:pr?(+pr.p.cost||0):0, cat:pr?(pr.p.cat||""):"", supp:supp, gross:gross, disc:disc, net:Math.round((gross-disc)*100)/100, missing:!pr};
+    });
+  }
+  function subTotals(s){ var t={gross:0,disc:0,net:0,ents:{}}; subLines(s).forEach(function(l){ t.gross+=l.gross; t.disc+=l.disc; t.net+=l.net; t.ents[l.entity]=(t.ents[l.entity]||0)+l.net; }); ["gross","disc","net"].forEach(function(k){ t[k]=Math.round(t[k]*100)/100; }); return t; }
+  function subDayFor(y, m, day){ var last=new Date(y, m+1, 0).getDate(); return y+"-"+pad(m+1)+"-"+pad(Math.min(day,last)); }
+  function subNextFrom(iso, day, includeSame){
+    var d=parseISO(iso)||new Date(), y=d.getFullYear(), m=d.getMonth(), c=subDayFor(y,m,day);
+    if(includeSame ? c>=iso : c>iso) return c;
+    m++; if(m>11){ m=0; y++; } return subDayFor(y,m,day);
+  }
+  function subCardExpired(c){ if(!c||!/^\d{2}\/\d{2}$/.test(c.exp||"")) return true; var mm=+c.exp.slice(0,2), yy=2000+(+c.exp.slice(3)); var now=new Date(); return yy<now.getFullYear() || (yy===now.getFullYear() && mm<now.getMonth()+1); }
+  function subIsDue(s){ return s.status==="active" && s.nextDate && s.nextDate<=todayISO(); }
+  function subOpenFulfil(s){ return (s.history||[]).filter(function(h){ return !h.doneAt; }); }
+  function subProblems(s){
+    var out=[];
+    if(!findPatient(s.clientId)) out.push("Client not found");
+    if(!(s.items||[]).length) out.push("No items");
+    if(subLines(s).some(function(l){ return l.missing; })) out.push("An item is no longer in the catalog");
+    if(!s.card || !/^\d{4}$/.test(s.card.last4||"")) out.push("No card on file");
+    else if(subCardExpired(s.card)) out.push("Card expired ("+s.card.exp+")");
+    if(!s.consent || !s.consent.at) out.push("Customer has not agreed yet");
+    if(s.fulfillment==="ship" && !(s.address && s.address.line1 && s.address.zip)) out.push("No shipping address");
+    if(s.fulfillment==="ship" && !s.addrConfirmedAt) out.push("Address not confirmed with the customer");
+    return out;
+  }
+  function subAddrText(a){ if(!a) return ""; return [a.line1, a.line2, [a.city, [a.state, a.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ")].filter(Boolean).join(", "); }
+  function subHasCardNumber(v){ return /\d[\d \-]{10,}\d/.test(String(v||"")) && String(v).replace(/\D/g,"").length>=12; }
+  function subConsentText(s, p){
+    var t=subTotals(s), ents=Object.keys(t.ents).map(function(e){ return e==="alpha"?"Alpha Male Health Restoration":"MJS Medical Wellness"; }).join(" and ");
+    var items=subLines(s).map(function(l){ return l.name+(l.qty>1?" x"+l.qty:""); }).join(", ");
+    var how = s.fulfillment==="ship" ? "shipped to "+subAddrText(s.address) : "held for pickup at the office";
+    var card = s.card ? (s.card.brand||"card")+" ending "+(s.card.last4||"____") : "my card on file";
+    return "I, "+(p?p.name:"the customer")+", sign up for a monthly supplement subscription and authorize "+(ents||"the clinic")+" to charge my "+card+
+      " $"+money(t.net)+" each month, on or about day "+s.day+" of the month, starting "+fmtDate(parseISO(s.nextDate))+". The order ("+items+") will be "+how+
+      ". Supplements in the subscription are "+SUB_DISC+"% off the regular price. If prices change, I will be told before the next charge. I can change, pause or cancel at any time by contacting the office before my next charge date.";
+  }
+  function renderSubsPage(){
+    var el=$("subsPage"); if(!el) return;
+    if(subEdit){ renderSubEditor(); return; }
+    var today=todayISO();
+    var due=subs.filter(subIsDue), open=[], act=subs.filter(function(s){ return s.status==="active"; }), off=subs.filter(function(s){ return s.status!=="active"; });
+    subs.forEach(function(s){ subOpenFulfil(s).forEach(function(h){ open.push({s:s,h:h}); }); });
+    var tabs=[["due","Due to charge",due.length],["fulfil","To ship / pick up",open.length],["active","Active",act.length],["off","Paused / cancelled",off.length]];
+    function card(s){
+      var p=findPatient(s.clientId), t=subTotals(s), pr=subProblems(s);
+      var chip = s.status==="active" ? '<span class="gc-chip gc-open">Active</span>' : '<span class="gc-chip gc-void">'+(s.status==="paused"?"Paused":"Cancelled")+'</span>';
+      return '<div class="pr-card sub-card" data-subid="'+esc(s.id)+'"><div class="pr-head"><div class="pr-name">'+esc(p?p.name:(s.clientName||"Unknown client"))+'</div>'+chip+'</div>'+
+        '<div class="pkg-sum"><span>Monthly <b>$'+money(t.net)+'</b></span><span>'+(s.fulfillment==="ship"?"Ships":"Pickup")+' on day '+s.day+'</span><span>Next '+(s.status==="active"&&s.nextDate?fmtDate(parseISO(s.nextDate)):"—")+'</span>'+(s.card&&s.card.last4?'<span>'+esc(s.card.brand||"Card")+' ••'+esc(s.card.last4)+'</span>':'')+'</div>'+
+        '<div class="pr-rules">'+esc(subLines(s).map(function(l){ return l.name+(l.qty>1?" ×"+l.qty:""); }).join(", "))+'</div>'+
+        (pr.length&&s.status==="active"?'<div class="gc-bad" style="font-size:12.5px">'+esc(pr.join(" · "))+'</div>':'')+
+        (subIsDue(s)?'<div class="sub-actions"><button type="button" class="btn-primary sub-charge" data-subcharge="'+esc(s.id)+'"'+(pr.length?' disabled':'')+'>Charge $'+money(t.net)+' now</button></div>':'')+
+      '</div>';
+    }
+    var body;
+    if(subFilter==="due") body = due.length ? due.map(card).join("") : '<div class="pos-cart-empty">Nothing to charge today.</div>';
+    else if(subFilter==="fulfil") body = open.length ? open.map(function(o){ var p=findPatient(o.s.clientId);
+        return '<div class="gc-row sub-frow"><div class="gc-r-main"><div class="gc-r-num">'+esc(p?p.name:"Unknown client")+'</div><div class="gc-r-sub">'+(o.h.how==="ship"?"Ship to "+esc(o.h.address||""):"Pickup at the office")+' · charged '+fmtDate(parseISO(o.h.date))+' · $'+money(o.h.total)+'</div></div>'+
+          (o.h.how==="ship"?'<input type="text" class="sub-track" data-subtrack="'+esc(o.s.id)+'|'+esc(o.h.id)+'" placeholder="Tracking # (optional)">':'')+
+          '<button type="button" class="btn-primary sub-done" data-subdone="'+esc(o.s.id)+'|'+esc(o.h.id)+'">'+(o.h.how==="ship"?"Mark shipped":"Picked up")+'</button></div>'; }).join("") : '<div class="pos-cart-empty">Nothing waiting to ship or be picked up.</div>';
+    else if(subFilter==="active") body = act.length ? act.map(card).join("") : '<div class="pos-cart-empty">No active subscriptions yet.</div>';
+    else body = off.length ? off.map(card).join("") : '<div class="pos-cart-empty">None.</div>';
+    var mrr=act.reduce(function(a,s){ return a+subTotals(s).net; },0);
+    el.innerHTML='<div class="rep-card"><div class="inv-tools"><div class="rep-h" style="flex:1;margin:0">Monthly subscriptions</div><button class="btn-primary inv-add" id="subNewBtn">+ New subscription</button></div>'+
+      '<div class="gc-hint" style="margin:0 0 12px">Supplements ship or are picked up monthly and are '+SUB_DISC+'% off. '+act.length+' active · $'+money(mrr)+' a month.</div>'+
+      '<div class="gc-chips sub-tabs">'+tabs.map(function(t){ return '<button type="button" data-subf="'+t[0]+'" class="'+(subFilter===t[0]?'on':'')+'">'+t[1]+' '+t[2]+'</button>'; }).join("")+'</div>'+
+      body+'</div>';
+    $("subNewBtn").onclick=function(){ subEdit={orig:"", draft:{id:"sub-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5), clientId:"", status:"active", items:[], fulfillment:"ship", day:new Date().getDate()>28?1:new Date().getDate(), address:{}, card:{savedIn:SUB_PROCESSORS[0]}, history:[]}}; renderSubsPage(); };
+    Array.prototype.forEach.call(el.querySelectorAll("[data-subf]"),function(b){ b.onclick=function(){ subFilter=b.getAttribute("data-subf"); renderSubsPage(); }; });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-subid]"),function(c){ c.onclick=function(e){ if(e.target.closest("button")) return; var s=subById(c.getAttribute("data-subid")); if(!s) return; subEdit={orig:s.id, draft:JSON.parse(JSON.stringify(s))}; renderSubsPage(); }; });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-subcharge]"),function(b){ b.onclick=function(e){ e.stopPropagation(); subCharge(subById(b.getAttribute("data-subcharge"))); }; });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-subdone]"),function(b){ b.onclick=function(){
+      var k=b.getAttribute("data-subdone").split("|"), s=subById(k[0]); if(!s) return; var h=(s.history||[]).filter(function(x){ return x.id===k[1]; })[0]; if(!h) return;
+      var tr=el.querySelector('[data-subtrack="'+k[0]+'|'+k[1]+'"]'); if(tr && tr.value.trim()) h.tracking=tr.value.trim();
+      h.doneAt=new Date().toISOString(); h.doneBy=window.__curEmail?window.__curEmail():""; saveSubs();
+      if(window.__hipAudit) window.__hipAudit(h.how==="ship"?"sub_shipped":"sub_picked_up", s.id);
+      toast(h.how==="ship"?"Marked shipped":"Marked picked up"); renderSubsPage(); }; });
+  }
+  function subProductOptions(){
+    var all=allPosProducts(), groups={supp:[],other:[]};
+    all.forEach(function(x){ (x.p.cat==="Supplement"?groups.supp:groups.other).push(x); });
+    function opt(x){ return '<option value="'+x.entity+'|'+esc(x.p.name)+'">'+esc(x.p.name)+' · $'+money(x.p.price)+(x.entity==="alpha"?' (Alpha)':' (MJS)')+'</option>'; }
+    groups.supp.sort(function(a,b){ return a.p.name.localeCompare(b.p.name); }); groups.other.sort(function(a,b){ return a.p.name.localeCompare(b.p.name); });
+    return '<option value="">+ Add an item…</option><optgroup label="Supplements ('+SUB_DISC+'% off)">'+groups.supp.map(opt).join("")+'</optgroup><optgroup label="Other items (regular price)">'+groups.other.map(opt).join("")+'</optgroup>';
+  }
+  function renderSubEditor(){
+    var el=$("subsPage"), d=subEdit.draft, p=findPatient(d.clientId), t=subTotals(d), lines=subLines(d);
+    d.address=d.address||{}; d.card=d.card||{savedIn:SUB_PROCESSORS[0]};
+    if(!d.nextDate || (!subEdit.orig && d.nextDate<todayISO())) d.nextDate=subNextFrom(todayISO(), +d.day||1, true);
+    var locked=!!(d.consent && d.consent.at);
+    var rows=lines.map(function(l,i){
+      return '<tr><td>'+esc(l.name)+(l.missing?'<div class="pkg-sub gc-bad">Not in the catalog any more</div>':'')+'</td><td><span class="cart-ent cart-ent-'+l.entity+'">'+(l.entity==="alpha"?"Alpha":"MJS")+'</span></td>'+
+        '<td><input type="number" min="1" step="1" class="sub-qty" data-subq="'+i+'" value="'+l.qty+'"></td><td class="num">$'+money(l.gross)+'</td><td class="num">'+(l.supp?'−$'+money(l.disc):'<span class="pkg-sub">no discount</span>')+'</td><td class="num"><b>$'+money(l.net)+'</b></td>'+
+        '<td><button type="button" class="cart-del" data-subx="'+i+'" aria-label="Remove item">&times;</button></td></tr>';
+    }).join("");
+    var a=d.address, c=d.card, cons=d.consent;
+    var days=""; for(var i=1;i<=28;i++) days+='<option value="'+i+'"'+(+d.day===i?' selected':'')+'>'+i+'</option>';
+    el.innerHTML='<div class="rep-card sub-ed">'+
+      '<div class="inv-tools"><button class="btn-ghost" id="subBack" type="button">← Subscriptions</button><div class="rep-h" style="flex:1;margin:0 0 0 8px">'+(subEdit.orig?'Edit subscription':'New subscription')+'</div></div>'+
+      '<div class="sub-step"><div class="sub-sh">1. Client</div>'+
+        (p?'<div class="sub-client"><b>'+esc(p.name)+'</b>'+(p.phone?' · '+esc(p.phone):'')+(p.email?' · '+esc(p.email):'')+(subEdit.orig?'':' <button type="button" class="btn-ghost sub-mini" id="subClientChange">Change</button>')+'</div>'
+          :'<div class="sub-csearch"><input type="text" id="subClientQ" placeholder="Search clients by name, phone or email" autocomplete="off"><div class="client-drop" id="subClientDrop" style="display:none"></div></div>')+
+      '</div>'+
+      '<div class="sub-step"><div class="sub-sh">2. What they get each month</div>'+
+        '<div class="pkg-tablewrap"><table class="pkg-table sub-table"><thead><tr><th>Item</th><th>Company</th><th>Qty</th><th class="num">Regular</th><th class="num">'+SUB_DISC+'% off</th><th class="num">Monthly</th><th></th></tr></thead><tbody>'+
+        (rows||'<tr><td colspan="7" class="pkg-empty">No items yet.</td></tr>')+'</tbody></table></div>'+
+        '<select id="subAddItem" class="sub-sel">'+subProductOptions()+'</select>'+
+        '<div class="pkg-totals"><div><span>Monthly charge</span><b>$'+money(t.net)+'</b></div><div><span>Customer saves</span><b class="pkg-save">$'+money(t.disc)+' a month</b></div>'+
+        '<div class="pkg-tsub"><span>Regular $'+money(t.gross)+'</span><span>'+Object.keys(t.ents).map(function(e){ return (e==="alpha"?"Alpha":"MJS")+" $"+money(t.ents[e]); }).join(" · ")+'</span></div></div>'+
+      '</div>'+
+      '<div class="sub-step"><div class="sub-sh">3. Delivery and day</div>'+
+        '<div class="ivseg" id="subHow"><button type="button" data-how="ship" class="'+(d.fulfillment==="ship"?'on':'')+'">Ship to their home</button><button type="button" data-how="pickup" class="'+(d.fulfillment==="pickup"?'on':'')+'">Pick up in the office</button></div>'+
+        '<div class="gc-row2"><div class="pos-field"><label>Day of the month</label><select id="subDay" class="sub-sel">'+days+'</select></div><div class="pos-field"><label>Next charge</label><input type="date" id="subNext" class="sub-in" value="'+esc(d.nextDate||"")+'"></div></div>'+
+        (d.fulfillment==="ship"?
+          '<div class="pos-field"><label>Shipping address</label><input type="text" id="subA1" class="sub-in" placeholder="Street address" value="'+esc(a.line1||"")+'"><input type="text" id="subA2" class="sub-in" placeholder="Apt, suite (optional)" value="'+esc(a.line2||"")+'"></div>'+
+          '<div class="sub-addr3"><input type="text" id="subCity" class="sub-in" placeholder="City" value="'+esc(a.city||"")+'"><input type="text" id="subState" class="sub-in" placeholder="State" maxlength="2" value="'+esc(a.state||"")+'"><input type="text" id="subZip" class="sub-in" placeholder="ZIP" maxlength="10" inputmode="numeric" value="'+esc(a.zip||"")+'"></div>'+
+          '<label class="pr-check sub-confirm"><input type="checkbox" id="subAddrOk"'+(d.addrConfirmedAt?' checked':'')+'> I read this address back to the customer and they confirmed it'+(d.addrConfirmedAt?' <span class="pkg-sub">(confirmed '+fmtDate(new Date(d.addrConfirmedAt))+(d.addrConfirmedBy?' by '+esc(d.addrConfirmedBy):'')+')</span>':'')+'</label>'
+          :'<div class="gc-hint">Order is held at the front desk on the charge day. The client is marked picked up when they collect it.</div>')+
+      '</div>'+
+      '<div class="sub-step"><div class="sub-sh">4. Card on file</div>'+
+        '<div class="sub-warn"><b>Never type the full card number or security code into this app.</b> Save the card in your card processor (for example QuickBooks Payments: Customer, then Payment methods, then Add card) and enter only the details below.</div>'+
+        '<div class="sub-card4"><div class="pos-field"><label>Card type</label><select id="subBrand" class="sub-sel">'+["","Visa","Mastercard","Amex","Discover","Other"].map(function(b){ return '<option value="'+b+'"'+((c.brand||"")===b?' selected':'')+'>'+(b||"Choose")+'</option>'; }).join("")+'</select></div>'+
+          '<div class="pos-field"><label>Last 4 digits</label><input type="text" id="subLast4" class="sub-in" maxlength="4" inputmode="numeric" placeholder="1234" value="'+esc(c.last4||"")+'"></div>'+
+          '<div class="pos-field"><label>Expires (MM/YY)</label><input type="text" id="subExp" class="sub-in" maxlength="5" placeholder="08/29" value="'+esc(c.exp||"")+'"></div>'+
+          '<div class="pos-field"><label>Billing ZIP</label><input type="text" id="subBZip" class="sub-in" maxlength="10" inputmode="numeric" value="'+esc(c.zip||"")+'"></div></div>'+
+        '<div class="gc-row2"><div class="pos-field"><label>Name on card</label><input type="text" id="subHolder" class="sub-in" value="'+esc(c.holder||"")+'"></div>'+
+          '<div class="pos-field"><label>Card saved in</label><select id="subSaved" class="sub-sel">'+SUB_PROCESSORS.map(function(x){ return '<option'+(c.savedIn===x?' selected':'')+'>'+x+'</option>'; }).join("")+'</select></div></div>'+
+        '<div class="sub-err" id="subCardErr"></div>'+
+      '</div>'+
+      '<div class="sub-step"><div class="sub-sh">5. Customer agreement</div>'+
+        (locked?
+          '<div class="sub-agreed"><b>Agreed</b> by '+esc(cons.signer)+' on '+fmtDate(new Date(cons.at))+' ('+esc(cons.method)+(cons.by?', staff '+esc(cons.by):'')+') at $'+money(cons.amount)+' a month.'+
+            (Math.abs((+cons.amount||0)-t.net)>0.004?'<div class="gc-bad">The monthly amount is now $'+money(t.net)+'. Get the customer to agree again before the next charge.</div>':'')+
+            '<details><summary>Agreement text</summary><div class="sub-terms">'+esc(cons.text||"")+'</div></details>'+
+            '<button type="button" class="btn-ghost sub-mini" id="subReagree">Agree again</button></div>'
+          :'<div class="sub-terms" id="subTerms">'+esc(subConsentText(d,p))+'</div>'+
+            '<div class="gc-row2"><div class="pos-field"><label>How they agreed</label><select id="subCMethod" class="sub-sel"><option>In person (signed on this screen)</option><option>By phone (staff witnessed)</option></select></div>'+
+            '<div class="pos-field"><label>Customer types their full name</label><input type="text" id="subSigner" class="sub-in" placeholder="First and last name"></div></div>'+
+            '<label class="pr-check"><input type="checkbox" id="subAgree"> The customer read (or was read) the agreement above and agrees to the monthly shipment and charge.</label>')+
+      '</div>'+
+      '<div class="sub-err" id="subErr"></div>'+
+      '<div class="pkg-actions">'+(subEdit.orig?(d.status==="active"?'<button class="btn-ghost" id="subPause" type="button">Pause</button><button class="btn-danger" id="subCancel" type="button">Cancel subscription</button>':'<button class="btn-ghost" id="subResume" type="button">Resume</button>'):'')+
+        '<span style="flex:1"></span><button class="btn-ghost" id="subDiscard" type="button">Discard</button><button class="btn-primary" id="subSave" type="button">Save subscription</button></div>'+
+      ((d.history||[]).length?'<div class="gc-hist-h" style="margin-top:16px">Charges</div>'+(d.history||[]).slice().reverse().map(function(h){ return '<div class="gc-hist"><span>'+fmtDate(parseISO(h.date))+' · '+(h.how==="ship"?(h.doneAt?"Shipped"+(h.tracking?" ("+esc(h.tracking)+")":""):"To ship"):(h.doneAt?"Picked up":"Waiting for pickup"))+'</span><b>$'+money(h.total)+'</b></div>'; }).join(""):'')+
+    '</div>';
+    function readForm(){
+      if($("subA1")){ d.address={line1:$("subA1").value.trim(), line2:$("subA2").value.trim(), city:$("subCity").value.trim(), state:$("subState").value.trim().toUpperCase(), zip:$("subZip").value.trim()}; }
+      d.card={brand:$("subBrand").value, last4:$("subLast4").value.trim(), exp:$("subExp").value.trim(), zip:$("subBZip").value.trim(), holder:$("subHolder").value.trim(), savedIn:$("subSaved").value};
+      d.day=+$("subDay").value||1; if($("subNext").value) d.nextDate=$("subNext").value;
+    }
+    function rerender(){ readForm(); setTimeout(renderSubEditor,0); }
+    $("subBack").onclick=$("subDiscard").onclick=function(){ subEdit=null; renderSubsPage(); };
+    if($("subClientChange")) $("subClientChange").onclick=function(){ readForm(); d.clientId=""; renderSubEditor(); };
+    if($("subClientQ")){
+      var q=$("subClientQ"), dd=$("subClientDrop");
+      q.oninput=function(){ var v=q.value.trim().toLowerCase(), dig=v.replace(/\D/g,""); if(!v){ dd.style.display="none"; return; }
+        var hits=patients.filter(function(x){ return (x.name||"").toLowerCase().indexOf(v)>=0 || (x.email||"").toLowerCase().indexOf(v)>=0 || (dig.length>=3 && (x.phone||"").replace(/\D/g,"").indexOf(dig)>=0); }).slice(0,12);
+        dd.innerHTML=hits.length?hits.map(function(x){ var has=subs.some(function(s){ return s.clientId===x.id && s.status==="active"; }); return '<div class="cd-item" data-subc="'+esc(x.id)+'"><span class="pd-name">'+esc(x.name)+'</span><span class="pkg-sub">'+esc(x.phone||x.email||"")+(has?' · already subscribed':'')+'</span></div>'; }).join(""):'<div class="cd-empty">No clients match</div>';
+        dd.style.display="block";
+        Array.prototype.forEach.call(dd.querySelectorAll("[data-subc]"),function(it){ it.onmousedown=function(e){ e.preventDefault(); readForm(); d.clientId=it.getAttribute("data-subc"); var pp=findPatient(d.clientId);
+          if(pp && pp.address && !(d.address&&d.address.line1)) d.address=JSON.parse(JSON.stringify(pp.address));
+          if(pp && !d.card.holder) d.card.holder=pp.name; renderSubEditor(); }; });
+      };
+      q.onblur=function(){ setTimeout(function(){ dd.style.display="none"; },150); };
+      setTimeout(function(){ try{ q.focus(); }catch(e){} },0);
+    }
+    $("subAddItem").onchange=function(){ var v=this.value; if(!v) return; var k=v.split("|"), ent=k.shift(), nm=k.join("|"); readForm();
+      var ex=(d.items||[]).filter(function(it){ return it.name===nm && (it.entity||"mjs")===ent; })[0]; if(ex) ex.qty=(+ex.qty||1)+1; else (d.items=d.items||[]).push({name:nm, entity:ent, qty:1}); rerender(); };
+    Array.prototype.forEach.call(el.querySelectorAll("[data-subq]"),function(inp){ inp.onchange=function(){ d.items[+inp.getAttribute("data-subq")].qty=Math.max(1,Math.round(+inp.value||1)); rerender(); }; });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-subx]"),function(b){ b.onclick=function(){ d.items.splice(+b.getAttribute("data-subx"),1); rerender(); }; });
+    Array.prototype.forEach.call(el.querySelectorAll("#subHow [data-how]"),function(b){ b.onclick=function(){ readForm(); d.fulfillment=b.getAttribute("data-how"); renderSubEditor(); }; });
+    $("subDay").onchange=function(){ readForm(); d.nextDate=subNextFrom(todayISO(), d.day, true); renderSubEditor(); };
+    ["subA1","subA2","subCity","subState","subZip"].forEach(function(id){ if($(id)) $(id).addEventListener("input", function(){ readForm(); if(d.addrConfirmedAt){ d.addrConfirmedAt=null; d.addrConfirmedBy=""; var cb=$("subAddrOk"); if(cb){ cb.checked=false; var sp=cb.parentNode.querySelector(".pkg-sub"); if(sp) sp.remove(); } } if(!locked && $("subTerms")) $("subTerms").textContent=subConsentText(d, findPatient(d.clientId)); }); });
+    if($("subAddrOk")) $("subAddrOk").onchange=function(){ readForm(); if(this.checked){ if(!(d.address.line1&&d.address.city&&d.address.state&&d.address.zip)){ this.checked=false; toast("Fill in street, city, state and ZIP first"); return; } d.addrConfirmedAt=new Date().toISOString(); d.addrConfirmedBy=window.__curEmail?window.__curEmail():""; } else { d.addrConfirmedAt=null; d.addrConfirmedBy=""; } renderSubEditor(); };
+    ["subLast4","subExp","subBZip","subHolder"].forEach(function(id){ $(id).addEventListener("input", function(){ var bad=subHasCardNumber(this.value); if(bad){ this.value=""; $("subCardErr").textContent="That looks like a full card number. It was cleared and not saved. Enter only the last 4 digits."; } }); });
+    $("subExp").addEventListener("input", function(){ var v=this.value.replace(/[^\d]/g,""); if(v.length>=3) this.value=v.slice(0,2)+"/"+v.slice(2,4); });
+    ["subBrand","subLast4","subExp","subBZip","subHolder","subSaved","subNext"].forEach(function(id){ $(id).addEventListener("change", function(){ if(!locked && $("subTerms")){ readForm(); $("subTerms").textContent=subConsentText(d, findPatient(d.clientId)); } }); });
+    if($("subReagree")) $("subReagree").onclick=function(){ readForm(); d.consent=null; renderSubEditor(); };
+    function setStatus(st, verb){ readForm(); d.status=st; if(st==="active") d.nextDate=subNextFrom(todayISO(), d.day, true); save(verb); }
+    if($("subPause")) $("subPause").onclick=function(){ setStatus("paused","paused"); };
+    if($("subResume")) $("subResume").onclick=function(){ setStatus("active","resumed"); };
+    if($("subCancel")) $("subCancel").onclick=function(){ setStatus("cancelled","cancelled"); };
+    function save(verb){
+      var err="", pp=findPatient(d.clientId);
+      if(!pp) err="Choose the client.";
+      else if(!(d.items||[]).length) err="Add at least one item.";
+      else if(d.status==="active" && !subEdit.orig && subs.some(function(s){ return s.clientId===d.clientId && s.status==="active" && s.id!==d.id; })) err=pp.name+" already has an active subscription. Edit that one instead.";
+      else if(d.fulfillment==="ship" && !(d.address.line1&&d.address.city&&d.address.state&&d.address.zip)) err="Enter the full shipping address.";
+      else if(d.fulfillment==="ship" && !d.addrConfirmedAt) err="Confirm the shipping address with the customer and tick the box.";
+      else if(!d.card.brand) err="Choose the card type.";
+      else if(!/^\d{4}$/.test(d.card.last4)) err="Enter exactly the last 4 digits of the card.";
+      else if(!/^(0[1-9]|1[0-2])\/\d{2}$/.test(d.card.exp)) err="Enter the expiry as MM/YY.";
+      else if(subCardExpired(d.card)) err="That card has expired.";
+      else if([d.card.holder,d.card.zip].some(subHasCardNumber)) err="Remove the card number. Only the last 4 digits may be entered.";
+      if(!err && !(d.consent && d.consent.at)){
+        var signer=($("subSigner")?$("subSigner").value:"").trim();
+        if(!$("subAgree") || !$("subAgree").checked) err="The customer must agree to the monthly shipment and charge (tick the box).";
+        else if(signer.split(/\s+/).filter(function(w){ return w.length>=2; }).length<2) err="The customer must type their first and last name.";
+        else d.consent={at:new Date().toISOString(), by:window.__curEmail?window.__curEmail():"", signer:signer, method:$("subCMethod").value, amount:subTotals(d).net, text:subConsentText(d,pp)};
+      }
+      if(err){ $("subErr").textContent=err; try{ $("subErr").scrollIntoView({block:"center"}); }catch(e){} return; }
+      if(d.fulfillment==="ship"){ if(!pp.address || !pp.address.line1){ pp.address=JSON.parse(JSON.stringify(d.address)); savePatients(); } }
+      d.clientName=pp.name;
+      if(!d.createdAt){ d.createdAt=new Date().toISOString(); d.createdBy=window.__curEmail?window.__curEmail():""; }
+      d.updatedAt=new Date().toISOString();
+      var i=-1; subs.forEach(function(s,k){ if(s.id===d.id) i=k; });
+      if(i>=0) subs[i]=d; else subs.push(d);
+      saveSubs();
+      if(window.__hipAudit) window.__hipAudit(subEdit.orig?("sub_"+(verb||"updated")):"sub_created", d.id+":"+d.clientId);
+      try{ if(window.__syncCommit) window.__syncCommit("subscription"); }catch(e){}
+      toast(subEdit.orig?("Subscription "+(verb||"saved")):"Subscription saved · first charge "+fmtDate(parseISO(d.nextDate)));
+      subEdit=null; subFilter=subIsDue(d)?"due":"active"; renderSubsPage();
+    }
+    $("subSave").onclick=function(){ readForm(); save(); };
+  }
+  // Charging goes through the Register so the money split, charge confirmation, inventory and books all work as usual.
+  function subCharge(s){
+    if(!s) return; var pr=subProblems(s); if(pr.length){ toast(pr[0]); return; }
+    var p=findPatient(s.clientId), lines=subLines(s), t=subTotals(s);
+    if(s.consent && Math.abs((+s.consent.amount||0)-t.net)>0.004){ toast("The monthly amount changed to $"+money(t.net)+". Have the customer agree again first."); subEdit={orig:s.id, draft:JSON.parse(JSON.stringify(s))}; renderSubsPage(); return; }
+    var vt=s.fulfillment==="ship"?"Subscription shipment":"Subscription pickup";
+    if(visitTypes.indexOf(vt)<0){ visitTypes.push(vt); saveVisitTypes(); }
+    switchView("register");
+    if(posPromo){ try{ removePosPromo(); }catch(e){} }
+    posCart=lines.map(function(l){ return {name:l.name, retail:l.price, cost:l.cost, qty:l.qty, cat:l.cat, entity:l.entity, discPct:l.supp?SUB_DISC:0, discAmt:0, subLine:true}; });
+    setPosClient(s.clientId);
+    if(posDiscMode!=="item") setDiscMode("item");
+    $("posDiscount").value=""; $("posDiscountAmt").value="";
+    try{ renderRegister(); }catch(e){}
+    if($("posVisitType")) $("posVisitType").value=vt;
+    if($("posVisitNote")) $("posVisitNote").value="Monthly subscription · "+(s.card.brand||"Card")+" ending "+s.card.last4+" ("+s.card.savedIn+") · "+(s.fulfillment==="ship"?"ship to "+subAddrText(s.address):"pickup at office");
+    if($("posPay")) $("posPay").value="Card";
+    posSubCharge={id:s.id, clientId:s.clientId};
+    renderCart();
+    completeSale();
+  }
+  function subRecordCharge(plan, saleGroup, total){
+    if(!posSubCharge) return; var s=subById(posSubCharge.id); posSubCharge=null; if(!s) return;
+    plan.forEach(function(t){ t.subId=s.id; });
+    s.history=s.history||[];
+    s.history.push({id:"sh"+Date.now().toString(36)+Math.random().toString(36).slice(2,4), date:todayISO(), saleId:saleGroup, total:Math.round(total*100)/100, how:s.fulfillment, address:s.fulfillment==="ship"?subAddrText(s.address):"", card:(s.card.brand||"Card")+" ••"+s.card.last4, by:window.__curEmail?window.__curEmail():""});
+    s.lastCharged=todayISO();
+    s.nextDate=subNextFrom(s.nextDate&&s.nextDate>todayISO()?s.nextDate:todayISO(), +s.day||1, false);
+    saveSubs();
+    if(window.__hipAudit) window.__hipAudit("sub_charged", s.id+":"+s.clientId);
+    setTimeout(function(){ toast((s.fulfillment==="ship"?"Ready to ship":"Ready for pickup")+" · next charge "+fmtDate(parseISO(s.nextDate))); }, 1200);
+  }
   // ---------- Packages ----------
   // A package rings each item at its package price, on its own company. No other discount can be added on top.
   // Each component links to a catalog product (editable on the Promotions page). price:null = that product's regular price.
@@ -4359,6 +4643,7 @@ window.startClinicApp = function(){
     giftcerts:["Gift Certificates","Issue, track and redeem certificates"],
     promos:["Promotions","Offers, redemptions and misuse checks"],
     packages:["Packages","Set up packages: cost, \u00e0 la carte and package prices"],
+    subs:["Subscriptions","Monthly supplement shipments and pickups, 5% off"],
     expenses:["Expenses","Record business costs"],
     gl:["General Ledger","Double-entry transactions"],
     coa:["Chart of Accounts","Your account structure"],
@@ -4377,6 +4662,7 @@ window.startClinicApp = function(){
     $("giftcertsView").style.display = v==="giftcerts" ? "block" : "none";
     $("promosView").style.display = v==="promos" ? "block" : "none";
     $("packagesView").style.display = v==="packages" ? "block" : "none";
+    $("subsView").style.display = v==="subs" ? "block" : "none";
     $("booksView").style.display = ACCT_VIEWS[v] ? "block" : "none";
     Array.prototype.forEach.call(document.querySelectorAll(".nav-link"),function(b){
       b.classList.toggle("active", b.getAttribute("data-view")===v);
@@ -4392,6 +4678,7 @@ window.startClinicApp = function(){
     if(v==="giftcerts") renderGiftCerts();
     if(v==="promos") renderPromos();
     if(v==="packages"){ pkgEdit=null; renderPackagesPage(); }
+    if(v==="subs"){ subEdit=null; renderSubsPage(); }
     if(ACCT_VIEWS[v]) renderAccounting(v);
     updateAddButton();
     window.scrollTo(0,0);
@@ -5367,7 +5654,7 @@ window.startClinicApp = function(){
     fillPosSelects(); renderCart();
   }
   function setPosClient(id){
-    if((id||"")!==posClientId) posConsultWaive=null;
+    if((id||"")!==posClientId){ posConsultWaive=null; posSubCharge=null; }
     if(posPromo && posPromo.clientId!==(id||"")){ posPromo=null; promoClearLines(); if($("posPromoCard")) $("posPromoCard").checked=false; setTimeout(function(){ renderCart(); },0); if(id) toast("Promotion removed because the client changed"); }
     posClientId=id||"";
     var p=id?findPatient(id):null;
@@ -5566,7 +5853,7 @@ window.startClinicApp = function(){
   var posDiscMode="order";
   function lineDisc(l){ var gross=l.retail*l.qty; var pct=+l.discPct||0, amt=+l.discAmt||0; return Math.min(gross, Math.max(0, Math.round((gross*pct/100+amt)*100)/100)); }
   function lineNet(l){ return Math.round((l.retail*l.qty - lineDisc(l))*100)/100; }
-  function discPctOpts(sel){ return '<option value="0">No %</option>'+discounts.map(function(d){return '<option value="'+d.percent+'"'+(+sel===+d.percent?" selected":"")+'>'+d.percent+'% '+esc(d.name)+'</option>';}).join(""); }
+  function discPctOpts(sel){ var has=discounts.some(function(d){ return +d.percent===+sel; }); return '<option value="0">No %</option>'+(+sel>0&&!has?'<option value="'+(+sel)+'" selected>'+(+sel)+'%'+(+sel===SUB_DISC?' Subscription':'')+'</option>':'')+discounts.map(function(d){return '<option value="'+d.percent+'"'+(+sel===+d.percent?" selected":"")+'>'+d.percent+'% '+esc(d.name)+'</option>';}).join(""); }
   function setDiscMode(m){
     if(posPromo && m!=="item"){ toast("Remove the promotion to use other discounts"); return; }
     posDiscMode=m;
@@ -5820,7 +6107,8 @@ window.startClinicApp = function(){
     var grand=plan.reduce(function(s,t){ return s+chargeLinesFor(t,pay).total; },0);
     var two=plan.length>1;
     var body='<div class="cc-lead">'+(two?'This sale is split between <b>two companies</b>. Charge each one separately.':'Charge this sale to <b>'+esc(ENT_FULL[plan[0].entity||"mjs"]||"")+'</b>.')+
-      (p?' Client: <b>'+esc(p.name)+'</b>.':'')+'</div>'+cards+
+      (p?' Client: <b>'+esc(p.name)+'</b>.':'')+
+      ((function(){ var ss=posSubCharge&&subById(posSubCharge.id); return ss&&ss.card?'<div class="sub-ccnote">Monthly subscription. Charge the card on file: <b>'+esc(ss.card.brand||"Card")+' ending '+esc(ss.card.last4)+'</b> in '+esc(ss.card.savedIn||"your card processor")+'.</div>':''; })())+'</div>'+cards+
       (two?'<div class="cc-grand">Total to collect <b>$'+money(grand)+'</b></div>':'')+
       '<div class="gc-hint">Tick each box after the money is actually taken. The sale is recorded only when every box is ticked.</div>';
     var foot='<button class="btn-ghost" id="ccBack" type="button">Back to sale</button><button class="btn-primary" id="ccGo" type="button" disabled>Confirm and record sale</button>';
@@ -5961,6 +6249,7 @@ window.startClinicApp = function(){
     // show who gets charged what, and wait until the person at the register confirms each charge
     if(!chargeOk){ openChargeConfirm(plan, pay, p); return; }
     var _cAt=new Date().toISOString(), _cBy=window.__curEmail?window.__curEmail():"";
+    if(posSubCharge && p && p.id===posSubCharge.clientId) subRecordCharge(plan, saleGroup, total); else posSubCharge=null;
     var _ovr=(cartHasPkg() && posPkgOverride && (sub-total>0.004 || promoRec)) ? posPkgOverride : null;
     plan.forEach(function(t){ t.chargeConfirmedAt=_cAt; t.chargeConfirmedBy=_cBy; if(_ovr) t.pkgDiscountOverride=_ovr; txns.push(t); });
     saveTxns();
@@ -6024,7 +6313,7 @@ window.startClinicApp = function(){
     }
     if(window.__hipAudit) window.__hipAudit("sale", p?p.id:"walk-in");
     decrementInventoryForSale(posCart);
-    posPromo=null; posPkgDeclined={}; posPkgOverride=null; posConsultWaive=null; if($("posPromoCard")) $("posPromoCard").checked=false; if($("posPromoSel")) $("posPromoSel").value="";
+    posPromo=null; posPkgDeclined={}; posPkgOverride=null; posConsultWaive=null; posSubCharge=null; if($("posPromoCard")) $("posPromoCard").checked=false; if($("posPromoSel")) $("posPromoSel").value="";
     posCart=[]; posGC=null; if($("posGcNum")) $("posGcNum").value=""; $("posDiscount").value=""; $("posDiscountAmt").value=""; if(posSplitActive) toggleSplit(false); if(posDiscMode==="item") setDiscMode("order"); setPosClient(""); renderCart();
     if(p) renderAll();
     try{ if(window.__syncCommit) window.__syncCommit("sale"); }catch(e){}   // push on commit; the sale is already saved locally either way
@@ -6905,7 +7194,7 @@ window.startClinicApp = function(){
     $("posComplete").onclick=function(){ completeSale(); };
     if($("posCancel")) $("posCancel").onclick=function(){
       if(!posCart.length && !posClientId){ toast("Nothing to cancel"); return; }
-      posPromo=null; posPkgDeclined={}; posPkgOverride=null; posConsultWaive=null; if($("posPromoCard")) $("posPromoCard").checked=false; if($("posPromoSel")) $("posPromoSel").value="";
+      posPromo=null; posPkgDeclined={}; posPkgOverride=null; posConsultWaive=null; posSubCharge=null; if($("posPromoCard")) $("posPromoCard").checked=false; if($("posPromoSel")) $("posPromoSel").value="";
       posCart=[]; posGC=null; if($("posGcNum")) $("posGcNum").value=""; $("posDiscount").value=""; $("posDiscountAmt").value="";
       if(posSplitActive) toggleSplit(false);
       if(posDiscMode==="item") setDiscMode("order");
@@ -8159,7 +8448,7 @@ window.startClinicApp = function(){
       app:"AlphaPerformance", schema:4, exportedAt:new Date().toISOString(),
       members:members, tiers:tiers, patients:patients, treatments:treatments,
       visitTypes:visitTypes, discounts:discounts, pricing:treatmentPricing, settings:settings,
-      txns:txns, giftcerts:giftcerts, promos:promos, promoUses:promoUses, promoAttempts:promoAttempts, packages:packages, regProducts:regProducts,
+      txns:txns, giftcerts:giftcerts, promos:promos, promoUses:promoUses, promoAttempts:promoAttempts, packages:packages, subs:subs, regProducts:regProducts,
       books:{ accounts:{ mjs:load("alphaperf_accounts_mjs",[]), alpha:load("alphaperf_accounts_alpha",[]) },
               journals:{ mjs:load("alphaperf_journals_mjs",[]), alpha:load("alphaperf_journals_alpha",[]) } },
       bookslock:booksLock
@@ -8257,7 +8546,7 @@ window.startClinicApp = function(){
   function serializeState(){
     return { v:4, tiers:tiers, patients:patients, treatments:treatments, visitTypes:visitTypes, discounts:discounts, pricing:treatmentPricing,
              settings:{ name:settings.name, accent:settings.accent, followupDays:settings.followupDays },
-             txns:txns, giftcerts:giftcerts, promos:promos, promoUses:promoUses, promoAttempts:promoAttempts, packages:packages,
+             txns:txns, giftcerts:giftcerts, promos:promos, promoUses:promoUses, promoAttempts:promoAttempts, packages:packages, subs:subs,
              regProducts:(ensureRegProducts(), regProducts),
              books:{ accounts:{ mjs:load("alphaperf_accounts_mjs",[]), alpha:load("alphaperf_accounts_alpha",[]) },
                      journals:{ mjs:load("alphaperf_journals_mjs",[]), alpha:load("alphaperf_journals_alpha",[]) } },
@@ -8308,6 +8597,7 @@ window.startClinicApp = function(){
     if(Array.isArray(d.txns)){ txns=d.txns; store.set("alphaperf_txns", JSON.stringify(txns)); }
     if(Array.isArray(d.giftcerts)){ giftcerts=d.giftcerts; store.set("alphaperf_giftcerts", JSON.stringify(giftcerts)); }
     if(Array.isArray(d.packages)){ packages=d.packages; store.set("alphaperf_packages", JSON.stringify(packages)); }
+    if(Array.isArray(d.subs)){ subs=d.subs; store.set("alphaperf_subs", JSON.stringify(subs)); }
     if(Array.isArray(d.promos)){ promos=d.promos; store.set("alphaperf_promos", JSON.stringify(promos)); } if(Array.isArray(d.promoUses)){ promoUses=d.promoUses; store.set("alphaperf_promouses", JSON.stringify(promoUses)); } if(Array.isArray(d.promoAttempts)){ promoAttempts=d.promoAttempts; store.set("alphaperf_promoattempts", JSON.stringify(promoAttempts)); }
     if(d.regProducts){ ensureRegProducts();
       if(Array.isArray(d.regProducts.mjs)) regProducts.mjs=d.regProducts.mjs;
@@ -8617,6 +8907,7 @@ window.startClinicApp = function(){
       if(k==="alphaperf_txns") txns=load(k,[]);
       else if(k==="alphaperf_patients") patients=load(k,[]);
       else if(k==="alphaperf_giftcerts") giftcerts=load(k,[]);
+      else if(k==="alphaperf_subs"){ subs=load(k,[]); if(!Array.isArray(subs)) subs=[]; }
       else if(k==="alphaperf_promouses") promoUses=load(k,[]);
       else if(k==="alphaperf_promoattempts") promoAttempts=load(k,[]);
       else if(k==="alphaperf_inventory"){ inventory=load(k,{}); if(!inventory||typeof inventory!=="object") inventory={}; }
@@ -8624,7 +8915,7 @@ window.startClinicApp = function(){
       else if(k==="alphaperf_journals_mjs"||k==="alphaperf_journals_alpha"){ if(!isCombined() && k==="alphaperf_journals_"+acctEntity) journals=load(k,[]); }
     });
     try{ renderAll(); }catch(e){}
-    try{ if(activeView==="register"){ renderCart(); renderRegSub(); } else if(activeView==="giftcerts") renderGiftCerts(); else if(activeView==="promos") renderPromos(); else if(activeView==="inventory") renderInventory(); else if(ACCT_VIEWS[activeView]) renderAccounting(activeView); }catch(e){}
+    try{ if(activeView==="register"){ renderCart(); renderRegSub(); } else if(activeView==="giftcerts") renderGiftCerts(); else if(activeView==="promos") renderPromos(); else if(activeView==="subs" && !subEdit) renderSubsPage(); else if(activeView==="inventory") renderInventory(); else if(ACCT_VIEWS[activeView]) renderAccounting(activeView); }catch(e){}
   };
   $("hamburger").onclick=function(){ if($("sidebar").classList.contains("open")) closeSidebar(); else openSidebar(); };
   $("backdrop").onclick=closeSidebar;
@@ -10099,7 +10390,7 @@ window.startClinicApp = function(){
     put("alphaperf_pricing", data.pricing);
     put("alphaperf_txns", data.txns);
     put("alphaperf_giftcerts", data.giftcerts);
-    put("alphaperf_packages", data.packages); put("alphaperf_promos", data.promos); put("alphaperf_promouses", data.promoUses); put("alphaperf_promoattempts", data.promoAttempts);
+    put("alphaperf_packages", data.packages); put("alphaperf_subs", data.subs); put("alphaperf_promos", data.promos); put("alphaperf_promouses", data.promoUses); put("alphaperf_promoattempts", data.promoAttempts);
     if(data.settings){ var s; try{ s=JSON.parse(JSON.stringify(data.settings)); }catch(e){ s={}; } delete s.supabaseUrl; delete s.supabaseKey; put("alphaperf_settings", s); }
     if(data.regProducts){ put("alphaperf_regprod_mjs", data.regProducts.mjs); put("alphaperf_regprod_alpha", data.regProducts.alpha); }
     if(data.books){
