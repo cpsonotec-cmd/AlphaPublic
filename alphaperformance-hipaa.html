@@ -763,6 +763,48 @@
   .sub-track{padding:9px 10px;border:1px solid var(--line);border-radius:9px;font-size:13px;background:var(--card);color:var(--ink);width:170px}
   .sub-done{padding:9px 13px}
   .sub-confirm{font-weight:600}
+  .till-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 13px;margin-bottom:10px;border-radius:11px;background:#ECFDF5;color:#065F46;font-size:14px}
+  .till-bar.till-unset{background:#FEF3C7;color:#78350F}
+  .till-pin{font-size:10px}
+  .till-warn{font-size:12px;font-weight:700}
+  .till-change{padding:5px 10px;font-size:12.5px;margin-left:auto}
+  .till-modal{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;z-index:9000;padding:16px}
+  .till-modal.show{display:flex}
+  .till-box{background:var(--card);border-radius:16px;padding:22px;max-width:380px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.3)}
+  .till-h{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:20px;margin-bottom:6px}
+  .till-sub{font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.45}
+  .till-opt{display:block;width:100%;text-align:left;padding:14px 16px;margin-bottom:8px;border:2px solid var(--line);border-radius:12px;background:var(--card);font-size:16px;font-weight:700;color:var(--ink);cursor:pointer}
+  .till-opt.on{border-color:var(--emerald,#059669)}
+  .till-opt span{font-weight:500;font-size:12.5px;color:var(--muted)}
+  #posExpLoc{padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font-size:14px}
+  #jeLoc{width:100%;padding:11px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font-size:15px}
+  .site-edit{border:1px solid var(--line);border-radius:11px;padding:10px;margin-bottom:8px}
+  .site-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .site-row input[type=text]{flex:1;min-width:140px;padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--ink);font-size:14px}
+  .site-row input[type=number]{width:96px;padding:7px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}
+  .site-ck{font-size:13px;display:flex;gap:5px;align-items:center;white-space:nowrap}
+  .site-sub{font-size:12.5px;color:var(--muted);margin-top:8px}
+  .site-sub label{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .ppp-card{grid-column:1/-1}
+  .ppp-row{display:grid;grid-template-columns:1.1fr 1.2fr 1.3fr 1.3fr;gap:10px;align-items:baseline;padding:9px 0;border-top:1px solid var(--line)}
+  .ppp-row.ppp-total{border-top:none}
+  .ppp-name{font-weight:700}
+  .ppp-val{font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700}
+  .ppp-total .ppp-val{font-size:28px}
+  .ppp-val small{font-family:inherit;font-size:12px;font-weight:500;color:var(--muted)}
+  .ppp-pats,.ppp-con{font-size:13px;color:var(--muted)}
+  .ppp-thin .ppp-val,.ppp-thin .ppp-name{color:#9CA3AF}
+  .ppp-det{margin-top:10px;font-size:13.5px}
+  .ppp-det summary{cursor:pointer;font-weight:600}
+  .ppp-tbl{width:100%;border-collapse:collapse;margin:8px 0}
+  .ppp-tbl td,.ppp-tbl th{padding:6px 4px;border-top:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums}
+  .ppp-tbl td:first-child,.ppp-tbl th:first-child{text-align:left}
+  .ppp-tb td{font-weight:700}
+  .ppp-notes{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5}
+  .ppp-notes>div{margin-top:3px}
+  .ppp-grow{display:flex;gap:10px;justify-content:space-between;align-items:center;padding:7px 0;border-top:1px solid var(--line);font-size:13.5px}
+  .ppp-grow select{padding:7px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);max-width:55%}
+  @media(max-width:620px){ .ppp-row{grid-template-columns:1fr 1fr} }
   .sub-ccnote{margin-top:8px;padding:8px 10px;border-radius:9px;background:#DCFCE7;color:#14532D;font-size:13.5px}
   #pkgPage .pos-field label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:6px}
   #pkgPage #pkgName{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font-size:15px;background:var(--card);color:var(--ink)}
@@ -1564,6 +1606,7 @@
   </div><!-- /reportsView -->
 
   <div id="registerView" style="display:none">
+    <div id="posTillBar" class="till-bar"></div>
     <div class="pos-subtabs">
       <button class="reg-sub on" data-regsub="sale">New sale</button>
       <button class="reg-sub" data-regsub="history">History</button>
@@ -1809,6 +1852,7 @@
           <div class="pos-add-row">
             <div class="pw"><input type="number" id="posExpAmt" placeholder="Amount" min="0"></div>
             <input type="date" id="posExpDate">
+            <select id="posExpLoc" title="Location this cost belongs to"></select>
             <button type="button" class="vc-add" id="posExpSave">Save</button>
           </div>
         </div>
@@ -1911,6 +1955,7 @@
   <div class="txn-body">
     <div class="pos-field"><label>Date</label><input type="date" id="jeDate"></div>
     <div class="pos-field"><label>Memo</label><input type="text" id="jeMemo" placeholder="e.g. Owner opening capital"></div>
+    <div class="pos-field"><label>Location</label><select id="jeLoc"></select></div>
     <div class="pos-field"><label>Lines</label><div id="jeLines"></div></div>
     <button type="button" class="btn-ghost" id="jeAddLine" style="width:100%;justify-content:center">+ Add line</button>
     <div class="pos-totals" id="jeTot"></div>
@@ -2241,7 +2286,14 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
       Add discount level
     </button>
-    <div class="settings-label">Locations</div>
+    <div class="settings-label">Clinic locations (where sales happen)</div>
+    <p style="font-size:13px;color:var(--muted);margin:0 0 10px;line-height:1.45">Each sale records the location its register is set to. One location carries shared costs (payroll, software, insurance). For another location, labour per clinic day and its own rent move from shared costs to it in profit per patient.</p>
+    <div id="siteList"></div>
+    <button class="add-tier" id="addSiteBtn" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Add clinic location
+    </button>
+    <div class="settings-label">Client home locations</div>
     <div id="locationList"></div>
     <button class="add-tier" id="addLocationBtn">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -4749,7 +4801,7 @@ window.startClinicApp = function(){
     $("booksStatements").style.display = v==="freports"?"block":"none";
     $("booksAccounts").style.display = v==="coa"?"block":"none";
     if(v==="fhome") renderHomeSummary();
-    else if(v==="expenses") renderExpenses();
+    else if(v==="expenses"){ fillSiteSelects(); renderExpenses(); }
     else if(v==="gl") renderGL();
     else if(v==="coa") renderAccounts();
     else renderStatements();
@@ -4790,7 +4842,198 @@ window.startClinicApp = function(){
 
   // ---------- POS / Books (Plus) ----------
   var txns = load("alphaperf_txns", []);
-  function saveTxns(){ store.set("alphaperf_txns", JSON.stringify(txns)); if(typeof schedulePush==="function") schedulePush(); }
+  function saveTxns(){ try{ stampMissingSites(); }catch(e){} store.set("alphaperf_txns", JSON.stringify(txns)); if(typeof schedulePush==="function") schedulePush(); }
+  // ---------- Clinic sites: where a sale or cost happens (5 Nov 2026) ----------
+  // Separate from alphaperf_locations, which is the client home-location list on the client form.
+  var SITES_SEED=[
+    {id:"setauket", name:"Setauket", active:true, shared:true, dayCost:0, rent:[]},
+    {id:"huntington", name:"Huntington", active:true, shared:false, dayCost:1035.5, rent:[{from:"2026-11-01", amount:1500},{from:"2027-05-01", amount:2000}]}
+  ];
+  var sites = load("alphaperf_sites", null); if(!Array.isArray(sites)||!sites.length){ sites=clone(SITES_SEED); store.set("alphaperf_sites", JSON.stringify(sites)); }
+  function saveSites(){ store.set("alphaperf_sites", JSON.stringify(sites)); if(typeof schedulePush==="function") schedulePush(); }
+  function siteById(id){ for(var i=0;i<sites.length;i++) if(sites[i].id===id) return sites[i]; return null; }
+  function siteName(id){ var s=siteById(id); return s?s.name:(id||"—"); }
+  function sharedSite(){ return sites.filter(function(s){ return s.shared; })[0] || sites[0] || {id:"setauket",name:"Setauket"}; }
+  function activeSites(){ return sites.filter(function(s){ return s.active!==false; }); }
+  // the register's site for today: chosen once per day per device, sticky default
+  var TILL_KEY="alphaperf_till_site";
+  function tillRaw(){ try{ return JSON.parse(localStorage.getItem(TILL_KEY)||"null"); }catch(e){ return null; } }
+  function tillToday(){ var t=tillRaw(); return (t && t.date===todayISO() && siteById(t.id) && siteById(t.id).active!==false) ? t.id : ""; }
+  function tillSite(){ var a=activeSites(); if(a.length===1) return a[0].id; var t=tillToday(); if(t) return t; var r=tillRaw(); if(r && siteById(r.id) && siteById(r.id).active!==false) return r.id; return sharedSite().id; }
+  function setTill(id){ try{ localStorage.setItem(TILL_KEY, JSON.stringify({id:id, date:todayISO()})); }catch(e){} if(window.__hipAudit) window.__hipAudit("till_site", id); renderTillBar(); }
+  function renderTillBar(){
+    var el=$("posTillBar"); if(!el) return;
+    var a=activeSites(), id=tillSite(), set=!!tillToday()||a.length===1;
+    el.innerHTML='<span class="till-pin">●</span> Register location: <b>'+esc(siteName(id))+'</b>'+(set?'':' <span class="till-warn">not confirmed today</span>')+(a.length>1?' <button type="button" class="btn-ghost till-change" id="posTillChange">Change</button>':'');
+    el.className="till-bar"+(set?"":" till-unset");
+    if($("posTillChange")) $("posTillChange").onclick=function(){ openTillPicker(true); };
+  }
+  function openTillPicker(force){
+    var a=activeSites(); if(a.length<2){ renderTillBar(); return; }
+    if(!force && tillToday()) { renderTillBar(); return; }
+    var cur=tillSite(), m=$("tillModal");
+    if(!m){ m=document.createElement("div"); m.id="tillModal"; m.className="till-modal"; document.body.appendChild(m); }
+    m.innerHTML='<div class="till-box"><div class="till-h">Where is this register today?</div><div class="till-sub">Every sale today is recorded at this location. You set it once a day on each device.</div>'+
+      a.map(function(s){ return '<button type="button" class="till-opt'+(s.id===cur?' on':'')+'" data-till="'+esc(s.id)+'">'+esc(s.name)+(s.id===cur?' <span>(last used)</span>':'')+'</button>'; }).join("")+'</div>';
+    m.classList.add("show");
+    Array.prototype.forEach.call(m.querySelectorAll("[data-till]"),function(b){ b.onclick=function(){ setTill(b.getAttribute("data-till")); m.classList.remove("show"); toast("Register location: "+siteName(b.getAttribute("data-till"))); }; });
+  }
+  function siteOptions(sel){ return sites.filter(function(s){ return s.active!==false || s.id===sel; }).map(function(s){ return '<option value="'+esc(s.id)+'"'+(s.id===sel?' selected':'')+'>'+esc(s.name)+(s.shared?' (shared costs)':'')+'</option>'; }).join(""); }
+  function fillSiteSelects(){ ["posExpLoc","jeLoc"].forEach(function(id){ var el=$(id); if(el){ var v=el.value||sharedSite().id; el.innerHTML=siteOptions(v); el.value=v; } }); }
+  // anything saved without a location: shared site, marked as inferred (not captured)
+  function stampMissingSites(){ var sh=sharedSite().id, n=0; txns.forEach(function(t){ if(t && !t.location){ t.location=sh; t.locInferred=true; t.locSrc=t.locSrc||"default"; n++; } }); return n; }
+  // one-time backfill: every existing sale, expense and journal entry is Setauket (inferred)
+  function sitesBackfill(){
+    if(load("alphaperf_sites_backfill", null)) return;
+    var sh=sharedSite().id, n=0, nj=0, at=new Date().toISOString();
+    txns.forEach(function(t){ if(t && !t.location){ t.location=sh; t.locInferred=true; t.locSrc="backfill"; n++; } });
+    ["mjs","alpha"].forEach(function(e){ var js=load("alphaperf_journals_"+e, []); var ch=false;
+      (js||[]).forEach(function(j){ if(j && !j.location){ j.location=sh; j.locInferred=true; j.locSrc="backfill"; ch=true; nj++; } });
+      if(ch){ store.set("alphaperf_journals_"+e, JSON.stringify(js)); if(!isCombined() && acctEntity===e) journals=js; } });
+    if(n) store.set("alphaperf_txns", JSON.stringify(txns));
+    store.set("alphaperf_sites_backfill", JSON.stringify({at:at, site:sh, txns:n, journals:nj}));
+    if(window.__hipAudit) try{ window.__hipAudit("sites_backfill", n+" txns, "+nj+" journals"); }catch(e){}
+  }
+  sitesBackfill();
+  function memberSite(clientId){ var best=null; txns.forEach(function(t){ if(t.type==="sale" && t.clientId===clientId && t.location && !t.locInferred && (!best || (t.date||"")>(best.date||""))) best=t; }); return best?best.location:sharedSite().id; }
+
+  // ---------- Profit per patient ----------
+  var PPP_GROUPS=[["revenue","Revenue"],["product","Product cost"],["labour","Labour"],["fixed","Fixed overhead"],["interco","Intercompany fee (left out)"],["none","Not counted"]];
+  var pppGroupMap = load("alphaperf_ppp_groups", {}); if(!pppGroupMap || typeof pppGroupMap!=="object") pppGroupMap={};
+  function savePppGroups(){ store.set("alphaperf_ppp_groups", JSON.stringify(pppGroupMap)); if(typeof schedulePush==="function") schedulePush(); }
+  function pppAutoGroup(a){
+    var n=(a.name||"").toLowerCase(), t=(a.type||"");
+    if(/intercompany|inter-company|management fee|consulting fee|management (and|&) consult|advertising income/.test(n) || (t==="Income" && a.code==="4050")) return "interco";
+    if(t==="Income") return "revenue";
+    if(/cost of goods/i.test(t)) return "product";
+    if(t!=="Expense") return "none";
+    if(/cogs|cost of goods|cost of sales|purchases|product cost|inventory/.test(n)) return "product";
+    if(/payroll|wage|salar|staff|employer tax|payroll tax|contract lab|labor|labour|officer comp|guaranteed payment/.test(n)) return "labour";
+    return "fixed";
+  }
+  function pppGroup(a){ if(!a) return "none"; var k=a.code||a.name; return pppGroupMap[k] || pppAutoGroup(a); }
+  function pppDaysIn(iso){ var d=parseISO(iso); return new Date(d.getFullYear(), d.getMonth()+1, 0).getDate(); }
+  function pppRentFor(site, range){
+    var sched=(site.rent||[]).filter(function(r){ return r && r.from && +r.amount>0; }).sort(function(a,b){ return a.from.localeCompare(b.from); });
+    if(!sched.length) return 0;
+    var start=range.start?isoFrom(range.start):sched[0].from, end=range.end?isoFrom(range.end):todayISO(), tot=0;
+    if(start<sched[0].from) start=sched[0].from;
+    var d=parseISO(start), e=parseISO(end); if(!d||!e||d>e) return 0;
+    for(; d<=e; d.setDate(d.getDate()+1)){
+      var iso=isoFrom(d), amt=0; sched.forEach(function(r){ if(r.from<=iso) amt=+r.amount; });
+      tot+=amt/pppDaysIn(iso);
+    }
+    return Math.round(tot*100)/100;
+  }
+  function pppSaleInView(t){ if(t.type!=="sale") return false; if(isCombined()) return true; return (t.entity||"mjs")===acctEntity; }
+  function pppCompute(range){
+    var sh=sharedSite().id, G={}, ic={revenue:0, cost:0}, ids={};
+    function row(loc){ if(!G[loc]) G[loc]={revenue:0, product:0, labour:0, fixed:0, itemCost:0, pats:{}, days:{}, sales:0, zeroCost:0, inferred:0, moved:{labour:0, rent:0}}; return G[loc]; }
+    row(sh); activeSites().forEach(function(s){ row(s.id); });
+    buildLedger().forEach(function(e){ if(!inRangeR(e.date, range)) return; var loc=e.loc||sh;
+      e.lines.forEach(function(l){ var a=acctByCode(l.acct); if(!a) return; var g=pppGroup(a);
+        var v = a.type==="Income" ? (l.cr-l.dr) : (l.dr-l.cr);
+        if(g==="interco"){ if(a.type==="Income") ic.revenue+=v; else ic.cost+=v; return; }
+        if(g==="revenue"||g==="product"||g==="labour"||g==="fixed") row(loc)[g]+=v;
+      });
+    });
+    var allPats={}, totalSales=0, zero=0, inferred=0;
+    txns.forEach(function(t){ if(!pppSaleInView(t) || !inRangeR(t.date, range)) return; var r=row(t.location||sh);
+      var ic2=(t.items||[]).reduce(function(s,i){ return s+(+i.cost||0)*(+i.qty||1); },0);
+      r.itemCost+=ic2; r.sales++; totalSales++; if(ic2<=0 && !(+t.cost>0)){ r.zeroCost++; zero++; } if(t.locInferred){ r.inferred++; inferred++; }
+      if(t.clientId){ r.pats[t.clientId]=1; allPats[t.clientId]=1; }
+      if(t.date) r.days[t.date]=1;
+    });
+    var locs=Object.keys(G);
+    // product cost follows the sale: the books total is split by the item cost of each site's sales
+    var P=locs.reduce(function(s,k){ return s+G[k].product; },0), IC=locs.reduce(function(s,k){ return s+G[k].itemCost; },0);
+    if(IC>0){ var alloc=0; locs.forEach(function(k){ if(k===sh) return; var v=Math.round(P*G[k].itemCost/IC*100)/100; G[k].product=v; alloc+=v; }); G[sh].product=Math.round((P-alloc)*100)/100; }
+    // labour by clinic day, and a site's own rent, move from the shared site to the site that used them
+    sites.forEach(function(s){ if(s.id===sh || !G[s.id]) return;
+      var days=Object.keys(G[s.id].days).length, lab=Math.min(days*(+s.dayCost||0), Math.max(0,G[sh].labour));
+      if(lab>0){ G[sh].labour-=lab; G[s.id].labour+=lab; G[s.id].moved.labour=lab; G[s.id].clinicDays=days; }
+      var rent=Math.min(pppRentFor(s, range), Math.max(0,G[sh].fixed));
+      if(rent>0){ G[sh].fixed-=rent; G[s.id].fixed+=rent; G[s.id].moved.rent=rent; }
+    });
+    function fin(r, pats){ var n=pats, profit=r.revenue-r.product-r.labour-r.fixed, contrib=r.revenue-r.product;
+      return {revenue:r.revenue, product:r.product, labour:r.labour, fixed:r.fixed, profit:profit, contrib:contrib, patients:n, perPatient:n?profit/n:null, contribPer:n?contrib/n:null}; }
+    var tot={revenue:0,product:0,labour:0,fixed:0}; locs.forEach(function(k){ ["revenue","product","labour","fixed"].forEach(function(f){ tot[f]+=G[k][f]; }); });
+    var out={total:fin(tot, Object.keys(allPats).length), sites:[], interco:ic, sales:totalSales, zeroCost:zero, inferred:inferred, itemCost:IC, bookProduct:P};
+    var order=sites.map(function(s){ return s.id; }); locs.forEach(function(k){ if(order.indexOf(k)<0) order.push(k); });
+    order.forEach(function(k){ var r=G[k]; if(!r) return; var s=siteById(k); var hasData=r.sales||r.revenue||r.product||r.labour||r.fixed;
+      if(s && s.active===false && !hasData) return; if(!s && !hasData) return;
+      var f=fin(r, Object.keys(r.pats).length); f.id=k; f.name=siteName(k); f.moved=r.moved; f.clinicDays=r.clinicDays||0; f.inferred=r.inferred; f.sales=r.sales; out.sites.push(f); });
+    return out;
+  }
+  function pppMoney(v){ return (v<0?"−$":"$")+Math.round(Math.abs(v)).toLocaleString("en-US"); }
+  function homePppCard(range, lbl){
+    var r=pppCompute(range), MIN=20;
+    function line(name, f, isTotal){
+      var thin=f.patients>0 && f.patients<MIN && !isTotal;
+      return '<div class="ppp-row'+(isTotal?' ppp-total':'')+(thin?' ppp-thin':'')+'"><span class="ppp-name">'+esc(name)+'</span>'+
+        '<span class="ppp-val">'+(f.patients?pppMoney(f.perPatient)+' <small>per patient</small>':'—')+'</span>'+
+        '<span class="ppp-pats">'+(f.patients?f.patients+' patient'+(f.patients===1?'':'s')+(thin?' · too few to rely on':''):'no patients'+((f.product+f.labour+f.fixed)>0.5?' · $'+money(f.product+f.labour+f.fixed)+' costs':''))+'</span>'+
+        '<span class="ppp-con">'+(f.patients?'contribution '+pppMoney(f.contribPer):'')+'</span></div>';
+    }
+    var T=r.total, n=T.patients||0;
+    function pp(v){ return n?pppMoney(v/n):'—'; }
+    var notes=[];
+    notes.push('Books basis: income and costs from the ledger (app sales plus reconcile adjustments), so it matches QuickBooks once reconciled. Patients are distinct clients with a sale, not receipts.');
+    if(Math.abs(r.interco.revenue)>0.004 || Math.abs(r.interco.cost)>0.004) notes.push('Intercompany fee left out: $'+money(r.interco.revenue)+' income'+(r.interco.cost?', $'+money(r.interco.cost)+' cost':'')+'.');
+    if(isCombined() && Math.abs(r.interco.revenue)>0.004 && Math.abs(r.interco.cost)<0.005) notes.push('<span class="gc-bad">Alpha’s intercompany income is left out, but no MJS cost account is marked as the intercompany fee. Mark it in Account groups.</span>');
+    if(r.zeroCost) notes.push(r.zeroCost+' of '+r.sales+' sales have no item cost. Product cost uses the books figure ($'+money(r.bookProduct)+'), split between locations by item cost ($'+money(r.itemCost)+' captured).');
+    r.sites.forEach(function(s){ var m=[]; if(s.moved.labour) m.push('$'+money(s.moved.labour)+' labour ('+s.clinicDays+' clinic day'+(s.clinicDays===1?'':'s')+')'); if(s.moved.rent) m.push('$'+money(s.moved.rent)+' rent'); if(m.length) notes.push(esc(s.name)+': '+m.join(' and ')+' moved from '+esc(sharedSite().name)+'’s shared costs.'); });
+    if(r.inferred) notes.push(r.inferred+' sale'+(r.inferred===1?' has':'s have')+' a location filled in as '+esc(sharedSite().name)+' (recorded before locations were captured).');
+    return '<div class="home-card ppp-card"><div class="hc-head"><span class="hc-title">Profit per patient</span><span class="hc-period">'+esc(lbl)+'</span></div>'+
+      line("Total", T, true)+r.sites.map(function(s){ return line(s.name, s, false); }).join("")+
+      '<details class="ppp-det"><summary>How it adds up</summary><table class="ppp-tbl"><thead><tr><th></th><th>Period</th><th>Per patient</th></tr></thead><tbody>'+
+        '<tr><td>Revenue</td><td>$'+money(T.revenue)+'</td><td>'+pp(T.revenue)+'</td></tr>'+
+        '<tr><td>Product cost</td><td>($'+money(T.product)+')</td><td>'+pp(-T.product)+'</td></tr>'+
+        '<tr><td>Labour</td><td>($'+money(T.labour)+')</td><td>'+pp(-T.labour)+'</td></tr>'+
+        '<tr><td>Fixed overhead</td><td>($'+money(T.fixed)+')</td><td>'+pp(-T.fixed)+'</td></tr>'+
+        '<tr class="ppp-tb"><td>Net profit</td><td>$'+money(T.profit)+'</td><td>'+pp(T.profit)+'</td></tr>'+
+        '<tr><td>Contribution (revenue − product)</td><td>$'+money(T.contrib)+'</td><td>'+pp(T.contrib)+'</td></tr>'+
+      '</tbody></table><button type="button" class="btn-ghost sub-mini" id="pppGroupsBtn">Account groups</button></details>'+
+      '<div class="ppp-notes">'+notes.map(function(x){ return '<div>'+x+'</div>'; }).join("")+'</div></div>';
+  }
+  function openPppGroups(){
+    var accts=activeAccounts().filter(function(a){ return a.type==="Income" || a.type==="Expense" || /cost of goods/i.test(a.type||""); }).slice().sort(function(a,b){ return (a.code||"").localeCompare(b.code||""); });
+    var body='<div class="gc-hint" style="margin:0 0 10px">Choose how each account counts in profit per patient. Changes apply everywhere the card is shown.</div>'+
+      accts.map(function(a){ var k=a.code||a.name, g=pppGroup(a), auto=pppAutoGroup(a);
+        return '<div class="ppp-grow"><span>'+esc((a.code?a.code+" ":"")+a.name)+'</span><select data-pppg="'+esc(k)+'">'+PPP_GROUPS.map(function(x){ return '<option value="'+x[0]+'"'+(x[0]===g?' selected':'')+'>'+x[1]+(x[0]===auto?' (auto)':'')+'</option>'; }).join("")+'</select></div>'; }).join("");
+    gcModalShow("Account groups", body, '<button class="btn-primary" id="pppGDone" type="button">Done</button>');
+    Array.prototype.forEach.call(document.querySelectorAll("#gcBody [data-pppg]"),function(s){ s.onchange=function(){ var k=s.getAttribute("data-pppg"), a=accts.filter(function(x){ return (x.code||x.name)===k; })[0];
+      if(a && s.value===pppAutoGroup(a)) delete pppGroupMap[k]; else pppGroupMap[k]=s.value; savePppGroups(); }; });
+    $("pppGDone").onclick=function(){ gcModalClose(); renderHomeSummary(); };
+  }
+  // Settings: clinic sites editor (saved with the Settings Save button)
+  var draftSites=[];
+  function renderSiteEditor(){ draftSites=clone(sites); paintSites(); }
+  function paintSites(){
+    var el=$("siteList"); if(!el) return;
+    el.innerHTML=draftSites.map(function(s,i){
+      return '<div class="site-edit"><div class="site-row"><input type="text" value="'+esc(s.name)+'" data-sitename="'+i+'" placeholder="Location name">'+
+        '<label class="site-ck"><input type="checkbox" data-siteon="'+i+'"'+(s.active!==false?' checked':'')+'> Open</label>'+
+        '<label class="site-ck"><input type="radio" name="siteShared" data-siteshared="'+i+'"'+(s.shared?' checked':'')+'> Shared costs</label></div>'+
+        (s.shared?'<div class="site-sub">Payroll, rent and other shared costs stay here unless moved below.</div>':
+        '<div class="site-row site-sub"><label>Labour per clinic day $<input type="number" min="0" step="0.01" data-siteday="'+i+'" value="'+(+s.dayCost||0)+'"></label>'+
+        '<label>Rent schedule <input type="text" data-siterent="'+i+'" value="'+esc((s.rent||[]).map(function(r){ return r.amount+" from "+r.from; }).join("; "))+'" placeholder="1500 from 2026-11-01; 2000 from 2027-05-01"></label></div>')+
+      '</div>';
+    }).join("");
+    Array.prototype.forEach.call(el.querySelectorAll("[data-sitename]"),function(x){ x.oninput=function(){ draftSites[+x.getAttribute("data-sitename")].name=x.value; }; });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-siteon]"),function(x){ x.onchange=function(){ draftSites[+x.getAttribute("data-siteon")].active=x.checked; }; });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-siteshared]"),function(x){ x.onchange=function(){ draftSites.forEach(function(s,i){ s.shared=(i===+x.getAttribute("data-siteshared")); }); paintSites(); }; });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-siteday]"),function(x){ x.oninput=function(){ draftSites[+x.getAttribute("data-siteday")].dayCost=Math.max(0,+x.value||0); }; });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-siterent]"),function(x){ x.onchange=function(){ var out=[]; x.value.split(/[;\n]/).forEach(function(part){ var m=part.match(/\$?\s*([\d,.]+)\s*from\s*(\d{4}-\d{2}-\d{2})/i); if(m) out.push({amount:+m[1].replace(/,/g,""), from:m[2]}); }); draftSites[+x.getAttribute("data-siterent")].rent=out; }; });
+  }
+  function commitSites(){
+    draftSites=draftSites.filter(function(s){ return (s.name||"").trim(); });
+    draftSites.forEach(function(s){ s.name=s.name.trim(); if(!s.id){ var b=s.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||"site", id=b, k=2; while(draftSites.some(function(o){ return o!==s && o.id===id; })) id=b+"-"+(k++); s.id=id; } });
+    if(!draftSites.length) return;
+    if(!draftSites.some(function(s){ return s.shared; })) draftSites[0].shared=true;
+    sites=draftSites; saveSites(); renderTillBar(); fillSiteSelects();
+  }
+
   // ---------- Gift certificates ----------
   // Paid certificates are a liability (2250) until redeemed; donation certificates carry no money and post to Charitable Donations (7230) when redeemed.
   var giftcerts = load("alphaperf_giftcerts", []);
@@ -5064,7 +5307,12 @@ window.startClinicApp = function(){
       var fee=squareFeeFor(t);
       if(fee>0){ entries.push({date:t.date,ref:"FEE",memo:"Square card fee ("+squareFeePct()+"% + $"+money(squareFeeFixed())+")",lines:[{acct:"5650",dr:fee,cr:0},{acct:"1000",dr:0,cr:fee}],ent:"alpha"}); }
     }
+    var _shLoc=(typeof sharedSite==="function")?sharedSite().id:"setauket";
     txns.forEach(function(t){
+      var _n0=entries.length; ledgerTxn(t);
+      for(var _i=_n0;_i<entries.length;_i++) entries[_i].loc=t.location||_shLoc;
+    });
+    function ledgerTxn(t){
       if(t.type==="sale"){
         var who=(t.clientName||"Walk-in");
         var nm=((t.items||[]).map(function(i){return i.name;}).join(", ")||"sale");
@@ -5092,14 +5340,14 @@ window.startClinicApp = function(){
         var code=acctCodeByName(t.category||t.name)||"5900";
         entries.push({date:t.date,ref:"EXP",memo:(t.name||t.category||"Expense"),lines:[{acct:code,dr:t.amount||0,cr:0},{acct:"1000",dr:0,cr:t.amount||0}],ent:ee});
       }
-    });
+    }
     giftcerts.forEach(function(c){
       if(c.kind!=="donation" || c.voided) return;
       if(!both && c.entity!==acctEntity) return;
-      entries.push({date:c.issued,ref:"DON",memo:"Donation certificate "+c.num+(c.recipient?" \u2014 "+c.recipient:""),lines:[{acct:"7230",dr:+c.amount||0,cr:0},{acct:"2250",dr:0,cr:+c.amount||0}],ent:c.entity});
+      entries.push({loc:_shLoc,date:c.issued,ref:"DON",memo:"Donation certificate "+c.num+(c.recipient?" \u2014 "+c.recipient:""),lines:[{acct:"7230",dr:+c.amount||0,cr:0},{acct:"2250",dr:0,cr:+c.amount||0}],ent:c.entity});
     });
     var jsrc = both ? (load("alphaperf_journals_mjs",[])||[]).concat(load("alphaperf_journals_alpha",[])||[]) : journals;
-    jsrc.forEach(function(j){ entries.push({date:j.date,ref:"JE",memo:j.memo,je:j.id,lines:(j.lines||[]).map(function(l){return {acct:l.acct,dr:+l.dr||0,cr:+l.cr||0};})}); });
+    jsrc.forEach(function(j){ entries.push({loc:j.location||_shLoc,date:j.date,ref:"JE",memo:j.memo,je:j.id,lines:(j.lines||[]).map(function(l){return {acct:l.acct,dr:+l.dr||0,cr:+l.cr||0};})}); });
     return entries.sort(function(a,b){return (a.date||"").localeCompare(b.date||"");});
   }
   function accountBalances(upToEnd){
@@ -5205,7 +5453,7 @@ window.startClinicApp = function(){
   }
   function saveRegProducts(){ store.set("alphaperf_regprod_mjs", JSON.stringify(regProducts.mjs)); store.set("alphaperf_regprod_alpha", JSON.stringify(regProducts.alpha)); if(typeof schedulePush==="function") schedulePush(); }
   function curProducts(){ ensureRegProducts(); return regProducts[regEntity]||[]; }
-  function renderRegister(){ wirePOS(); fillPosSelects(); renderCart(); renderRegSub(); }
+  function renderRegister(){ wirePOS(); fillPosSelects(); renderCart(); renderRegSub(); renderTillBar(); openTillPicker(false); }
 
   var invWired=false, invEditName=null, invEditEntity=null;
   function invRows(){
@@ -6036,7 +6284,7 @@ window.startClinicApp = function(){
             newTx.push({ id:id, date:d.toISOString().slice(0,10), type:"sale", clientId:p.id, clientName:p.name,
               items:[{name:"Membership dues \u2014 "+p.tier, retail:price, cost:0, qty:1, cat:"Membership", entity:"alpha"}],
               subtotal:price, discountName:"", discountPct:0, discountAmt:0, total:price, cost:0, profit:price,
-              payment:"Card", payments:[{method:"Card", amount:price}], arAmount:0, source:"auto", entity:"alpha", recur:true, memberId:p.id });
+              payment:"Card", payments:[{method:"Card", amount:price}], arAmount:0, source:"auto", entity:"alpha", recur:true, memberId:p.id, location:memberSite(p.id), locSrc:"member" });
             p.autoBilledKeys[key]=id; patientsChanged=true; added++;
           } else if(hasReal && !p.autoBilledKeys[key]){ p.autoBilledKeys[key]="real"; patientsChanged=true; }
         }
@@ -6251,7 +6499,8 @@ window.startClinicApp = function(){
     var _cAt=new Date().toISOString(), _cBy=window.__curEmail?window.__curEmail():"";
     if(posSubCharge && p && p.id===posSubCharge.clientId) subRecordCharge(plan, saleGroup, total); else posSubCharge=null;
     var _ovr=(cartHasPkg() && posPkgOverride && (sub-total>0.004 || promoRec)) ? posPkgOverride : null;
-    plan.forEach(function(t){ t.chargeConfirmedAt=_cAt; t.chargeConfirmedBy=_cBy; if(_ovr) t.pkgDiscountOverride=_ovr; txns.push(t); });
+    var _site=tillSite(), _siteSrc=tillToday()?"till":"till-default";
+    plan.forEach(function(t){ t.chargeConfirmedAt=_cAt; t.chargeConfirmedBy=_cBy; if(_ovr) t.pkgDiscountOverride=_ovr; t.location=_site; t.locSrc=_siteSrc; txns.push(t); });
     saveTxns();
     if(promoRec){
       promoUses.push({ id:"pu"+Date.now().toString(36)+Math.random().toString(36).slice(2,5), promoId:promoRec.pr.id, promoName:promoRec.pr.name, clientId:p.id, clientName:p.name,
@@ -6602,7 +6851,9 @@ window.startClinicApp = function(){
       '<div class="hc-head"><span class="hc-title">Cash &amp; bank</span><span class="hc-period">as of today</span></div>'+
       '<div class="hc-sub">Total cash balance</div><div class="hc-big">$'+money(cashTotal)+'</div>'+
       '<div class="hc-acct-list">'+acctList+'</div></div>';
-    $("homeGrid").innerHTML=plCard+expCard+bankCard+homeMonthlyCard(range, lbl);
+    var _ppp=''; try{ _ppp=homePppCard(range, lbl); }catch(e){ console.error('[ppp]', e); }
+    $("homeGrid").innerHTML=plCard+expCard+bankCard+homeMonthlyCard(range, lbl)+_ppp;
+    if($("pppGroupsBtn")) $("pppGroupsBtn").onclick=openPppGroups;
   }
 
   /* ---- Analytics monthly trends ---- */
@@ -6966,7 +7217,7 @@ window.startClinicApp = function(){
   var JEL=[];
   function openJournal(){
     JEL=[{acct:"1000",dr:"",cr:""},{acct:"3000",dr:"",cr:""}];
-    $("jeDate").value=todayISO(); $("jeMemo").value="";
+    $("jeDate").value=todayISO(); $("jeMemo").value=""; fillSiteSelects(); if($("jeLoc")) $("jeLoc").value=sharedSite().id;
     renderJELines();
     $("jeScrim").classList.add("show"); $("jeModal").classList.add("show"); $("jeModal").setAttribute("aria-hidden","false");
   }
@@ -6998,7 +7249,7 @@ window.startClinicApp = function(){
     var dr=JEL.reduce(function(s,l){return s+(+l.dr||0);},0), cr=JEL.reduce(function(s,l){return s+(+l.cr||0);},0);
     if(Math.abs(dr-cr)>0.01){ toast("Debits must equal credits"); return; }
     if(dr===0){ toast("Enter at least one amount"); return; }
-    journals.push({ id:"je"+Date.now().toString(36)+Math.random().toString(36).slice(2,4), date:$("jeDate").value||todayISO(), memo:($("jeMemo").value||"").trim()||"Journal entry", lines:JEL.filter(function(l){return (+l.dr||0)||(+l.cr||0);}).map(function(l){return {acct:l.acct,dr:+l.dr||0,cr:+l.cr||0};}) });
+    journals.push({ id:"je"+Date.now().toString(36)+Math.random().toString(36).slice(2,4), date:$("jeDate").value||todayISO(), memo:($("jeMemo").value||"").trim()||"Journal entry", location:($("jeLoc")&&$("jeLoc").value)||sharedSite().id, locSrc:"entered", lines:JEL.filter(function(l){return (+l.dr||0)||(+l.cr||0);}).map(function(l){return {acct:l.acct,dr:+l.dr||0,cr:+l.cr||0};}) });
     saveJournals(); closeJournal(); renderGL(); toast("Entry posted");
   }
   function exportGL(){
@@ -7047,7 +7298,7 @@ window.startClinicApp = function(){
     var note=($("posExpNote").value||"").trim();
     if(!nm){ toast("Pick an expense account"); return; }
     if(!amt){ $("posExpAmt").focus(); return; }
-    txns.push({ id:txId(), date:$("posExpDate").value||todayISO(), type:"expense", name:note||nm, category:nm, amount:amt, note:note, entity:acctEntity });
+    txns.push({ id:txId(), date:$("posExpDate").value||todayISO(), type:"expense", name:note||nm, category:nm, amount:amt, note:note, entity:acctEntity, location:($("posExpLoc")&&$("posExpLoc").value)||sharedSite().id, locSrc:"entered" });
     saveTxns();
     $("posExpAmt").value=""; $("posExpNote").value="";
     renderAccounting("expenses"); toast("Expense added");
@@ -7060,7 +7311,7 @@ window.startClinicApp = function(){
       if(txns.some(function(t){return t.visitId===v.id;})) return;
       txns.push({ id:txId(), date:v.date, type:"sale", clientId:p.id, clientName:p.name,
         items:[{ name:(v.type||"Visit")+" — "+((v.treatments||[]).join(", ")||"treatment"), retail:rx.retail, cost:rx.cost, qty:1 }],
-        subtotal:rx.retail, discountPct:0, total:rx.retail, cost:rx.cost, profit:rx.retail-rx.cost, payment:"—", source:"visit", visitId:v.id });
+        subtotal:rx.retail, discountPct:0, total:rx.retail, cost:rx.cost, profit:rx.retail-rx.cost, payment:"—", source:"visit", visitId:v.id, location:sharedSite().id, locInferred:true, locSrc:"visit" });
       count++;
     }); });
     if(count){ saveTxns(); renderAccounting(activeView); toast("Imported "+count+" visit"+(count===1?"":"s")); }
@@ -8217,6 +8468,7 @@ window.startClinicApp = function(){
     renderVisitTypeEditor();
     renderDiscountEditor();
     renderLocationEditor();
+    renderSiteEditor();
     renderRefSourceEditor();
     refreshBooksLockUI();
     closeSidebar();
@@ -8395,6 +8647,7 @@ window.startClinicApp = function(){
     // de-duplicate, keep order
     (function(){ var seen={},out=[]; locations.forEach(function(l){ if(!seen[l.toLowerCase()]){ seen[l.toLowerCase()]=1; out.push(l); } }); locations=out; })();
     saveLocations();
+    commitSites();
     applyBrand();
     closeSettings(); renderAll();
     toast("Settings saved");
@@ -8448,7 +8701,7 @@ window.startClinicApp = function(){
       app:"AlphaPerformance", schema:4, exportedAt:new Date().toISOString(),
       members:members, tiers:tiers, patients:patients, treatments:treatments,
       visitTypes:visitTypes, discounts:discounts, pricing:treatmentPricing, settings:settings,
-      txns:txns, giftcerts:giftcerts, promos:promos, promoUses:promoUses, promoAttempts:promoAttempts, packages:packages, subs:subs, regProducts:regProducts,
+      txns:txns, giftcerts:giftcerts, promos:promos, promoUses:promoUses, promoAttempts:promoAttempts, packages:packages, subs:subs, sites:sites, regProducts:regProducts,
       books:{ accounts:{ mjs:load("alphaperf_accounts_mjs",[]), alpha:load("alphaperf_accounts_alpha",[]) },
               journals:{ mjs:load("alphaperf_journals_mjs",[]), alpha:load("alphaperf_journals_alpha",[]) } },
       bookslock:booksLock
@@ -8597,6 +8850,7 @@ window.startClinicApp = function(){
     if(Array.isArray(d.txns)){ txns=d.txns; store.set("alphaperf_txns", JSON.stringify(txns)); }
     if(Array.isArray(d.giftcerts)){ giftcerts=d.giftcerts; store.set("alphaperf_giftcerts", JSON.stringify(giftcerts)); }
     if(Array.isArray(d.packages)){ packages=d.packages; store.set("alphaperf_packages", JSON.stringify(packages)); }
+    if(Array.isArray(d.sites)&&d.sites.length){ sites=d.sites; store.set("alphaperf_sites", JSON.stringify(sites)); }
     if(Array.isArray(d.subs)){ subs=d.subs; store.set("alphaperf_subs", JSON.stringify(subs)); }
     if(Array.isArray(d.promos)){ promos=d.promos; store.set("alphaperf_promos", JSON.stringify(promos)); } if(Array.isArray(d.promoUses)){ promoUses=d.promoUses; store.set("alphaperf_promouses", JSON.stringify(promoUses)); } if(Array.isArray(d.promoAttempts)){ promoAttempts=d.promoAttempts; store.set("alphaperf_promoattempts", JSON.stringify(promoAttempts)); }
     if(d.regProducts){ ensureRegProducts();
@@ -8907,6 +9161,7 @@ window.startClinicApp = function(){
       if(k==="alphaperf_txns") txns=load(k,[]);
       else if(k==="alphaperf_patients") patients=load(k,[]);
       else if(k==="alphaperf_giftcerts") giftcerts=load(k,[]);
+      else if(k==="alphaperf_sites"){ sites=load(k,sites); }
       else if(k==="alphaperf_subs"){ subs=load(k,[]); if(!Array.isArray(subs)) subs=[]; }
       else if(k==="alphaperf_promouses") promoUses=load(k,[]);
       else if(k==="alphaperf_promoattempts") promoAttempts=load(k,[]);
@@ -9018,6 +9273,7 @@ window.startClinicApp = function(){
   $("addVisitTypeBtn").onclick=function(){ draftVisitTypes.push(""); paintVisitTypes(); };
   $("addDiscountBtn").onclick=function(){ draftDiscounts.push({name:"",percent:0}); paintDiscounts(); };
   $("addLocationBtn").onclick=function(){ draftLocations.push(""); paintLocations(); };
+  if($("addSiteBtn")) $("addSiteBtn").onclick=function(){ draftSites.push({name:"", active:true, shared:false, dayCost:0, rent:[]}); paintSites(); };
   if($("addRefSourceBtn")) $("addRefSourceBtn").onclick=function(){ draftRefSources.push({name:"",type:"none"}); paintRefSources(); };
   $("clearAllBtn").onclick=clearAll;
   $("cloudPill").onclick=function(){
@@ -10390,7 +10646,7 @@ window.startClinicApp = function(){
     put("alphaperf_pricing", data.pricing);
     put("alphaperf_txns", data.txns);
     put("alphaperf_giftcerts", data.giftcerts);
-    put("alphaperf_packages", data.packages); put("alphaperf_subs", data.subs); put("alphaperf_promos", data.promos); put("alphaperf_promouses", data.promoUses); put("alphaperf_promoattempts", data.promoAttempts);
+    put("alphaperf_packages", data.packages); put("alphaperf_subs", data.subs); put("alphaperf_sites", data.sites); put("alphaperf_promos", data.promos); put("alphaperf_promouses", data.promoUses); put("alphaperf_promoattempts", data.promoAttempts);
     if(data.settings){ var s; try{ s=JSON.parse(JSON.stringify(data.settings)); }catch(e){ s={}; } delete s.supabaseUrl; delete s.supabaseKey; put("alphaperf_settings", s); }
     if(data.regProducts){ put("alphaperf_regprod_mjs", data.regProducts.mjs); put("alphaperf_regprod_alpha", data.regProducts.alpha); }
     if(data.books){
