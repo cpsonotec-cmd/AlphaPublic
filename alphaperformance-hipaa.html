@@ -2624,7 +2624,7 @@ window.startClinicApp = function(){
   function invSetFull(name, rec){ inventory[name]={qty:Math.max(0,Math.round(rec.qty||0)), reorderAt:Math.max(0,Math.round(rec.reorderAt||0)), startQty:Math.max(0,Math.round(rec.startQty||0)), adj:rec.adj||[]}; saveInventory(); }
   // Treatments are managed in Items; keep the client-form list + pricing in sync.
   function ensureTreatmentsInItems(){
-    ensureRegProducts();
+    ensureRegProducts(); if(regProducts.pending) return;
     var existing={}; ["mjs","alpha"].forEach(function(e){ (regProducts[e]||[]).forEach(function(p){ existing[(p.name||"").toLowerCase()]=1; }); });
     var added=false;
     treatments.forEach(function(t){
@@ -4311,6 +4311,7 @@ window.startClinicApp = function(){
   function wirePackages(){
     // the new product from the 3 Nov list
     try{ ensureRegProducts(); var nm="Tesamorelin/Ipamorelin 12/3mg (0.6/150ug)";
+      if(regProducts.pending) return;
       if(!pkgProd(nm)){ regProducts.mjs.push({id:pid(), name:nm, price:375, cost:122, cat:"Treatment"}); saveRegProducts(); }
       // 3 Nov 2026: a shot given while the client waits for their vial
       if(!pkgProd("Testosterone shot")){ regProducts.mjs.push({id:pid(), name:"Testosterone shot", price:50, cost:0, cat:"Treatment"}); saveRegProducts(); } }catch(e){}
@@ -5426,7 +5427,7 @@ window.startClinicApp = function(){
     return Math.round((card*squareFeePct()/100 + squareFeeFixed())*100)/100;
   }
   function applyThorneSupps(){
-    ensureRegProducts();
+    ensureRegProducts(); if(regProducts.pending) return;
     var names={}; THORNE_SUPPS.forEach(function(s){ names[s.name]=1; });
     var changed=false;
     // supplements belong to AlphaPerformance — remove any that ended up in MJS
@@ -5446,6 +5447,8 @@ window.startClinicApp = function(){
     if(regProducts) return;
     var m=load("alphaperf_regprod_mjs", null), a=load("alphaperf_regprod_alpha", null);
     var seeded=false;
+    var recOn=false; try{ recOn=!!(window.__recActive && window.__recActive()); }catch(e){}
+    if(recOn && (!m || !a)){ regProducts={ mjs:m||[], alpha:a||[] }; regProducts.pending=true; return; }   // products arrive as records: never seed
     if(!m){ m=seedMjsProducts(); seeded=true; }
     if(!a){ a=seedAlphaProducts(); seeded=true; }
     regProducts={ mjs:m, alpha:a };
@@ -9166,7 +9169,7 @@ window.startClinicApp = function(){
       else if(k==="alphaperf_promouses") promoUses=load(k,[]);
       else if(k==="alphaperf_promoattempts") promoAttempts=load(k,[]);
       else if(k==="alphaperf_inventory"){ inventory=load(k,{}); if(!inventory||typeof inventory!=="object") inventory={}; }
-      else if(k==="alphaperf_regprod_mjs"||k==="alphaperf_regprod_alpha"){ if(regProducts){ regProducts.mjs=load("alphaperf_regprod_mjs",regProducts.mjs); regProducts.alpha=load("alphaperf_regprod_alpha",regProducts.alpha); } }
+      else if(k==="alphaperf_regprod_mjs"||k==="alphaperf_regprod_alpha"){ if(regProducts && regProducts.pending){ delete regProducts.pending; } if(regProducts){ regProducts.mjs=load("alphaperf_regprod_mjs",regProducts.mjs); regProducts.alpha=load("alphaperf_regprod_alpha",regProducts.alpha); } }
       else if(k==="alphaperf_journals_mjs"||k==="alphaperf_journals_alpha"){ if(!isCombined() && k==="alphaperf_journals_"+acctEntity) journals=load(k,[]); }
     });
     try{ renderAll(); }catch(e){}
@@ -10172,13 +10175,77 @@ window.startClinicApp = function(){
   }
 
   function saveAccounts(){ lsSet("accounts", accounts); setUnsent(unsentCount()+1); pushSoon(); }
-  function findAcct(e){ e=(e||"").trim().toLowerCase(); return accounts.filter(function(a){return a.email===e;})[0]; }
+  function findAcct(e){ e=(e||"").trim().toLowerCase(); return accounts.filter(function(a){return a.email===e && !a.removedAt;})[0]; }
+  // Removed staff: the account is replaced by a record of the removal (no key material), which other devices pick up
+  // removals live in their own cloud row (append-only, like the access log), so no ordinary save can undo one
+  var REM_ID="workspace_removed";
+  async function cloudAccounts(){
+    if(!syncEnabled) return null;
+    try{ var sess=await ensureSession(), tok=sess&&sess.ok?sess.token:null;
+      var r=await rawFetch(SYNC_URL+"/rest/v1/workspace_sync?id=in.("+SYNC_ID+","+REM_ID+")&select=id,accounts", {headers:syncHeaders(null, tok)});
+      if(!r.ok && tok) r=await rawFetch(SYNC_URL+"/rest/v1/workspace_sync?id=in.("+SYNC_ID+","+REM_ID+")&select=id,accounts", {headers:syncHeaders(null, null)});
+      if(!r.ok) return null; var rows=await r.json(), out=[];
+      (rows||[]).forEach(function(row){ (Array.isArray(row.accounts)?row.accounts:[]).forEach(function(a){ if(a && a.removedAt) out.push(a); }); });
+      return out; }catch(e){ return null; }
+  }
+  async function pushRemovals(){
+    var pend=lsGet("rm_pending",[]); if(!pend.length || !syncEnabled) return true;
+    try{ var sess=await ensureSession(), tok=sess&&sess.ok?sess.token:null;
+      var g=await rawFetch(SYNC_URL+"/rest/v1/workspace_sync?id=eq."+REM_ID+"&select=accounts", {headers:syncHeaders(null, tok)});
+      if(!g.ok && tok){ tok=null; g=await rawFetch(SYNC_URL+"/rest/v1/workspace_sync?id=eq."+REM_ID+"&select=accounts", {headers:syncHeaders(null, null)}); }
+      if(!g.ok) return false;
+      var rows=await g.json(), list=(rows&&rows[0]&&Array.isArray(rows[0].accounts))?rows[0].accounts:[];
+      pend.forEach(function(t){ list=list.filter(function(x){ return !(x.email===t.email && (x.removedAt||"")<=t.removedAt); }); if(!list.some(function(x){ return x.email===t.email; })) list.push(t); });
+      var r=await rawFetch(SYNC_URL+"/rest/v1/workspace_sync?on_conflict=id", {method:"POST", headers:syncHeaders({"Content-Type":"application/json", Prefer:"resolution=merge-duplicates,return=minimal"}, tok),
+        body:JSON.stringify({id:REM_ID, accounts:list, audit:[], updated_at:new Date().toISOString()})});
+      if(!r.ok) return false;
+      lsSet("rm_pending", []); return true;
+    }catch(e){ return false; }
+  }
+  function applyRemovals(cloud){
+    var changed=false;
+    (cloud||[]).forEach(function(c){ if(!c || !c.removedAt || !c.email) return;
+      var hit=false;
+      accounts.forEach(function(a,i){ if(a.email!==c.email) return; hit=true; if(!a.removedAt && !((a.createdAt||"")>c.removedAt)){ accounts[i]=c; changed=true; } });
+      if(!hit){ accounts.push(c); changed=true; }
+    });
+    if(changed) lsSet("accounts", accounts);
+    return changed;
+  }
+  function withTimeout(p, ms){ return Promise.race([p, new Promise(function(r){ setTimeout(function(){ r(null); }, ms); })]); }
+  setInterval(async function(){
+    if(!curUser || !syncEnabled || document.visibilityState==="hidden") return;
+    try{ await pushRemovals(); }catch(e){}
+    var ca=await cloudAccounts(); if(!ca) return;
+    applyRemovals(ca);
+    if(!findAcct(curUser.email)){ audit("removed_signed_out", curUser.email); try{ await saveVaultNow(); }catch(e){} toast("Your account was removed by an administrator."); setTimeout(function(){ signOut(true); }, 1500); }
+  }, 60000);
+  function openRemoveUser(email){
+    var a=findAcct(email); if(!a) return;
+    var admins=accounts.filter(function(x){ return !x.removedAt && x.role==="Admin"; });
+    if(a.email===curUser.email){ toast("You can\u2019t remove yourself"); return; }
+    if(a.role==="Admin" && admins.length<=1){ toast("Keep at least one Admin"); return; }
+    modal('<div class="hiph">Remove '+escp(a.name)+'?</div><div class="hipsub">'+escp(a.email)+' \u00b7 '+escp(a.role)+'<br><br>They will no longer be able to sign in on any device. If they are signed in now, they are signed out within about a minute. Their past sales and entries in the access log stay.</div>'+
+      '<div class="hipfld"><label>Type their first name to confirm</label><input id="hrmName" autocomplete="off" placeholder="'+escp(a.name.trim().split(/\s+/)[0])+'"></div>'+
+      '<div style="display:flex;gap:9px"><button class="hipbtn ghost sm" id="hrmCancel">Cancel</button><button class="hipbtn" id="hrmGo" style="background:#B42318">Remove</button></div><div class="hiperr" id="hrmErr"></div>');
+    $("hrmCancel").onclick=function(){ closeModal(); openConsole("team"); };
+    $("hrmGo").onclick=function(){
+      var first=a.name.trim().split(/\s+/)[0].toLowerCase();
+      if(($("hrmName").value||"").trim().toLowerCase()!==first){ $("hrmErr").textContent="Type "+a.name.trim().split(/\s+/)[0]+" to confirm."; return; }
+      var i=accounts.indexOf(a);
+      var tomb={email:a.email, name:a.name, role:a.role, createdAt:a.createdAt, removedAt:new Date().toISOString(), removedBy:curUser.email};
+      accounts[i]=tomb; var pend=lsGet("rm_pending",[]); pend.push(tomb); lsSet("rm_pending", pend);
+      saveAccounts(); audit("user_removed", a.email); closeModal(); openConsole("team");
+      pushRemovals().then(function(ok){ toast(ok ? a.name+" removed on every device" : a.name+" removed here. It will reach other devices as soon as this one is online."); });
+    };
+  }
 
   /* audit */
   function audit(action,target,noPush){ var l=lsGet("audit",[]); l.push({id:uid("a"),ts:new Date().toISOString(),email:curUser?curUser.email:"\u2014",name:curUser?curUser.name:"system",role:curUser?curUser.role:"\u2014",action:action,target:target||""}); if(l.length>8000)l=l.slice(-8000); lsSet("audit",l); if(!noPush) auditPushSoon(); }
   // Global hook the clinical app calls for record-level access (only logs once signed in).
   window.__hipAudit=function(action,target){ if(!curUser) return; try{ audit(action, target||""); }catch(e){} };
   window.__isAdmin=function(){ return !!(curUser && curUser.role==="Admin"); };
+  window.__recActive=function(){ try{ return !!(window.__vaultSlim || lsGet("rec_live",false)); }catch(e){ return false; } };
   window.__curEmail=function(){ return curUser ? (curUser.email||"") : ""; };
 
   /* vault (encrypts all app data at rest) */
@@ -10217,7 +10284,7 @@ window.startClinicApp = function(){
       el.style.display="block";
     }catch(e){}
   }
-  async function loadVault(){ var blob=lsGet("vault",null); if(!blob){ window.__vaultMem={}; return; }
+  async function loadVault(){ var blob=lsGet("vault",null); window.__vaultSlim=!!(blob && blob.rec===1); if(!blob){ window.__vaultMem={}; return; }
     try{ var txt=await gcmDec(DKKey, blob); if(blob.z===1) txt=await gunzipB64(txt); window.__vaultMem=JSON.parse(txt)||{}; lastPlainSaved=JSON.stringify(window.__vaultMem); myVaultRev=lsGet("vault_rev",null); }
     catch(e){ window.__vaultMem={}; }
   }
@@ -10337,11 +10404,13 @@ window.startClinicApp = function(){
   async function doSignIn(){
     var email=($("hsiEmail").value||"").trim().toLowerCase(), pass=$("hsiPass").value||"", err=$("hsiErr"); err.textContent="";
     var acct=findAcct(email);
-    if(!acct||!pass){ err.textContent="Incorrect email or password."; audit("sign_in_failed", email||"(blank)"); return; }
+    if(!acct||!pass){ err.textContent=accounts.some(function(a){ return a.email===email && a.removedAt; })?"This account has been removed. Ask an administrator.":"Incorrect email or password."; audit("sign_in_failed", email||"(blank)"); return; }
     err.textContent="Verifying\u2026";
     try{
       var kek=await deriveKEK(pass, acct.salt);
       var raw=await unwrapDK(kek, acct.wrapped);
+      var ca=await withTimeout(cloudAccounts(), 6000);
+      if(ca){ applyRemovals(ca); if(!findAcct(email)){ err.textContent="This account has been removed. Ask an administrator."; audit("sign_in_blocked_removed", email); return; } }
       DKKey=await importDK(raw); dkRawMem=raw;
       curUser={email:acct.email,name:acct.name,role:acct.role};
       await enterApp();
@@ -10479,7 +10548,7 @@ window.startClinicApp = function(){
       '<div class="hipsec"><h4>Technical safeguards (in this app)</h4>'+TECH.map(function(t){ return '<div class="hiprow"><div class="bd"><div class="t">'+escp(t[0])+'</div><div class="d">'+escp(t[1])+'</div></div><span class="hipbadge2 '+(t[2]?"good":"warn")+'">'+(t[2]?"Built in":"At rollout")+'</span></div>'; }).join("")+'</div>'+
       '<div class="hipsec"><h4>Program requirements (your organization)</h4>'+PROG.map(function(p){ return '<div class="hiprow"><div class="hipchk'+(compliance[p[0]]?" on":"")+'" data-k="'+p[0]+'"'+(admin?'':' style="opacity:.5;cursor:default"')+'>'+(compliance[p[0]]?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>':'')+'</div><div class="bd"><div class="t">'+escp(p[1])+'</div><div class="d">'+escp(p[2])+'</div></div></div>'; }).join("")+(admin?'<div class="hiphint" style="margin-top:10px">Tap a box as your organization completes each item.</div>':'')+'</div>';
   }
-  var ACTL={sign_in:"Signed in",sign_out:"Signed out",sign_in_failed:"Failed sign-in",auto_logoff:"Auto logoff",workspace_created:"Workspace created",user_created:"User created",user_role_changed:"Role changed",password_changed:"Password changed",compliance_update:"Compliance updated",settings_update:"Settings updated",backup_export:"Backup exported",patient_view:"Opened record",patient_create:"Created record",patient_edit:"Edited record",patient_delete:"Deleted record",patient_checkin:"Checked in",sale:"Recorded sale"};
+  var ACTL={user_removed:"User removed",removed_signed_out:"Removed user signed out",sign_in_blocked_removed:"Removed user blocked at sign-in",sign_in:"Signed in",sign_out:"Signed out",sign_in_failed:"Failed sign-in",auto_logoff:"Auto logoff",workspace_created:"Workspace created",user_created:"User created",user_role_changed:"Role changed",password_changed:"Password changed",compliance_update:"Compliance updated",settings_update:"Settings updated",backup_export:"Backup exported",patient_view:"Opened record",patient_create:"Created record",patient_edit:"Edited record",patient_delete:"Deleted record",patient_checkin:"Checked in",sale:"Recorded sale"};
   var ACTW={sign_in_failed:1,auto_logoff:1,patient_delete:1};
   var PHI_ACTIONS={patient_view:1,patient_create:1,patient_edit:1,patient_delete:1,patient_checkin:1,sale:1};
   function patientNameMap(){
@@ -10514,8 +10583,9 @@ window.startClinicApp = function(){
   function viewTeam(){
     return '<div class="hipsec"><h4>Team &amp; roles</h4><div class="hiphint" style="margin-bottom:12px">Each person signs in with a unique account. Give the least access needed. Admin: full access incl. accounting &amp; this console. Provider / Front desk: clinical screens, no accounting.</div>'+
       '<button class="hipbtn sm" id="hipAddUser" style="margin-bottom:12px">+ Add staff member</button>'+
-      accounts.map(function(a){ var ini=(a.name.trim()[0]||"?").toUpperCase();
-        return '<div class="hipuser"><div class="hipav">'+escp(ini)+'</div><div class="bd"><div class="t">'+escp(a.name)+(a.email===curUser.email?' <span class="hipbadge2 n">you</span>':'')+'</div><div class="d">'+escp(a.email)+'</div></div><span class="hipbadge2 '+(a.role==="Admin"?"bad":a.role==="Provider"?"good":"n")+'">'+escp(a.role)+'</span>'+(a.email===curUser.email?'':'<button class="hipbtn ghost sm" data-e="'+escp(a.email)+'" style="margin-left:8px">Role</button><button class="hipbtn ghost sm" data-reset="'+escp(a.email)+'" style="margin-left:6px">Reset</button>')+'</div>'; }).join("")+'</div>';
+      accounts.filter(function(a){ return !a.removedAt; }).map(function(a){ var ini=(a.name.trim()[0]||"?").toUpperCase();
+        return '<div class="hipuser"><div class="hipav">'+escp(ini)+'</div><div class="bd"><div class="t">'+escp(a.name)+(a.email===curUser.email?' <span class="hipbadge2 n">you</span>':'')+'</div><div class="d">'+escp(a.email)+'</div></div><span class="hipbadge2 '+(a.role==="Admin"?"bad":a.role==="Provider"?"good":"n")+'">'+escp(a.role)+'</span>'+(a.email===curUser.email?'':'<button class="hipbtn ghost sm" data-e="'+escp(a.email)+'" style="margin-left:8px">Role</button><button class="hipbtn ghost sm" data-reset="'+escp(a.email)+'" style="margin-left:6px">Reset</button><button class="hipbtn ghost sm" data-rm="'+escp(a.email)+'" style="margin-left:6px;color:#B42318">Remove</button>')+'</div>'; }).join("")+
+      (accounts.some(function(a){ return a.removedAt; })?'<div class="hiphint" style="margin-top:14px"><b>Removed</b><br>'+accounts.filter(function(a){ return a.removedAt; }).map(function(a){ return escp(a.name)+' \u00b7 '+escp(a.email)+' \u00b7 removed '+escp(new Date(a.removedAt).toLocaleDateString())+(a.removedBy?' by '+escp(a.removedBy):''); }).join('<br>')+'</div>':'')+'</div>';
   }
   function wireConsole(){
     if($("hipSignOut")) $("hipSignOut").onclick=function(){ signOut(false); };
@@ -10533,6 +10603,7 @@ window.startClinicApp = function(){
     Array.prototype.forEach.call(document.querySelectorAll(".hipchk[data-k]"),function(c){ if(!isAdmin())return; c.onclick=function(){ var k=c.getAttribute("data-k"); compliance[k]=!compliance[k]; lsSet("compliance",compliance); audit("compliance_update",k+"="+(compliance[k]?"done":"cleared")); refreshShield(); renderConsole(); }; });
     Array.prototype.forEach.call(document.querySelectorAll("#hipConsoleBody button[data-e]"),function(b){ b.onclick=function(){ openRole(b.getAttribute("data-e")); }; });
     Array.prototype.forEach.call(document.querySelectorAll("#hipConsoleBody button[data-reset]"),function(b){ b.onclick=function(){ adminResetUser(b.getAttribute("data-reset")); }; });
+    Array.prototype.forEach.call(document.querySelectorAll("#hipConsoleBody button[data-rm]"),function(b){ b.onclick=function(){ openRemoveUser(b.getAttribute("data-rm")); }; });
   }
 
   /* modal helper reusing gate card style */
@@ -10576,6 +10647,7 @@ window.startClinicApp = function(){
       if(!dkRawMem){err.textContent="Session key unavailable \u2014 sign in again.";return;}
       var salt=randB64(16), kek=await deriveKEK(pass, salt), wrapped=await wrapDK(kek, dkRawMem);
       var recKey=genRecoveryKey(), recovery=await makeRecovery(dkRawMem, recKey);
+      accounts=accounts.filter(function(x){ return !(x.email===email && x.removedAt); });
       accounts.push({email:email,name:name,role:role,salt:salt,wrapped:wrapped,recovery:recovery,createdAt:new Date().toISOString(),mustChange:true}); saveAccounts();
       audit("user_created", email); closeModal();
       showRecoveryKey(recKey, "Staff member added. Share this recovery key with "+name+" so they can regain access if they forget their password.", function(){ openConsole("team"); });
