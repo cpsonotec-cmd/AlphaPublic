@@ -763,6 +763,48 @@
   .sub-track{padding:9px 10px;border:1px solid var(--line);border-radius:9px;font-size:13px;background:var(--card);color:var(--ink);width:170px}
   .sub-done{padding:9px 13px}
   .sub-confirm{font-weight:600}
+  /* register: clearer sections */
+  #regSale .rep-card{background:var(--canvas,#F3F4F6)}
+  .reg-box{background:var(--card,#fff);border:1.5px solid var(--line);border-left:5px solid #94A3B8;border-radius:14px;padding:14px 16px;margin-bottom:14px;box-shadow:0 1px 3px rgba(15,23,42,.06)}
+  .reg-box-client{border-left-color:#B91C1C}
+  .reg-box-items{border-left-color:#0F766E}
+  .reg-box-pkg{border-left-color:#7C3AED}
+  .reg-box-disc{border-left-color:#D97706}
+  .reg-box-pay{border-left-color:#1D4ED8}
+  .reg-box-h{font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:800;color:var(--ink);margin:0 0 12px;letter-spacing:.01em}
+  .reg-row{display:flex;align-items:center;gap:12px}
+  .reg-lbl{font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:800;color:var(--ink);white-space:nowrap;flex:0 0 auto;margin:0}
+  .reg-box-items .reg-lbl{min-width:0}
+  .reg-grow{flex:1;min-width:0;position:relative}
+  .reg-grow input{width:100%;box-sizing:border-box;font-size:16px;padding:13px 14px;border:2px solid #CBD5E1;border-radius:11px;background:var(--card,#fff);color:var(--ink)}
+  .reg-grow input:focus{outline:none;border-color:#B91C1C;box-shadow:0 0 0 3px rgba(185,28,28,.12)}
+  .reg-box-items .reg-grow input:focus{border-color:#0F766E;box-shadow:0 0 0 3px rgba(15,118,110,.12)}
+  .reg-newclient{flex:0 0 auto;padding:12px 16px;font-size:14.5px;font-weight:700;white-space:nowrap}
+  #regSale .reg-newclient{background:#047857;color:#fff;border:none;border-radius:11px}
+  #regSale .reg-newclient:hover{background:#065F46}
+  .reg-box .pos-add-row{margin-top:2px}
+  .reg-box .pos-line:last-child{margin-bottom:0}
+  .reg-box-pay .pos-line > span:first-child,.reg-box-disc .pos-line > span:first-child{font-weight:700;color:var(--ink)}
+  .reg-box-pay #posPay{font-size:16px;font-weight:700;padding:11px 12px;border:2px solid #93C5FD;border-radius:11px}
+  .reg-box-pay .reg-lbl,.reg-box-pkg .reg-lbl{font-size:15px}
+  #regSale .pos-foot{border-top:none;padding-top:0}
+  #regSale #posClientInput,#regSale #posProdInput{width:100%;box-sizing:border-box;font-size:16px;font-weight:600;padding:13px 14px;border:2px solid #94A3B8;border-radius:11px;background:#fff;color:var(--ink)}
+  #regSale #posClientInput:focus{outline:none;border-color:#B91C1C;box-shadow:0 0 0 3px rgba(185,28,28,.14)}
+  #regSale #posProdInput:focus{outline:none;border-color:#0F766E;box-shadow:0 0 0 3px rgba(15,118,110,.14)}
+  #regSale .reg-box .reg-lbl{color:var(--ink);font-weight:800;text-transform:none;letter-spacing:0}
+  #regSale .reg-box-disc .pos-line > span:first-child,#regSale .reg-box-pay .pos-line > span:first-child{white-space:nowrap;min-width:96px}
+  #regSale .reg-box{max-width:100%;box-sizing:border-box}
+  @media(max-width:700px){
+    #regSale .reg-box .pos-line{flex-wrap:wrap}
+    #regSale .reg-box .pos-gc-ctl{flex:1 1 100%;min-width:0;display:flex;gap:8px}
+    #regSale #posPkgSel,#regSale #posPromoSel,#regSale #posPay,#regSale #posGcNum{min-width:0;max-width:100%;flex:1 1 auto;width:auto}
+    #regSale #posPay{flex-basis:100%}
+  }
+  @media(max-width:700px){
+    .reg-row{flex-wrap:wrap}
+    .reg-lbl{flex-basis:100%}
+    .reg-box-client .reg-grow{flex:1 1 60%}
+  }
   .till-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 13px;margin-bottom:10px;border-radius:11px;background:#ECFDF5;color:#065F46;font-size:14px}
   .till-bar.till-unset{background:#FEF3C7;color:#78350F}
   .till-pin{font-size:10px}
@@ -1613,10 +1655,14 @@
     </div>
     <div id="regSale">
     <div class="rep-card">
-      <div class="pos-field"><label>Client</label>
-        <div class="client-search">
-          <input type="text" id="posClientInput" placeholder="Search client or leave blank for Walk-in" autocomplete="off">
-          <div class="client-drop" id="posClientDrop" style="display:none"></div>
+      <div class="reg-box reg-box-client">
+        <div class="reg-row">
+          <label class="reg-lbl" for="posClientInput">Client</label>
+          <div class="client-search reg-grow">
+            <input type="text" id="posClientInput" placeholder="Search client or leave blank for Walk-in" autocomplete="off">
+            <div class="client-drop" id="posClientDrop" style="display:none"></div>
+          </div>
+          <button type="button" class="btn-primary reg-newclient" id="posNewClient">+ New client</button>
         </div>
       </div>
       <div class="pos-client-info" id="posClientInfo" style="display:none"></div>
@@ -1646,10 +1692,13 @@
         <div class="pos-ref-done" id="posRefDone" style="display:none"></div>
       </div>
 
-      <div class="pos-add">
-        <div class="pos-add-row pos-prod-search">
-          <input type="text" id="posProdInput" placeholder="Search treatments, supplements, products…" autocomplete="off">
-          <div class="client-drop pos-prod-drop" id="posProdDrop" style="display:none"></div>
+      <div class="pos-add reg-box reg-box-items">
+        <div class="reg-row">
+          <label class="reg-lbl" for="posProdInput">Search Treatments / Products</label>
+          <div class="pos-prod-search reg-grow">
+            <input type="text" id="posProdInput" placeholder="Type a treatment, supplement or product…" autocomplete="off">
+            <div class="client-drop pos-prod-drop" id="posProdDrop" style="display:none"></div>
+          </div>
         </div>
         <div class="pos-add-row" id="posDuesRow" style="display:none">
           <button type="button" class="pos-quick" id="posAddDues"></button>
@@ -1667,8 +1716,12 @@
       <div id="posCart" class="pos-cart"></div>
 
       <div class="pos-foot">
-        <div class="pos-line pos-promo-line"><span>Package</span><span class="pos-gc-ctl"><select id="posPkgSel"></select><button type="button" id="posPkgAdd" class="btn-ghost pos-gc-apply">Add</button></span></div>
+        <div class="reg-box reg-box-pkg">
+        <div class="pos-line pos-promo-line"><span class="reg-lbl">Package</span><span class="pos-gc-ctl"><select id="posPkgSel"></select><button type="button" id="posPkgAdd" class="btn-ghost pos-gc-apply">Add</button></span></div>
         <div class="pos-gc-info" id="posPkgInfo" style="display:none"></div>
+        </div>
+        <div class="reg-box reg-box-disc">
+        <div class="reg-box-h">Discounts</div>
         <div class="pos-line pos-promo-line"><span>Promotion</span><span class="pos-gc-ctl"><select id="posPromoSel"></select><button type="button" id="posPromoApply" class="btn-ghost pos-gc-apply">Apply</button><button type="button" id="posPromoRemove" class="btn-ghost pos-gc-apply" style="display:none">Remove</button></span></div>
         <label class="pos-promo-card" id="posPromoCardRow" style="display:none"><input type="checkbox" id="posPromoCard"> I collected the promotion card from the client</label>
         <div class="pos-gc-info" id="posPromoInfo" style="display:none"></div>
@@ -1683,7 +1736,10 @@
           <div class="pos-line"><span>$ off</span><input type="number" id="posDiscountAmt" min="0" step="0.01" placeholder="0.00" inputmode="decimal"></div>
         </div>
         <div class="pos-disc-item-hint" id="posDiscItemHint" style="display:none">Set a % or $ off on each line above.</div>
-        <div class="pos-line" id="posPayRow"><span>Payment</span>
+        </div>
+        <div class="reg-box reg-box-pay">
+        <div class="reg-box-h">Payment</div>
+        <div class="pos-line" id="posPayRow"><span class="reg-lbl">Payment method</span>
           <select id="posPay"><option>Cash</option><option>Card</option><option>Zelle</option><option>Check</option><option>Invoice (unpaid)</option><option>Other</option></select>
         </div>
         <div class="pos-line pos-split-line"><span></span><button type="button" id="posSplitToggle" class="pos-split-toggle">Split payment</button></div>
@@ -1705,6 +1761,7 @@
         <div class="pos-line pos-gc-line"><span>Gift certificate</span><span class="pos-gc-ctl"><input type="text" id="posGcNum" placeholder="GC-1001" autocomplete="off"><button type="button" id="posGcApply" class="btn-ghost pos-gc-apply">Apply</button></span></div>
         <div class="pos-gc-info" id="posGcInfo" style="display:none"></div>
         <div class="pos-line pos-split-line"><span></span><button type="button" id="posGcSell" class="pos-split-toggle">+ Sell a gift certificate</button></div>
+        </div>
         <div class="pos-totals" id="posTotals"></div>
         <div class="pos-memb-alert" id="posMembAlert" style="display:none">
           <div class="pma-head"><span class="pma-ico">★</span> Order over $500 — put them on the membership</div>
@@ -8143,8 +8200,9 @@ window.startClinicApp = function(){
       .sort(function(a,b){return (a.name||"").localeCompare(b.name||"");})
       .map(function(p){ return '<option value="'+esc(p.name)+'"></option>'; }).join("");
   }
+  var pFromRegister=false;
   function openAddClient(withMemb){
-    pEditingId=null;
+    pEditingId=null; pFromRegister=false;
     $("pPanelTitle").textContent = withMemb ? "Enroll a member" : "Add client";
     $("pSaveBtn").textContent = withMemb ? "Save member" : "Save client";
     $("pDeleteBtn").style.display="none";
@@ -8346,7 +8404,9 @@ window.startClinicApp = function(){
       if(window.__hipAudit) window.__hipAudit("patient_create", data.id);
       toast(name.split(" ")[0]+" added");
     }
+    var _regPick = (!pEditingId && pFromRegister) ? data.id : null; pFromRegister=false;
     savePatients(); closePPanel(); renderAll();
+    if(_regPick){ try{ setPosClient(_regPick); var ci=$("posClientInput"); if(ci){ var np=findPatient(_regPick); if(np) ci.value=np.name; } }catch(e){} }
   }
   function deleteClient(){
     if(!pEditingId) return;
@@ -9190,6 +9250,7 @@ window.startClinicApp = function(){
   // client panel controls
   $("pPanelClose").onclick=closePPanel;
   $("pSaveBtn").onclick=saveClient;
+  if($("posNewClient")) $("posNewClient").onclick=function(){ openAddClient(false); pFromRegister=true; var q=($("posClientInput").value||"").trim(); if(q && !findPatient(posClientId) && $("pName") && !/\d|@/.test(q)) $("pName").value=q; };
   if($("pContactOutcome")) $("pContactOutcome").onchange=function(){ $("pApptDate").style.display=this.value==="appt"?"":"none"; };
   if($("pLastContactToday")) $("pLastContactToday").onclick=function(){ $("pLastContact").value=todayISO(); };
   if($("pLastContactClear")) $("pLastContactClear").onclick=function(){ if($("pContactOutcome")){ $("pContactOutcome").value=""; $("pApptDate").value=""; $("pApptDate").style.display="none"; } $("pLastContact").value=""; if($("pLastContactMethod")) $("pLastContactMethod").value=""; };
