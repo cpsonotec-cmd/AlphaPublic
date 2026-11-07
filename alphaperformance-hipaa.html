@@ -9729,7 +9729,11 @@ window.startClinicApp = function(){
     } else gone.forEach(function(id){ delete sh[id]; q[c.k+":"+id]=qstamp(); changed++; });
     if(changed){ recQueueSet(q); recPushSoon(); refreshSyncUI(); }
   }
+  var recMassPending=[], recMassOpen=false;
+  function recMassNext(){ recMassOpen=false; var n=recMassPending.shift(); if(n) setTimeout(function(){ recConfirmMassDelete(n[0], n[1]); }, 60); }
   function recConfirmMassDelete(key, gone){
+    if(recMassOpen){ recMassPending.push([key, gone]); return; }   // one question at a time: a second one must not replace the first
+    recMassOpen=true;
     var c=REC_COLS[key];
     modal('<div class="hiph">Delete '+gone.length+' '+escp(c.label)+' everywhere?</div><div class="hipsub">A change on this device removed '+gone.length+' of '+escp(c.label)+'. If you go ahead they are deleted on every device. If this was not intended, keep them: they stay in the cloud and come back on this device at the next sync.</div>'+
       '<button class="hipbtn ghost" id="wsMdKeep" style="margin-bottom:8px">Keep them (recommended if unsure)</button><button class="hipbtn ghost sm" id="wsMdDel" style="color:#B42318">Delete '+gone.length+' everywhere</button>');
@@ -9739,9 +9743,9 @@ window.startClinicApp = function(){
       gone.forEach(function(id){ if(sh[id]==null) return; var rec=JSON.parse(sh[id]); if(c.t==="arr") val.push(rec); else val[id]=rec; });
       window.__vaultMem[key]=JSON.stringify(val);
       try{ if(window.__reloadFromStore) window.__reloadFromStore([key]); }catch(e){}
-      window.__vaultSave(); toast(gone.length+" "+c.label+" kept");
+      window.__vaultSave(); toast(gone.length+" "+c.label+" kept"); recMassNext();
     };
-    $("wsMdDel").onclick=function(){ var sh=recShadow[key]||{}, q=recQueue(); gone.forEach(function(id){ delete sh[id]; q[c.k+":"+id]=qstamp(); }); recQueueSet(q); audit("records_mass_delete", c.k+" "+gone.length); closeModal(); recPushSoon(); refreshSyncUI(); };
+    $("wsMdDel").onclick=function(){ var sh=recShadow[key]||{}, q=recQueue(); gone.forEach(function(id){ delete sh[id]; q[c.k+":"+id]=qstamp(); }); recQueueSet(q); audit("records_mass_delete", c.k+" "+gone.length); closeModal(); recPushSoon(); recMassNext(); refreshSyncUI(); };
   }
   function recPushSoon(ms){ if(!syncEnabled) return; clearTimeout(recSt.timer); recSt.timer=setTimeout(function(){ recFlush(); }, ms==null?800:ms); }
   async function recPost(rows, token){
