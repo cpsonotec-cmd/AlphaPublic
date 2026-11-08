@@ -4909,6 +4909,11 @@ window.startClinicApp = function(){
   ];
   var sites = load("alphaperf_sites", null); if(!Array.isArray(sites)||!sites.length){ sites=clone(SITES_SEED); store.set("alphaperf_sites", JSON.stringify(sites)); }
   function saveSites(){ store.set("alphaperf_sites", JSON.stringify(sites)); if(typeof schedulePush==="function") schedulePush(); }
+  // 8 Nov 2026: Bohemia added as a clinic location (once per workspace; never re-added if later renamed or closed)
+  if(!load("alphaperf_sites_bohemia", null)){
+    if(!sites.some(function(x){ return x.id==="bohemia" || /bohemia/i.test(x.name||""); })) sites.push({id:"bohemia", name:"Bohemia", active:true, shared:false, dayCost:0, rent:[]});
+    store.set("alphaperf_sites_bohemia", JSON.stringify({at:new Date().toISOString()})); saveSites();
+  }
   function siteById(id){ for(var i=0;i<sites.length;i++) if(sites[i].id===id) return sites[i]; return null; }
   function siteName(id){ var s=siteById(id); return s?s.name:(id||"—"); }
   function sharedSite(){ return sites.filter(function(s){ return s.shared; })[0] || sites[0] || {id:"setauket",name:"Setauket"}; }
