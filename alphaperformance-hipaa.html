@@ -763,6 +763,14 @@
   .sub-track{padding:9px 10px;border:1px solid var(--line);border-radius:9px;font-size:13px;background:var(--card);color:var(--ink);width:170px}
   .sub-done{padding:9px 13px}
   .sub-confirm{font-weight:600}
+  .ord-filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .ord-filters input[type=text],.ord-filters select{padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font-size:14px}
+  .ord-filters input[type=text]{flex:1;min-width:160px}
+  .ord-ck{font-size:13px;display:flex;gap:6px;align-items:center;color:var(--muted)}
+  .ord-table th,.ord-table td{white-space:nowrap}
+  .ord-table td:first-child{white-space:normal;min-width:180px}
+  .ord-table .ord-hl{background:#ECFDF5}
+  .ord-sug{font-size:17px;color:#065F46}
   /* register: clearer sections */
   #regSale .rep-card{background:var(--canvas,#F3F4F6)}
   .reg-box{background:var(--card,#fff);border:1.5px solid var(--line);border-left:5px solid #94A3B8;border-radius:14px;padding:14px 16px;margin-bottom:14px;box-shadow:0 1px 3px rgba(15,23,42,.06)}
@@ -1420,6 +1428,7 @@
       <a class="nav-link" data-view="members"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M9 12l2 2 4-4"/></svg><span>Memberships</span></a>
       <a class="nav-link" data-view="register"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M8 15h4"/></svg><span>Register</span></a>
       <a class="nav-link" data-view="inventory"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7l-8-4-8 4 8 4 8-4z"/><path d="M4 7v10l8 4 8-4V7"/><path d="M12 11v10"/></svg><span>Items</span></a>
+      <a class="nav-link" data-view="ordering"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h2l2.4 12.2a2 2 0 002 1.6h8.8a2 2 0 002-1.6L22 7H6"/><circle cx="10" cy="20.5" r="1"/><circle cx="18" cy="20.5" r="1"/></svg><span>Suggested ordering</span></a>
       <a class="nav-link" data-view="giftcerts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M12 8v13M3 12h18M12 8c-2-4-6-3-5 0 .5 1.5 3 1.5 5 0zM12 8c2-4 6-3 5 0-.5 1.5-3 1.5-5 0z"/></svg><span>Gift Certificates</span></a>
       <a class="nav-link" data-view="promos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4l-7.2 7.2a2 2 0 01-2.8 0L3 13V3h10l7.6 7.6a2 2 0 010 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg><span>Promotions</span></a>
       <a class="nav-link" data-view="packages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><path d="M3.3 7L12 12l8.7-5M12 22V12"/></svg><span>Packages</span></a>
@@ -1859,6 +1868,7 @@
   </div>
   <div id="packagesView" style="display:none"><div id="pkgPage"></div></div>
   <div id="subsView" style="display:none"><div id="subsPage"></div></div>
+  <div id="orderView" style="display:none"><div id="orderPage"></div></div>
   <div id="promosView" style="display:none">
     <div class="rep-card"><div class="inv-statgrid" id="prStats"></div></div>
     <div class="rep-card">
@@ -3826,6 +3836,74 @@ window.startClinicApp = function(){
     $("cgWaive").onclick=function(){ openConsultWaive(function(){ completeSale(); }); };
     return true;
   }
+  // ---------- Suggested ordering: average patients per month on each item ----------
+  var ordState={months:3, ent:"all", site:"all", q:"", all:false};
+  var ORD_SKIP_CAT=/^(membership|gift certificate|service)$/i;
+  function ordMonths(n){ var d=new Date(), out=[]; for(var i=n;i>=1;i--){ var x=new Date(d.getFullYear(), d.getMonth()-i, 1); out.push({key:x.getFullYear()+"-"+pad(x.getMonth()+1), label:x.toLocaleString("en-US",{month:"short"})+(x.getMonth()===0||i===n?" "+x.getFullYear():"")}); } return out; }
+  function ordCatalog(){ ensureRegProducts(); var m={}; ["mjs","alpha"].forEach(function(e){ (regProducts[e]||[]).forEach(function(p){ if(p && p.name && !m[p.name]) m[p.name]={cat:p.cat||"", entity:e, type:p.type||""}; }); }); return m; }
+  function ordCompute(){
+    var months=ordMonths(ordState.months), keys={}, cat=ordCatalog(), rows={};
+    months.forEach(function(m,i){ keys[m.key]=i; });
+    txns.forEach(function(t){
+      if(!t || t.type!=="sale" || !t.date) return; var mi=keys[t.date.slice(0,7)]; if(mi==null) return;
+      if(ordState.ent!=="all" && (t.entity||"mjs")!==ordState.ent) return;
+      if(ordState.site!=="all" && (t.location||"")!==ordState.site) return;
+      var who = t.clientId ? "c:"+t.clientId : "w:"+(t.saleGroup||t.id);
+      (t.items||[]).forEach(function(l){
+        if(!l || !l.name || l.gcSell) return; var nm=String(l.name).trim(), c=cat[nm]||{}, category=l.cat||c.cat||"";
+        if(!ordState.all && (ORD_SKIP_CAT.test(category) || c.type==="service" || /gift cert/i.test(nm))) return;
+        var r=rows[nm]||(rows[nm]={name:nm, entity:l.entity||c.entity||t.entity||"mjs", cat:category, pats:months.map(function(){ return {}; }), units:months.map(function(){ return 0; }), inCatalog:!!cat[nm]});
+        r.pats[mi][who]=1; r.units[mi]+=Math.max(0,+l.qty||1);
+      });
+    });
+    var list=Object.keys(rows).map(function(k){ var r=rows[k];
+      r.counts=r.pats.map(function(p){ return Object.keys(p).length; });
+      r.avg=r.counts.reduce(function(a,b){ return a+b; },0)/months.length;
+      r.avgUnits=r.units.reduce(function(a,b){ return a+b; },0)/months.length;
+      r.suggest=Math.ceil(r.avg-1e-9);
+      var inv=inventory[r.name]; r.tracked=!!inv; r.stock=inv?(+inv.qty||0):null;
+      r.need=r.tracked?Math.max(0, r.suggest-r.stock):null;
+      return r; });
+    var q=ordState.q.trim().toLowerCase();
+    if(q) list=list.filter(function(r){ return r.name.toLowerCase().indexOf(q)>=0 || (r.cat||"").toLowerCase().indexOf(q)>=0; });
+    list.sort(function(a,b){ return b.avg-a.avg || a.name.localeCompare(b.name); });
+    return {months:months, rows:list};
+  }
+  function renderOrdering(){
+    var el=$("orderPage"); if(!el) return;
+    var r=ordCompute(), m=r.months;
+    var siteOpts='<option value="all">All locations</option>'+sites.map(function(s){ return '<option value="'+esc(s.id)+'"'+(ordState.site===s.id?' selected':'')+'>'+esc(s.name)+'</option>'; }).join("");
+    var head='<tr><th>Item</th><th>Company</th>'+m.map(function(x){ return '<th class="num">'+esc(x.label)+'</th>'; }).join("")+'<th class="num ord-hl">Avg patients / month</th><th class="num ord-hl">Suggested order</th><th class="num">Units / month</th><th class="num">In stock</th><th class="num">Order after stock</th></tr>';
+    var body=r.rows.map(function(x){
+      return '<tr><td><b>'+esc(x.name)+'</b>'+(x.cat?'<div class="pkg-sub">'+esc(x.cat)+(x.inCatalog?'':' · not in Items')+'</div>':(x.inCatalog?'':'<div class="pkg-sub">not in Items</div>'))+'</td>'+
+        '<td><span class="cart-ent cart-ent-'+esc(x.entity)+'">'+(x.entity==="alpha"?"Alpha":"MJS")+'</span></td>'+
+        x.counts.map(function(c){ return '<td class="num">'+c+'</td>'; }).join("")+
+        '<td class="num ord-hl">'+(Math.round(x.avg*10)/10)+'</td><td class="num ord-hl"><b class="ord-sug">'+x.suggest+'</b></td>'+
+        '<td class="num">'+(Math.round(x.avgUnits*10)/10)+'</td><td class="num">'+(x.tracked?x.stock:'<span class="pkg-sub">—</span>')+'</td>'+
+        '<td class="num">'+(x.tracked?(x.need?'<b>'+x.need+'</b>':'0'):'<span class="pkg-sub">—</span>')+'</td></tr>';
+    }).join("");
+    el.innerHTML='<div class="rep-card"><div class="inv-tools"><div class="rep-h" style="flex:1;margin:0">Suggested ordering</div><button class="btn-ghost" id="ordCsv" type="button">Download CSV</button></div>'+
+      '<div class="gc-hint" style="margin:0 0 12px">How many patients were on each item each month for the last '+m.length+' full months ('+esc(m[0].label)+' to '+esc(m[m.length-1].label)+'). Suggested order is that average, rounded up. A patient counts once a month per item, however many units they bought.</div>'+
+      '<div class="ord-filters"><input type="text" id="ordQ" placeholder="Search items" value="'+esc(ordState.q)+'">'+
+        '<select id="ordMonths">'+[1,3,6,12].map(function(n){ return '<option value="'+n+'"'+(ordState.months===n?' selected':'')+'>Last '+n+' month'+(n>1?'s':'')+'</option>'; }).join("")+'</select>'+
+        '<select id="ordEnt"><option value="all">Both companies</option><option value="mjs"'+(ordState.ent==="mjs"?' selected':'')+'>MJS</option><option value="alpha"'+(ordState.ent==="alpha"?' selected':'')+'>Alpha</option></select>'+
+        '<select id="ordSite">'+siteOpts+'</select>'+
+        '<label class="ord-ck"><input type="checkbox" id="ordAll"'+(ordState.all?' checked':'')+'> Include services and memberships</label></div>'+
+      (r.rows.length?'<div class="pkg-tablewrap"><table class="pkg-table ord-table"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>':'<div class="pos-cart-empty">No sales in this period.</div>')+
+      '<div class="gc-hint" style="margin-top:10px">"Order after stock" takes away what is on the shelf now, for items with stock tracked in Items. Doses sold under different names (for example Tirzepatide and Tirzepatide 2.5mg) are counted separately.</div></div>';
+    $("ordQ").oninput=function(){ ordState.q=this.value; var pos=this.selectionStart; renderOrdering(); var n=$("ordQ"); n.focus(); try{ n.setSelectionRange(pos,pos); }catch(e){} };
+    $("ordMonths").onchange=function(){ ordState.months=+this.value; renderOrdering(); };
+    $("ordEnt").onchange=function(){ ordState.ent=this.value; renderOrdering(); };
+    $("ordSite").onchange=function(){ ordState.site=this.value; renderOrdering(); };
+    $("ordAll").onchange=function(){ ordState.all=this.checked; renderOrdering(); };
+    $("ordCsv").onclick=function(){
+      var cell=function(v){ v=String(v==null?"":v); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; };
+      var lines=[["Item","Company","Category"].concat(m.map(function(x){ return x.label; })).concat(["Avg patients per month","Suggested order","Units per month","In stock","Order after stock"]).map(cell).join(",")];
+      r.rows.forEach(function(x){ lines.push([x.name, x.entity==="alpha"?"Alpha":"MJS", x.cat].concat(x.counts).concat([Math.round(x.avg*10)/10, x.suggest, Math.round(x.avgUnits*10)/10, x.tracked?x.stock:"", x.tracked?x.need:""]).map(cell).join(",")); });
+      var b=new Blob([lines.join("\n")],{type:"text/csv"}), a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download="suggested-ordering-"+todayISO()+".csv"; document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },500);
+      if(window.__hipAudit) window.__hipAudit("export_ordering", r.rows.length+" items");
+    };
+  }
   // ---------- Subscriptions: monthly supplement shipments ----------
   // Card safety: the full card number and CVV are never stored here. The card is saved in the
   // payment processor (card on file); this app keeps only brand, last 4, expiry and where it is saved.
@@ -4754,6 +4832,7 @@ window.startClinicApp = function(){
     promos:["Promotions","Offers, redemptions and misuse checks"],
     packages:["Packages","Set up packages: cost, \u00e0 la carte and package prices"],
     subs:["Subscriptions","Monthly supplement shipments and pickups, 5% off"],
+    ordering:["Suggested ordering","Average patients per month on each item, last 3 months"],
     expenses:["Expenses","Record business costs"],
     gl:["General Ledger","Double-entry transactions"],
     coa:["Chart of Accounts","Your account structure"],
@@ -4773,6 +4852,7 @@ window.startClinicApp = function(){
     $("promosView").style.display = v==="promos" ? "block" : "none";
     $("packagesView").style.display = v==="packages" ? "block" : "none";
     $("subsView").style.display = v==="subs" ? "block" : "none";
+    $("orderView").style.display = v==="ordering" ? "block" : "none";
     $("booksView").style.display = ACCT_VIEWS[v] ? "block" : "none";
     Array.prototype.forEach.call(document.querySelectorAll(".nav-link"),function(b){
       b.classList.toggle("active", b.getAttribute("data-view")===v);
@@ -4789,6 +4869,7 @@ window.startClinicApp = function(){
     if(v==="promos") renderPromos();
     if(v==="packages"){ pkgEdit=null; renderPackagesPage(); }
     if(v==="subs"){ subEdit=null; renderSubsPage(); }
+    if(v==="ordering") renderOrdering();
     if(ACCT_VIEWS[v]) renderAccounting(v);
     updateAddButton();
     window.scrollTo(0,0);
