@@ -763,6 +763,19 @@
   .sub-track{padding:9px 10px;border:1px solid var(--line);border-radius:9px;font-size:13px;background:var(--card);color:var(--ink);width:170px}
   .sub-done{padding:9px 13px}
   .sub-confirm{font-weight:600}
+  .gc-ny{background:#FEF3C7;color:#78350F;border-radius:10px;padding:10px 12px;font-size:12.5px;line-height:1.45;margin:4px 0 10px}
+  .gc-ny span{display:block;margin-top:6px;font-weight:600}
+  .gc-ny-sign{font-weight:800;color:var(--ink)}
+  .gc-apply-row{margin-bottom:4px}
+  .gc-tag-warn{background:#FEE2E2;color:#991B1B}
+  .gc-wk{font-size:13px;font-weight:700;margin:0 6px}
+  .gc-settle-sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin-top:10px}
+  .gc-settle-sum>div{background:var(--canvas,#F3F4F6);border-radius:10px;padding:10px 12px}
+  .gc-settle-sum span{display:block;font-size:12px;color:var(--muted)}
+  .gc-settle-sum b{font-size:16px}
+  .gc-ok{color:#047857}
+  .gc-settle-go{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
+  .gc-settle-go input{padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}
   .ord-filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
   .ord-filters input[type=text],.ord-filters select{padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font-size:14px}
   .ord-filters input[type=text]{flex:1;min-width:160px}
@@ -1855,6 +1868,7 @@
       <button class="ent-btn" data-gcent="mjs">MJS</button>
     </div>
     <div class="rep-card"><div class="inv-statgrid" id="gcStats"></div><div class="gc-hint" id="gcExpiredNote" style="margin-top:10px"></div></div>
+    <div class="rep-card" id="gcSettleCard"></div>
     <div class="rep-card">
       <div class="inv-tools">
         <input type="text" id="gcSearch" placeholder="Search number, name or note" autocomplete="off">
@@ -4625,32 +4639,31 @@ window.startClinicApp = function(){
   }
 
   // ---------- Gift certificate page + register flows ----------
-  var posGC=null;            // {num} applied in the register
+  var posGC=null;            // [{num}] certificates applied in the register (sold value is used before promotional value)
   var gcFilter={ent:"all", st:"all", q:""};
   var gcDraft=null;          // issue modal state
   function entLabel(e){ return e==="alpha"?"AlphaPerformance":"MJS"; }
+  function posGcList(){ return (posGC||[]).map(function(g){ return gcFind(g.num); }).filter(Boolean).sort(function(a,b){ return (gcFunded(a)?0:1)-(gcFunded(b)?0:1); }); }
   function posGcCredit(){
-    if(!posGC) return {c:null,amt:0};
-    var c=gcFind(posGC.num); if(!c) return {c:null,amt:0};
-    var due=cartTotalNow();
-    return {c:c, amt:Math.round(Math.min(gcBalance(c), due)*100)/100};
+    if(!posGC || !posGC.length) return {c:null,amt:0,parts:[]};
+    var due=Math.round(cartTotalNow()*100)/100, parts=[], used=0;
+    posGcList().forEach(function(c){ var a=Math.round(Math.max(0,Math.min(gcBalance(c), due-used))*100)/100; parts.push({c:c, amt:a}); used=Math.round((used+a)*100)/100; });
+    return {c:parts.length?parts[0].c:null, amt:used, parts:parts};
   }
   function gcAmtNow(){ return posGcCredit().amt; }
   function dueNow(){ return Math.round((cartTotalNow()-gcAmtNow())*100)/100; }
   function cartHasGcSell(){ return posCart.some(function(l){return !!l.gcSell;}); }
   function renderPosGc(){
     var el=$("posGcInfo"); if(!el) return;
-    if(!posGC){ el.style.display="none"; el.innerHTML=""; return; }
-    var c=gcFind(posGC.num);
+    if(!posGC || !posGC.length){ el.style.display="none"; el.innerHTML=""; return; }
     el.style.display="block";
-    if(!c){ el.innerHTML='<span class="gc-bad">Not found</span> <button type="button" class="pos-split-toggle" id="posGcRemove">Remove</button>'; }
-    else {
-      var cr=posGcCredit();
-      el.innerHTML='<b>'+esc(c.num)+'</b> · '+(c.kind==="donation"?'Donation':'Paid')+' · balance <b>$'+money(gcBalance(c))+'</b>'+
-        (cr.amt>0?' · applying <b>$'+money(cr.amt)+'</b>':'')+' · expires '+esc(c.expires||"never")+
-        ' <button type="button" class="pos-split-toggle" id="posGcRemove">Remove</button>';
-    }
-    var rm=$("posGcRemove"); if(rm) rm.onclick=function(){ posGC=null; $("posGcNum").value=""; renderCart(); };
+    var cr=posGcCredit();
+    el.innerHTML=cr.parts.map(function(p){ var c=p.c;
+      return '<div class="gc-apply-row"><b>'+esc(c.num)+'</b> \u00b7 '+(gcFunded(c)?'Sold':'Promotional')+' \u00b7 balance <b>$'+money(gcBalance(c))+'</b>'+
+        (p.amt>0?' \u00b7 applying <b>$'+money(p.amt)+'</b>':' \u00b7 not needed')+(gcFunded(c)?'':' \u00b7 expires '+esc(c.expires||"never"))+
+        ' <button type="button" class="pos-split-toggle" data-gcrm="'+esc(c.num)+'">Remove</button></div>'; }).join("")+
+      (cr.parts.length>1?'<div class="gc-hint">Sold value is used first, then promotional value.</div>':'');
+    Array.prototype.forEach.call(el.querySelectorAll("[data-gcrm]"),function(b){ b.onclick=function(){ var n=b.getAttribute("data-gcrm"); posGC=(posGC||[]).filter(function(g){ return gcNormNum(g.num)!==gcNormNum(n); }); if(!posGC.length) posGC=null; $("posGcNum").value=""; renderCart(); }; });
   }
   function applyPosGc(num){
     var c=gcFind(num);
@@ -4658,7 +4671,8 @@ window.startClinicApp = function(){
     if(cartHasGcSell()){ toast("A gift certificate can't pay for another gift certificate"); return; }
     var ents=posCart.map(function(l){return l.entity||"mjs";});
     var err=gcRedeemError(c, ents); if(err){ toast(err); return; }
-    posGC={num:c.num}; $("posGcNum").value=c.num; renderCart();
+    if((posGC||[]).some(function(g){ return gcNormNum(g.num)===gcNormNum(c.num); })){ toast(c.num+" is already applied"); return; }
+    posGC=(posGC||[]).concat([{num:c.num}]); $("posGcNum").value=""; renderCart();
   }
   // ----- issue modal -----
   function gcModalShow(title, body, foot){
@@ -4669,30 +4683,35 @@ window.startClinicApp = function(){
   function gcModalClose(){ $("gcScrim").classList.remove("show"); $("gcModal").classList.remove("show"); $("gcModal").setAttribute("aria-hidden","true"); gcDraft=null; }
   function openGcIssue(kind, ent, fromRegister){
     var iss=todayISO();
-    gcDraft={ kind:kind, ent:ent||regEntity||"mjs", amount:100, issued:iss, expires:gcIsoPlusMonths(iss,6), expEdited:false, fromRegister:!!fromRegister };
+    gcDraft={ kind:kind, ent:GC_ISSUER, amount:100, issued:iss, expires:gcIsoPlusMonths(iss,6), expEdited:false, fromRegister:!!fromRegister };
     var lockKind=!!fromRegister;
     var body=
-      (lockKind?'':'<div class="ivseg" id="gcKindSeg"><button type="button" data-gck="paid">Sold certificate</button><button type="button" data-gck="donation">Donation certificate</button></div>')+
+      (lockKind?'':'<div class="ivseg" id="gcKindSeg"><button type="button" data-gck="paid">Sold certificate</button><button type="button" data-gck="donation">Promotional or donated</button></div>')+
       '<div class="gc-note" id="gcKindNote"></div>'+
       '<div class="pos-field"><label>Certificate number</label><input type="text" id="gcNum" autocomplete="off" value="'+esc(gcNextNum())+'"><div class="gc-hint">Assigned in sequence. Type over it to use your own number.</div></div>'+
       '<div class="pos-field"><label>Amount</label><div class="gc-chips" id="gcAmtChips">'+GC_AMOUNTS.map(function(a){return '<button type="button" data-gca="'+a+'">$'+a+'</button>';}).join("")+'</div>'+
         '<input type="number" id="gcAmt" min="1" step="0.01" inputmode="decimal" value="100"></div>'+
-      '<div class="pos-field"><label>Company</label><select id="gcEnt"><option value="mjs">MJS</option><option value="alpha">AlphaPerformance</option></select></div>'+
+      '<div class="pos-field" id="gcEntWrap"><label>Issued by</label><select id="gcEnt"><option value="alpha">Alpha Male Health Restoration</option><option value="mjs">MJS</option></select></div>'+
       '<div class="gc-row2"><div class="pos-field"><label>Issue date</label><input type="date" id="gcIssued"></div>'+
-      '<div class="pos-field"><label>Expires</label><input type="date" id="gcExp"></div></div>'+
-      '<div class="gc-hint" style="margin:-4px 0 10px">Expiration defaults to 6 months from the issue date.</div>'+
+      '<div class="pos-field" id="gcExpWrap"><label>Expires</label><input type="date" id="gcExp"></div></div>'+
+      '<div class="gc-hint" id="gcExpHint" style="margin:-4px 0 10px"></div>'+
+      '<div class="gc-ny" id="gcNy"></div>'+
       '<div class="pos-field"><label id="gcToLbl">Recipient (optional)</label><input type="text" id="gcTo" autocomplete="off" placeholder="Name"></div>'+
       '<div class="pos-field"><label>Note (optional)</label><input type="text" id="gcNote" autocomplete="off"></div>';
     var foot='<button class="btn-ghost" id="gcCancel" type="button">Cancel</button><button class="btn-primary" id="gcGo" type="button"></button>';
     gcModalShow(fromRegister?"Sell a gift certificate":"Issue a gift certificate", body, foot);
     $("gcEnt").value=gcDraft.ent; $("gcIssued").value=gcDraft.issued; $("gcExp").value=gcDraft.expires;
     function syncKind(){
-      var d=gcDraft; Array.prototype.forEach.call(document.querySelectorAll("[data-gck]"),function(b){ b.classList.toggle("on", b.getAttribute("data-gck")===d.kind); });
-      $("gcKindNote").textContent = d.kind==="donation"
-        ? "Donation: no sale and no money recorded. It is a free certificate for a charity or event. The donation is booked to Charitable Donations the day you issue it."
-        : "Sold: added to the register to ring up. The money is held as a gift certificate liability until the certificate is redeemed.";
-      $("gcToLbl").textContent = d.kind==="donation" ? "Donated to (organization or event)" : "Recipient (optional)";
-      $("gcGo").textContent = d.kind==="donation" ? "Issue donation certificate" : "Add to register";
+      var d=gcDraft, promo=d.kind==="donation"; Array.prototype.forEach.call(document.querySelectorAll("[data-gck]"),function(b){ b.classList.toggle("on", b.getAttribute("data-gck")===d.kind); });
+      $("gcKindNote").textContent = promo
+        ? "Promotional or donated: no money received (charity event, bonus value, comp). Nothing is booked now; when it is used it counts as a discount. It must show it is promotional and its expiration date."
+        : "Sold: always issued and charged by Alpha Male Health Restoration (charge it on Alpha\u2019s card account). The money is held as a gift certificate liability until used, at either company.";
+      $("gcToLbl").textContent = promo ? "Given to (person, organization or event)" : "Recipient (optional)";
+      $("gcGo").textContent = promo ? "Issue promotional certificate" : "Add to register";
+      $("gcEntWrap").style.display = promo ? "" : "none"; if(!promo) $("gcEnt").value=GC_ISSUER;
+      $("gcExpWrap").style.display = promo ? "" : "none";
+      $("gcExpHint").textContent = promo ? "Expiration defaults to 6 months from the issue date." : "Sold certificates never expire and carry no fees (New York law).";
+      $("gcNy").innerHTML = promo ? '' : '<b>'+esc(GC_TERMS_NOTICE)+'</b><br>'+esc(GC_SCAM_NOTICE)+'<br><span>Show these notices to the buyer. Under $5 left can be paid out in cash on request.</span>';
     }
     function syncAmt(){ var v=parseFloat($("gcAmt").value)||0; Array.prototype.forEach.call(document.querySelectorAll("[data-gca]"),function(b){ b.classList.toggle("on", +b.getAttribute("data-gca")===v); }); }
     syncKind(); syncAmt();
@@ -4707,21 +4726,22 @@ window.startClinicApp = function(){
   function submitGcIssue(){
     var d=gcDraft; if(!d) return;
     var num=gcNormNum($("gcNum").value), amt=Math.round((parseFloat($("gcAmt").value)||0)*100)/100;
-    var issued=$("gcIssued").value, exp=$("gcExp").value, to=($("gcTo").value||"").trim(), note=($("gcNote").value||"").trim(), ent=$("gcEnt").value==="alpha"?"alpha":"mjs";
+    var issued=$("gcIssued").value, exp=$("gcExp").value, to=($("gcTo").value||"").trim(), note=($("gcNote").value||"").trim(), ent=d.kind==="donation"?($("gcEnt").value==="mjs"?"mjs":"alpha"):GC_ISSUER;
     if(!num){ toast("Enter a certificate number"); return; }
     if(gcFind(num) || posCart.some(function(l){return l.gcSell && gcNormNum(l.gcSell.num)===num;})){ toast(num+" is already in use"); return; }
     if(!(amt>0)){ toast("Enter an amount"); return; }
     if(!issued){ toast("Enter an issue date"); return; }
-    if(!exp){ toast("Enter an expiration date"); return; }
-    if(exp<issued){ toast("Expiration can't be before the issue date"); return; }
     if(d.kind==="donation"){
-      if(!to){ toast("Enter who the donation is for"); return; }
-      giftcerts.push({ id:"g"+Date.now().toString(36)+Math.random().toString(36).slice(2,5), num:num, kind:"donation", entity:ent, amount:amt, issued:issued, expires:exp, recipient:to, note:note, redemptions:[] });
-      saveGC(); gcModalClose(); renderGiftCerts(); toast("Donation certificate "+num+" issued · $"+money(amt));
+      if(!exp){ toast("Enter an expiration date (promotional certificates must show one)"); return; }
+      if(exp<issued){ toast("Expiration can't be before the issue date"); return; }
+      if(!to){ toast("Enter who it was given to"); return; }
+      giftcerts.push({ id:"g"+Date.now().toString(36)+Math.random().toString(36).slice(2,5), num:num, kind:"donation", entity:ent, amount:amt, balance:amt, issued:issued, expires:exp, recipient:to, note:note, promotional:true, fundedLiability:false, redemptions:[] });
+      saveGC(); gcModalClose(); renderGiftCerts(); toast("Promotional certificate "+num+" issued \u00b7 $"+money(amt));
       return;
     }
+    exp=null;
     // sold certificate: ring up in the register
-    posCart.push({ name:"Gift Certificate "+num, retail:amt, cost:0, qty:1, cat:"Gift Certificate", entity:ent, gcSell:{num:num, amount:amt, expires:exp, recipient:to, note:note} });
+    posCart.push({ name:"Gift Certificate "+num, retail:amt, cost:0, qty:1, cat:"Gift Certificate", entity:GC_ISSUER, gcSell:{num:num, amount:amt, expires:null, recipient:to, note:note} });
     gcModalClose();
     if(activeView!=="register") switchView("register"); else renderCart();
     toast(num+" added to the register");
@@ -4737,24 +4757,26 @@ window.startClinicApp = function(){
     else if(c.kind!=="donation" && (!saleTx || (saleTx.items||[]).length!==1 || (saleTx.payments||[]).length>1 || saleTx.discountAmt>0)) amtLocked="This certificate was sold with other items or a split payment. Edit the sale in Register history instead.";
     var body=
       '<div class="gc-det-top"><div class="gc-det-num">'+esc(c.num)+'</div><span class="gc-chip gc-'+st.toLowerCase()+'">'+st+'</span></div>'+
-      '<div class="gc-det-grid"><div><span>Type</span><b>'+(c.kind==="donation"?"Donation":"Sold")+'</b></div><div><span>Company</span><b>'+entLabel(c.entity)+'</b></div>'+
+      '<div class="gc-det-grid"><div><span>Type</span><b>'+(gcFunded(c)?"Sold":"Promotional")+'</b></div><div><span>Issued by</span><b>'+entLabel(c.entity)+'</b></div>'+
       '<div><span>Used</span><b>$'+money(gcSpent(c))+'</b></div><div><span>Balance</span><b>$'+money(gcBalance(c))+'</b></div></div>'+
       '<div class="pos-field"><label>Certificate number</label><input type="text" id="gcdNum" value="'+esc(c.num)+'"'+(reds.length?' disabled':'')+'>'+(reds.length?'<div class="gc-hint">Locked because it has been redeemed.</div>':'')+'</div>'+
       '<div class="pos-field"><label>Amount</label><input type="number" id="gcdAmt" min="1" step="0.01" value="'+c.amount+'"'+(amtLocked?' disabled':'')+'>'+(amtLocked?'<div class="gc-hint">'+esc(amtLocked)+'</div>':'')+'</div>'+
       '<div class="gc-row2"><div class="pos-field"><label>Issue date</label><input type="date" id="gcdIss" value="'+esc(c.issued||"")+'"></div>'+
-      '<div class="pos-field"><label>Expires</label><input type="date" id="gcdExp" value="'+esc(c.expires||"")+'"></div></div>'+
+      (gcFunded(c)?'<div class="pos-field"><label>Expires</label><input type="text" id="gcdExp" value="Never (sold certificate)" disabled></div></div>':'<div class="pos-field"><label>Expires</label><input type="date" id="gcdExp" value="'+esc(c.expires||"")+'"></div></div>')+
       '<div class="pos-field"><label>'+(c.kind==="donation"?"Donated to":"Recipient")+'</label><input type="text" id="gcdTo" value="'+esc(c.recipient||"")+'"></div>'+
       (c.kind==="donation"?'':'<div class="pos-field"><label>Purchased by</label><input type="text" id="gcdBy" value="'+esc(c.purchaser||"")+'"></div>')+
       '<div class="pos-field"><label>Note</label><input type="text" id="gcdNote" value="'+esc(c.note||"")+'"></div>'+
       '<div class="gc-hist-h">Redemptions</div>'+
-      (reds.length ? reds.map(function(r){ return '<div class="gc-hist"><span>'+esc(r.date||"")+' · '+esc(r.client||"Walk-in")+'</span><b>−$'+money(r.amount)+'</b></div>'; }).join("") : '<div class="gc-hint">None yet.</div>');
-    var foot='<button class="btn-primary" id="gcdSave" type="button">Save changes</button>';
+      (reds.length ? reds.map(function(r){ return '<div class="gc-hist"><span>'+esc(r.date||"")+' \u00b7 '+(r.type==="cashout"?"Paid out in cash":esc(r.client||"Walk-in")+(r.entity?' \u00b7 at '+(r.entity==="alpha"?"Alpha":"MJS"):''))+'</span><b>\u2212$'+money(r.amount)+'</b></div>'; }).join("") : '<div class="gc-hint">None yet.</div>')+
+      (gcFunded(c) && gcBalance(c)>0.004 && gcBalance(c)<5 && !c.voided ? '<div class="gc-note" style="margin-top:10px">Under $5 left. New York law lets the holder ask for it in cash.</div>':'');
+    var foot='<button class="btn-ghost" id="gcdPrint" type="button">Print</button><button class="btn-primary" id="gcdSave" type="button">Save changes</button>';
+    if(gcFunded(c) && gcBalance(c)>0.004 && gcBalance(c)<5 && !c.voided) foot='<button class="btn-ghost" id="gcdCash" type="button">Pay $'+money(gcBalance(c))+' in cash</button>'+foot;
     if(st==="Open" || st==="Expired") foot='<button class="btn-ghost" id="gcdRedeem" type="button">Redeem in register</button>'+foot;
-    if(c.kind==="donation" && !reds.length) foot='<button class="btn-danger" id="gcdDel" type="button">Delete</button>'+foot;
+    if(gcPromo(c) && !reds.length) foot='<button class="btn-danger" id="gcdDel" type="button">Delete</button>'+foot;
     gcModalShow("Edit gift certificate", body, foot);
     $("gcdSave").onclick=function(){
-      var ex=$("gcdExp").value, is=$("gcdIss").value; if(!is){ toast("Enter an issue date"); return; } if(!ex){ toast("Enter an expiration date"); return; }
-      if(ex<is){ toast("Expiration can't be before the issue date"); return; }
+      var ex=gcFunded(c)?null:$("gcdExp").value, is=$("gcdIss").value; if(!is){ toast("Enter an issue date"); return; }
+      if(!gcFunded(c)){ if(!ex){ toast("Enter an expiration date"); return; } if(ex<is){ toast("Expiration can't be before the issue date"); return; } }
       var nn=gcNormNum($("gcdNum").value); if(!nn){ toast("Enter a certificate number"); return; }
       var dup=gcFind(nn); if(dup && dup.id!==c.id){ toast(nn+" is already in use"); return; }
       var a=Math.round((parseFloat($("gcdAmt").value)||0)*100)/100; if(!(a>0)){ toast("Enter an amount"); return; }
@@ -4772,9 +4794,16 @@ window.startClinicApp = function(){
       saveGC(); gcModalClose(); renderGiftCerts(); toast("Saved");
     };
     if($("gcdRedeem")) $("gcdRedeem").onclick=function(){ gcModalClose(); switchView("register"); $("posGcNum").value=c.num; applyPosGc(c.num); };
+    $("gcdPrint").onclick=function(){ gcPrint(c); };
+    if($("gcdCash")) $("gcdCash").onclick=function(){
+      var amt=gcBalance(c); if(!(amt>0.004 && amt<5)) return;
+      askConfirm({ title:"Pay $"+money(amt)+" in cash?", message:"Give the holder $"+money(amt)+" from the cash drawer. "+c.num+" will be fully used.", okLabel:"Paid out",
+        onConfirm:function(){ c.redemptions=c.redemptions||[]; c.redemptions.push({type:"cashout", date:todayISO(), amount:amt, entity:c.entity||GC_ISSUER, by:window.__curEmail?window.__curEmail():""}); c.balance=0; saveGC();
+          if(window.__hipAudit) window.__hipAudit("gc_cashout", c.num+" $"+money(amt)); renderGiftCerts(); toast(c.num+": $"+money(amt)+" paid in cash"); } });
+    };
     if($("gcdDel")) $("gcdDel").onclick=function(){
       gcModalClose();
-      askConfirm({ title:"Delete "+c.num+"?", message:"This donation certificate has no redemptions and no ledger entries.", okLabel:"Delete",
+      askConfirm({ title:"Delete "+c.num+"?", message:"This promotional certificate has not been used and has no ledger entries.", okLabel:"Delete",
         onConfirm:function(){ giftcerts=giftcerts.filter(function(x){return x.id!==c.id;}); saveGC(); renderGiftCerts(); toast("Deleted"); } });
     };
   }
@@ -4782,17 +4811,19 @@ window.startClinicApp = function(){
   function renderGiftCerts(){
     var list=giftcerts.filter(function(c){ return gcFilter.ent==="all" || c.entity===gcFilter.ent; });
     var open=list.filter(function(c){return gcStatus(c)==="Open";});
-    var paidOpen=open.filter(function(c){return c.kind!=="donation";}).reduce(function(s,c){return s+gcBalance(c);},0);
-    var donOpen=open.filter(function(c){return c.kind==="donation";}).reduce(function(s,c){return s+gcBalance(c);},0);
+    var paidOpen=open.filter(function(c){return gcFunded(c);}).reduce(function(s,c){return s+gcBalance(c);},0);
+    var donOpen=open.filter(function(c){return gcPromo(c);}).reduce(function(s,c){return s+gcBalance(c);},0);
     var soon=todayISO(), lim=gcIsoPlusMonths(soon,1);
-    var expSoon=open.filter(function(c){return c.expires && c.expires<=lim;}).length;
-    var expiredVal=list.filter(function(c){return gcStatus(c)==="Expired" && c.kind!=="donation";}).reduce(function(s,c){return s+gcBalance(c);},0);
+    var expSoon=open.filter(function(c){return gcPromo(c) && c.expires && c.expires<=lim;}).length;
+    var expiredVal=0, dormant=list.filter(gcDormant);
     $("gcStats").innerHTML=
       '<div class="inv-stat"><div class="inv-stat-val">$'+money(paidOpen)+'</div><div class="inv-stat-lbl">Open (sold) balance</div></div>'+
       '<div class="inv-stat"><div class="inv-stat-val">'+open.length+'</div><div class="inv-stat-lbl">Open certificates</div></div>'+
-      '<div class="inv-stat"><div class="inv-stat-val">'+expSoon+'</div><div class="inv-stat-lbl">Expire within 30 days</div></div>'+
-      '<div class="inv-stat"><div class="inv-stat-val">$'+money(donOpen)+'</div><div class="inv-stat-lbl">Open donation value</div></div>';
-    $("gcExpiredNote").textContent = expiredVal>0 ? "$"+money(expiredVal)+" on sold certificates has expired unredeemed. It stays as a liability until you write it off with a journal entry." : "";
+      '<div class="inv-stat"><div class="inv-stat-val">'+expSoon+'</div><div class="inv-stat-lbl">Promotional expiring in 30 days</div></div>'+
+      '<div class="inv-stat"><div class="inv-stat-val">$'+money(donOpen)+'</div><div class="inv-stat-lbl">Open promotional value</div></div>';
+    $("gcExpiredNote").innerHTML = (dormant.length ? '<span class="gc-bad">'+dormant.length+' sold certificate'+(dormant.length===1?'':'s')+' unused for 4+ years ('+dormant.map(function(c){ return esc(c.num); }).join(", ")+'). Unredeemed value may have to be reported as abandoned property; check with your accountant.</span><br>' : '')+
+      '<span class="gc-ny-sign">'+esc(GC_TERMS_NOTICE)+'</span> Sold certificates never expire and carry no fees. Keep the sign and the scam notice posted at the front desk.';
+    try{ renderGcSettlement(); }catch(e){ console.error(e); }
     Array.prototype.forEach.call(document.querySelectorAll("[data-gcent]"),function(b){ b.classList.toggle("on", b.getAttribute("data-gcent")===gcFilter.ent); });
     Array.prototype.forEach.call(document.querySelectorAll("[data-gcst]"),function(b){ b.classList.toggle("on", b.getAttribute("data-gcst")===gcFilter.st); });
     var q=(gcFilter.q||"").toLowerCase();
@@ -4804,8 +4835,8 @@ window.startClinicApp = function(){
     }).sort(function(a,b){ return gcNumVal(b.num)-gcNumVal(a.num); });
     $("gcList").innerHTML = rows.length ? rows.map(function(c){
       var st=gcStatus(c);
-      return '<div class="gc-row" data-gcid="'+esc(c.id)+'"><div class="gc-r-main"><div class="gc-r-num">'+esc(c.num)+(c.kind==="donation"?' <span class="gc-tag">Donation</span>':'')+'</div>'+
-        '<div class="gc-r-sub">'+esc(c.recipient||c.purchaser||"—")+' · '+entLabel(c.entity)+' · issued '+esc(c.issued||"")+' · expires '+esc(c.expires||"")+'</div></div>'+
+      return '<div class="gc-row" data-gcid="'+esc(c.id)+'"><div class="gc-r-main"><div class="gc-r-num">'+esc(c.num)+(gcPromo(c)?' <span class="gc-tag">Promotional</span>':'')+(gcDormant(c)?' <span class="gc-tag gc-tag-warn">Dormant</span>':'')+'</div>'+
+        '<div class="gc-r-sub">'+esc(c.recipient||c.purchaser||"\u2014")+' \u00b7 '+entLabel(c.entity)+' \u00b7 issued '+esc(c.issued||"")+' \u00b7 '+(gcFunded(c)?'no expiry':'expires '+esc(c.expires||""))+'</div></div>'+
         '<div class="gc-r-amt"><b>$'+money(gcBalance(c))+'</b><span>of $'+money(c.amount)+'</span></div><span class="gc-chip gc-'+st.toLowerCase()+'">'+st+'</span></div>';
     }).join("") : '<div class="pos-cart-empty">'+(giftcerts.length?"No certificates match.":"No gift certificates yet. Issue one above, or sell one from the Register.")+'</div>';
     Array.prototype.forEach.call($("gcList").querySelectorAll("[data-gcid]"),function(r){ r.onclick=function(){ openGcDetail(r.getAttribute("data-gcid")); }; });
@@ -5181,7 +5212,74 @@ window.startClinicApp = function(){
   // ---------- Gift certificates ----------
   // Paid certificates are a liability (2250) until redeemed; donation certificates carry no money and post to Charitable Donations (7230) when redeemed.
   var giftcerts = load("alphaperf_giftcerts", []);
-  function saveGC(){ store.set("alphaperf_giftcerts", JSON.stringify(giftcerts)); if(typeof schedulePush==="function") schedulePush(); }
+  function saveGC(){ giftcerts.forEach(function(c){ try{ gcNormalize(c); }catch(e){} }); store.set("alphaperf_giftcerts", JSON.stringify(giftcerts)); if(typeof schedulePush==="function") schedulePush(); }
+  setTimeout(function(){ try{ var need=giftcerts.some(function(c){ return c && (c.fundedLiability==null || c.promotional==null || (c.fundedLiability && c.expires && !c.expiryKept) || c.balance!==gcBalance(c)); }); if(need){ saveGC(); if(window.__recordWrite) window.__recordWrite("alphaperf_giftcerts"); } }catch(e){} }, 0);
+  // ---------- Weekly gift certificate settlement: Alpha pays MJS for certificates used on MJS services ----------
+  var gcWeekOffset=1;   // 1 = last full week (Monday to Sunday)
+  function gcWeekRange(off){ var d=new Date(); d.setHours(0,0,0,0); var dow=(d.getDay()+6)%7; var mon=new Date(d); mon.setDate(d.getDate()-dow-7*off); var sun=new Date(mon); sun.setDate(mon.getDate()+6); return {start:isoFrom(mon), end:isoFrom(sun)}; }
+  function gcLedgerBal(ent, code){
+    var keep=acctEntity, out=0; acctEntity="both";
+    try{ buildLedger().forEach(function(e){ if(e.ent!==ent) return; e.lines.forEach(function(l){ if(l.acct===code) out+=(+l.dr||0)-(+l.cr||0); }); }); } finally { acctEntity=keep; }
+    return Math.round(out*100)/100+0;   // debit balance; liabilities come back negative
+  }
+  function gcCrossRedemptions(r){
+    var out=[];
+    txns.forEach(function(t){ if(t.type!=="sale" || t.entity!=="mjs" || !t.gcParts || !inRangeR(t.date, {start:parseISO(r.start), end:parseISO(r.end)})) return;
+      t.gcParts.forEach(function(g){ if(g.funded && g.issuer==="alpha" && g.amount>0.004) out.push({date:t.date, num:g.num, client:t.clientName||"Walk-in", amount:+g.amount}); }); });
+    return out.sort(function(a,b){ return a.date.localeCompare(b.date); });
+  }
+  function renderGcSettlement(){
+    var el=$("gcSettleCard"); if(!el) return;
+    var r=gcWeekRange(gcWeekOffset), rows=gcCrossRedemptions(r), wk=Math.round(rows.reduce(function(a,x){ return a+x.amount; },0)*100)/100;
+    var due=0-gcLedgerBal("alpha","2255")+0, from=gcLedgerBal("mjs","1255"), agree=Math.abs(due-from)<0.005;
+    var funded=Math.round(giftcerts.filter(function(c){ return gcFunded(c) && (c.entity||"alpha")==="alpha" && !c.voided; }).reduce(function(a,c){ return a+gcBalance(c); },0)*100)/100, liab=Math.round((0-gcLedgerBal("alpha","2250"))*100)/100+0;
+    var admin=window.__isAdmin && window.__isAdmin();
+    el.innerHTML='<div class="inv-tools"><div class="rep-h" style="flex:1;margin:0">Weekly settlement \u00b7 Alpha \u2192 MJS</div>'+
+        '<button class="btn-ghost sub-mini" id="gcWkPrev" type="button">\u2190</button><span class="gc-wk">'+fmtDate(parseISO(r.start))+' \u2013 '+fmtDate(parseISO(r.end))+'</span><button class="btn-ghost sub-mini" id="gcWkNext" type="button"'+(gcWeekOffset<=0?' disabled':'')+'>\u2192</button></div>'+
+      '<div class="gc-hint" style="margin:0 0 10px">Sold certificates are cash in Alpha. When one is used on MJS services, Alpha owes MJS. Each Monday, transfer the balance of Alpha 2255 to MJS, then record it here.</div>'+
+      (rows.length?'<div class="pkg-tablewrap"><table class="pkg-table"><thead><tr><th>Date</th><th>Certificate</th><th>Patient</th><th>Used at</th><th class="num">Amount</th></tr></thead><tbody>'+
+        rows.map(function(x){ return '<tr><td>'+esc(fmtDate(parseISO(x.date)))+'</td><td>'+esc(x.num)+'</td><td>'+esc(x.client)+'</td><td>MJS</td><td class="num">$'+money(x.amount)+'</td></tr>'; }).join("")+
+        '</tbody></table></div>':'<div class="gc-hint">No sold certificates used at MJS this week.</div>')+
+      '<div class="gc-settle-sum"><div><span>Used at MJS this week</span><b>$'+money(wk)+'</b></div>'+
+        '<div><span>Alpha 2255 Due to MJS (transfer this)</span><b>$'+money(due)+'</b></div>'+
+        '<div><span>MJS 1255 Due from Alpha</span><b>$'+money(from)+'</b></div>'+
+        '<div><span>Check</span><b class="'+(agree?'gc-ok':'gc-bad')+'">'+(agree?'Agree':'Do not agree: a redemption was posted on one side only')+'</b></div></div>'+
+      '<div class="gc-settle-sum"><div><span>Open sold certificates (Alpha)</span><b>$'+money(funded)+'</b></div><div><span>Alpha 2250 in the books</span><b>$'+money(liab)+'</b></div>'+
+        '<div><span>Check</span><b class="'+(Math.abs(funded-liab)<0.005?'gc-ok':'gc-bad')+'">'+(Math.abs(funded-liab)<0.005?'Agree':'Differ by $'+money(Math.abs(funded-liab)))+'</b></div></div>'+
+      (due>0.004?(admin?'<div class="gc-settle-go"><label>Transfer date <input type="date" id="gcStDate" value="'+todayISO()+'"></label><button class="btn-primary" id="gcStGo" type="button">Record transfer of $'+money(due)+'</button></div>':'<div class="gc-hint">An Admin records the transfer.</div>'):'<div class="gc-hint" style="margin-top:8px">Nothing to transfer. Both sides are at zero.</div>');
+    $("gcWkPrev").onclick=function(){ gcWeekOffset++; renderGcSettlement(); };
+    $("gcWkNext").onclick=function(){ if(gcWeekOffset>0){ gcWeekOffset--; renderGcSettlement(); } };
+    if($("gcStGo")) $("gcStGo").onclick=function(){
+      var d=$("gcStDate").value||todayISO(), amt=due;
+      askConfirm({ title:"Record the $"+money(amt)+" transfer?", message:"Only after the money has moved from Alpha\u2019s bank to MJS\u2019s bank. This posts the settlement in both companies and brings Alpha 2255 and MJS 1255 to zero.", okLabel:"Record transfer",
+        onConfirm:function(){
+          var by=window.__curEmail?window.__curEmail():"", id="gcs"+Date.now().toString(36), loc=(typeof sharedSite==="function")?sharedSite().id:"setauket";
+          var ja=load("alphaperf_journals_alpha",[])||[], jm=load("alphaperf_journals_mjs",[])||[];
+          ja.push({id:id+"a", date:d, memo:"Gift certificate settlement to MJS", gcSettlement:true, by:by, location:loc, lines:[{acct:"2255",dr:amt,cr:0},{acct:"1000",dr:0,cr:amt}]});
+          jm.push({id:id+"m", date:d, memo:"Gift certificate settlement from Alpha", gcSettlement:true, by:by, location:loc, lines:[{acct:"1000",dr:amt,cr:0},{acct:"1255",dr:0,cr:amt}]});
+          store.set("alphaperf_journals_alpha", JSON.stringify(ja)); store.set("alphaperf_journals_mjs", JSON.stringify(jm));
+          if(!isCombined()) journals=load("alphaperf_journals_"+acctEntity,[]);
+          if(window.__recordWrite){ try{ window.__recordWrite("alphaperf_journals_alpha"); window.__recordWrite("alphaperf_journals_mjs"); }catch(e){} }
+          if(typeof schedulePush==="function") schedulePush();
+          if(window.__hipAudit) window.__hipAudit("gc_settlement", "$"+money(amt)+" on "+d);
+          renderGcSettlement(); toast("Settlement of $"+money(amt)+" recorded");
+        } });
+    };
+  }
+  function gcPrint(c){
+    var promo=gcPromo(c), w=window.open("", "_blank", "width=720,height=900"); if(!w){ toast("Allow pop-ups to print"); return; }
+    var h='<!doctype html><html><head><meta charset="utf-8"><title>'+esc(c.num)+'</title><style>body{font-family:Arial,sans-serif;margin:32px;color:#111}.cert{border:3px solid #111;border-radius:14px;padding:28px}h1{margin:0 0 4px;font-size:28px}.num{font-size:22px;font-weight:700;letter-spacing:.04em}.amt{font-size:44px;font-weight:800;margin:16px 0}.row{margin:6px 0}.terms{margin-top:22px;font-size:12px;line-height:1.5;border-top:1px solid #999;padding-top:12px}.big{font-weight:800;font-size:13px}.promo{display:inline-block;background:#111;color:#fff;padding:4px 10px;border-radius:6px;font-weight:700;margin-bottom:10px}@media print{button{display:none}}</style></head><body>'+
+      '<div class="cert">'+(promo?'<div class="promo">PROMOTIONAL CERTIFICATE</div>':'')+'<h1>Gift Certificate</h1><div>'+esc(promo?entLabel(c.entity):"Alpha Male Health Restoration")+'</div>'+
+      '<div class="amt">$'+money(c.amount)+'</div><div class="num">'+esc(c.num)+'</div>'+
+      '<div class="row">Issued '+esc(fmtDate(parseISO(c.issued)))+(c.recipient?' \u00b7 For '+esc(c.recipient):'')+'</div>'+
+      '<div class="row"><b>'+(promo?'Expires '+esc(fmtDate(parseISO(c.expires))):'No expiration date. No fees.')+'</b></div>'+
+      '<div class="terms"><div class="big">'+esc(GC_TERMS_NOTICE)+'</div>'+
+        (promo?'Promotional certificate issued at no charge. It has no cash value, cannot be exchanged for cash and expires on the date shown.':'Good for services and products at Alpha Male Health Restoration and MJS Medical Wellness. Never expires and carries no fees of any kind. Value does not go down over time. Any balance under $5 can be paid out in cash on request. Lost or stolen certificates are replaced only if the number can be verified.')+
+        '<br><br>'+esc(GC_SCAM_NOTICE)+'</div></div><p><button onclick="window.print()">Print</button></p></body></html>';
+    w.document.open(); w.document.write(h); w.document.close();
+    if(window.__hipAudit) window.__hipAudit("gc_printed", c.num);
+  }
+
   var GC_AMOUNTS=[50,100,150,200,250,500];
   function gcNumVal(s){ var m=/(\d+)\s*$/.exec(s||""); return m?+m[1]:0; }
   function gcNormNum(s){ s=(s||"").trim().toUpperCase().replace(/\s+/g,""); if(/^\d+$/.test(s)) s="GC-"+s; return s; }
@@ -5193,9 +5291,26 @@ window.startClinicApp = function(){
     r.setDate(Math.min(day,last));
     return r.getFullYear()+"-"+pad(r.getMonth()+1)+"-"+pad(r.getDate());
   }
+  // Gift certificates (9 Nov 2026): Alpha is the only issuer of sold certificates. Sold = funded liability (2250), no expiry, no fees.
+  // Promotional/donated = no money received: never in 2250; treated as a discount when redeemed.
+  var GC_ISSUER="alpha", GC_TERMS_NOTICE="TERMS AND CONDITIONS ARE APPLIED TO GIFT CERTIFICATES/GIFT CARDS";
+  var GC_SCAM_NOTICE="Scam warning: no real business, utility or government agency will ask you to pay with a gift certificate or gift card. If someone asks you to buy one to pay a bill, fine or fee, it is a scam. Do not share the certificate number.";
+  function gcFunded(c){ return !!c && (c.fundedLiability!=null ? !!c.fundedLiability : c.kind!=="donation"); }
+  function gcPromo(c){ return !!c && !gcFunded(c); }
+  function gcNormalize(c){
+    if(!c) return c;
+    if(c.fundedLiability==null) c.fundedLiability = c.kind!=="donation";
+    if(c.promotional==null) c.promotional = !c.fundedLiability;
+    if(c.fundedLiability && c.expires && !c.expiryKept){ c.expiresWas=c.expires; c.expires=null; }   // NY: purchased certificates do not expire
+    c.balance=gcBalance(c);
+    return c;
+  }
+  function gcLastActivity(c){ var d=c.issued||""; (c.redemptions||[]).forEach(function(r){ if((r.date||"")>d) d=r.date; }); return d; }
+  function gcDormant(c){ if(!gcFunded(c) || gcBalance(c)<=0.004) return false; var d=parseISO(gcLastActivity(c)); if(!d) return false; var lim=new Date(); lim.setFullYear(lim.getFullYear()-4); return d<lim; }
+  function gcDiscAcct(ent){ var src=load("alphaperf_accounts_"+(ent==="alpha"?"alpha":"mjs"), [])||[]; var a=src.filter(function(x){ return x.type==="Income" && /discount/i.test(x.name||""); })[0]; return a?a.code:"4950"; }
   function gcSpent(c){ return Math.round((c.redemptions||[]).reduce(function(s,r){return s+(+r.amount||0);},0)*100)/100; }
   function gcBalance(c){ if(!c || c.voided) return 0; return Math.max(0, Math.round(((+c.amount||0)-gcSpent(c))*100)/100); }
-  function gcExpired(c){ return !!(c && c.expires && c.expires < todayISO()); }
+  function gcExpired(c){ return !!(c && !gcFunded(c) && c.expires && c.expires < todayISO()); }
   function gcStatus(c){
     if(c.voided) return "Void";
     if(gcBalance(c)<=0.004) return "Redeemed";
@@ -5208,13 +5323,15 @@ window.startClinicApp = function(){
     if(c.voided) return c.num+" is void";
     if(gcBalance(c)<=0.004) return c.num+" has no balance left";
     if(gcExpired(c)) return c.num+" expired on "+c.expires+". Edit the expiration on the Gift Certificates page to honor it.";
-    for(var i=0;i<(ents||[]).length;i++){ if(ents[i]!==c.entity) return c.num+" was issued by "+(c.entity==="alpha"?"AlphaPerformance":"MJS")+" and only covers that company's items"; }
+    // Alpha-issued and promotional certificates are good at either company. Older MJS-issued sold certificates stay MJS-only.
+    if(gcFunded(c) && c.entity!==GC_ISSUER){ for(var i=0;i<(ents||[]).length;i++){ if(ents[i]!==c.entity) return c.num+" was sold by MJS before Alpha became the only issuer, so it only covers MJS items"; } }
     return "";
   }
   function gcSyncDelete(t){
     if(!t) return; var ch=false;
     try{ promoSyncDelete(t); }catch(e){}
-    if(t.gcId){ var c=giftcerts.filter(function(x){return x.id===t.gcId;})[0]; if(c){ c.redemptions=(c.redemptions||[]).filter(function(r){return r.saleId!==t.saleGroup;}); ch=true; } }
+    var _ids=(t.gcParts||[]).map(function(x){ return x.id; }); if(t.gcId && _ids.indexOf(t.gcId)<0) _ids.push(t.gcId);
+    _ids.forEach(function(id){ var c=giftcerts.filter(function(x){return x.id===id;})[0]; if(c){ c.redemptions=(c.redemptions||[]).filter(function(r){return r.saleId!==t.saleGroup;}); ch=true; } });
     if(t.gcSell){
       giftcerts=giftcerts.filter(function(c){
         if(c.saleId!==t.saleGroup) return true;
@@ -5368,11 +5485,15 @@ window.startClinicApp = function(){
     var _gcAdd=false;
     if(!accts.some(function(a){return a.code==="2250";})){ accts.push({code:"2250",name:"Gift Certificates Outstanding",type:"Liability"}); _gcAdd=true; }
     if(!accts.some(function(a){return a.code==="7230";})){ accts.push({code:"7230",name:"Charitable Donations",type:"Expense"}); _gcAdd=true; }
+    if(key==="mjs" && !accts.some(function(a){return a.code==="1255";})){ accts.push({code:"1255",name:"Due from Alpha \u2014 Gift Certificates",type:"Asset"}); _gcAdd=true; }
+    if(key==="alpha" && !accts.some(function(a){return a.code==="2255";})){ accts.push({code:"2255",name:"Due to MJS \u2014 Gift Certificates",type:"Liability"}); _gcAdd=true; }
+    if(!accts.some(function(a){return a.type==="Income" && /discount/i.test(a.name||"");}) && !accts.some(function(a){return a.code==="4950";})){ accts.push({code:"4950",name:"Discounts Given",type:"Income"}); _gcAdd=true; }
     accts.forEach(function(a){ if(!a.id) a.id=a.code||("ac"+Math.random().toString(36).slice(2,8)); });
     if(_gcAdd) store.set("alphaperf_accounts_"+key, JSON.stringify(accts));
     return { accounts:accts, journals:load("alphaperf_journals_"+key, []) };
   }
   var acctEntity = load("alphaperf_acct_entity","mjs"); if(acctEntity!=="alpha" && acctEntity!=="both") acctEntity="mjs";
+  try{ loadEntity("mjs"); loadEntity("alpha"); }catch(e){}   // make sure both charts carry the gift certificate accounts
   var _ent = loadEntity(acctEntity==="both"?"mjs":acctEntity);
   var accounts = _ent.accounts;
   var journals = _ent.journals;
@@ -5426,11 +5547,16 @@ window.startClinicApp = function(){
     // proportion the AR to this posting's amount when a sale posts in parts (dues/other)
     var frac = (t.total>0) ? amount/t.total : 1;
     var arPart=Math.round(ar*frac*100)/100; arPart=Math.max(0,Math.min(arPart, amount));
-    var gcPart=0;
-    if(t.gcAmount>0){ gcPart=Math.round(t.gcAmount*frac*100)/100; gcPart=Math.max(0,Math.min(gcPart, amount-arPart)); }
+    var gcPart=0, gcLines=[];
+    if(t.gcParts && t.gcParts.length){
+      var room=Math.max(0, amount-arPart);
+      t.gcParts.forEach(function(g){ var v=Math.round((+g.amount||0)*frac*100)/100; v=Math.max(0,Math.min(v, room-gcPart)); if(v<=0.004) return; gcPart+=v;
+        var ac = !g.funded ? gcDiscAcct(t.entity) : (g.issuer===(t.entity||"mjs") ? "2250" : (t.entity==="mjs" ? "1255" : "2250"));
+        gcLines.push({acct:ac, dr:v, cr:0}); });
+      gcPart=Math.round(gcPart*100)/100;
+    } else if(t.gcAmount>0){ gcPart=Math.round(t.gcAmount*frac*100)/100; gcPart=Math.max(0,Math.min(gcPart, amount-arPart)); if(gcPart>0.005) gcLines.push({acct:(t.gcKind==="donation"?gcDiscAcct(t.entity):"2250"),dr:gcPart,cr:0}); }
     var cashPart=Math.round((amount-arPart-gcPart)*100)/100;
-    var lines=[];
-    if(gcPart>0.005) lines.push({acct:"2250",dr:gcPart,cr:0});
+    var lines=gcLines.slice();
     if(cashPart>0.005) lines.push({acct:"1000",dr:cashPart,cr:0});
     if(arPart>0.005) lines.push({acct:"1100",dr:arPart,cr:0});
     if(!lines.length) lines.push({acct:"1000",dr:0,cr:0});
@@ -5457,6 +5583,12 @@ window.startClinicApp = function(){
       for(var _i=_n0;_i<entries.length;_i++) entries[_i].loc=t.location||_shLoc;
     });
     function ledgerTxn(t){
+      // a sold Alpha certificate redeemed on MJS items: Alpha now owes MJS (settled weekly)
+      if(t.type==="sale" && t.entity==="mjs" && t.gcParts && (both || acctEntity==="alpha")){
+        var _x=t.gcParts.filter(function(g){ return g.funded && g.issuer==="alpha"; }).reduce(function(a,g){ return a+(+g.amount||0); },0);
+        _x=Math.round(Math.min(_x, t.total||0)*100)/100;
+        if(_x>0.004) entries.push({date:t.date,ref:"GCX",memo:"Gift certificate redeemed at MJS \u2014 "+(t.gcParts.map(function(g){ return g.num; }).join(", ")),lines:[{acct:"2250",dr:_x,cr:0},{acct:"2255",dr:0,cr:_x}],ent:"alpha"});
+      }
       if(t.type==="sale"){
         var who=(t.clientName||"Walk-in");
         var nm=((t.items||[]).map(function(i){return i.name;}).join(", ")||"sale");
@@ -5485,13 +5617,15 @@ window.startClinicApp = function(){
         entries.push({date:t.date,ref:"EXP",memo:(t.name||t.category||"Expense"),lines:[{acct:code,dr:t.amount||0,cr:0},{acct:"1000",dr:0,cr:t.amount||0}],ent:ee});
       }
     }
+    // promotional/donated certificates post nothing at issue (they become a discount when redeemed).
+    // NY: a sold certificate with under $5 left can be paid out in cash on request.
     giftcerts.forEach(function(c){
-      if(c.kind!=="donation" || c.voided) return;
-      if(!both && c.entity!==acctEntity) return;
-      entries.push({loc:_shLoc,date:c.issued,ref:"DON",memo:"Donation certificate "+c.num+(c.recipient?" \u2014 "+c.recipient:""),lines:[{acct:"7230",dr:+c.amount||0,cr:0},{acct:"2250",dr:0,cr:+c.amount||0}],ent:c.entity});
+      if(c.voided || !gcFunded(c)) return;
+      (c.redemptions||[]).forEach(function(r){ if(r.type!=="cashout") return; var ce=c.entity||"alpha"; if(!both && ce!==acctEntity) return;
+        entries.push({loc:_shLoc,date:r.date,ref:"GCC",memo:"Gift certificate "+c.num+" balance paid in cash",lines:[{acct:"2250",dr:+r.amount||0,cr:0},{acct:"1000",dr:0,cr:+r.amount||0}],ent:ce}); });
     });
-    var jsrc = both ? (load("alphaperf_journals_mjs",[])||[]).concat(load("alphaperf_journals_alpha",[])||[]) : journals;
-    jsrc.forEach(function(j){ entries.push({loc:j.location||_shLoc,date:j.date,ref:"JE",memo:j.memo,je:j.id,lines:(j.lines||[]).map(function(l){return {acct:l.acct,dr:+l.dr||0,cr:+l.cr||0};})}); });
+    var jsrc = both ? (load("alphaperf_journals_mjs",[])||[]).map(function(j){ return {j:j,e:"mjs"}; }).concat((load("alphaperf_journals_alpha",[])||[]).map(function(j){ return {j:j,e:"alpha"}; })) : (journals||[]).map(function(j){ return {j:j,e:acctEntity}; });
+    jsrc.forEach(function(x){ var j=x.j; entries.push({loc:j.location||_shLoc,ent:x.e,date:j.date,ref:"JE",memo:j.memo,je:j.id,lines:(j.lines||[]).map(function(l){return {acct:l.acct,dr:+l.dr||0,cr:+l.cr||0};})}); });
     return entries.sort(function(a,b){return (a.date||"").localeCompare(b.date||"");});
   }
   function accountBalances(upToEnd){
@@ -6331,7 +6465,7 @@ window.startClinicApp = function(){
   }
   function gcTotRows(){
     var cr=posGcCredit(); if(!(cr.amt>0)) return "";
-    return '<div class="pos-tot-row"><span>Gift certificate '+esc(cr.c.num)+'</span><span>\u2212$'+money(cr.amt)+'</span></div>'+
+    return cr.parts.filter(function(p){ return p.amt>0; }).map(function(p){ return '<div class="pos-tot-row"><span>Gift certificate '+esc(p.c.num)+(gcFunded(p.c)?'':' (promotional)')+'</span><span>\u2212$'+money(p.amt)+'</span></div>'; }).join("")+
       '<div class="pos-tot-row grand"><span>Due now</span><span>$'+money(Math.round((cartTotalNow()-cr.amt)*100)/100)+'</span></div>';
   }
   function renderCart(){
@@ -6471,7 +6605,7 @@ window.startClinicApp = function(){
     var collect=[], notes=[];
     pays.forEach(function(pm){
       var a=Math.round((+pm.amount||0)*100)/100; if(a<=0.004) return;
-      if(pm.method==="Gift Certificate") notes.push("Gift certificate "+(t.gcNum||"")+" covers $"+money(a));
+      if(pm.method==="Gift Certificate") notes.push("Gift certificate "+(t.gcNum||"")+" covers $"+money(a)+" (nothing to charge)");
       else if(/invoice|account|unpaid/i.test(pm.method||"")) notes.push("Invoice (unpaid) $"+money(a)+": not collected now");
       else collect.push({method:pm.method||"Payment", amount:a});
     });
@@ -6572,15 +6706,15 @@ window.startClinicApp = function(){
         return;
       }
     }
-    var gcc=posGcCredit(), gcAmt=gcc.amt, gcCert=gcc.c;
-    if(posGC && !gcCert){ toast("Gift certificate "+posGC.num+" was not found"); return; }
+    var gcc=posGcCredit(), gcAmt=gcc.amt, gcCert=gcc.c, gcUse=gcc.parts.filter(function(x){ return x.amt>0.004; });
+    if(posGC && posGC.length && posGcList().length!==posGC.length){ toast("A gift certificate in this sale was not found"); return; }
     if(cartHasGcSell()){
       if(total<sub-0.005){ toast("Gift certificates can't be discounted. Sell it without a discount."); return; }
       if(posCart.some(function(l){return l.gcSell && l.qty>1;})){ toast("Add each gift certificate as its own line"); return; }
       if(gcAmt>0){ toast("A gift certificate can't pay for another gift certificate"); return; }
     }
     if(gcAmt>0){
-      var gcErr=gcRedeemError(gcCert, posCart.map(function(l){return l.entity||"mjs";}));
+      var gcErr=""; gcUse.forEach(function(x){ if(!gcErr) gcErr=gcRedeemError(x.c, posCart.map(function(l){return l.entity||"mjs";})); });
       if(gcErr){ toast(gcErr); return; }
       if(posSplitActive && posSplitMode==="item"){ toast("Use the By amount split when a gift certificate is applied"); return; }
     }
@@ -6602,7 +6736,7 @@ window.startClinicApp = function(){
       var gcLine={method:"Gift Certificate", amount:gcAmt};
       if(payments) payments=[gcLine].concat(payments);
       else { payments=[gcLine]; if(cashDue>0.004) payments.push({method:pay, amount:cashDue}); }
-      paySummary=payments.map(function(pm){ return (pm.method==="Gift Certificate"?"Gift Certificate "+gcCert.num:pm.method)+" $"+money(pm.amount); }).join(" + ");
+      paySummary=payments.map(function(pm){ return (pm.method==="Gift Certificate"?"Gift Certificate "+gcUse.map(function(x){ return x.c.num; }).join(" + "):pm.method)+" $"+money(pm.amount); }).join(" + ");
     }
     function invMethod(m){ return /invoice|account|unpaid/i.test(m||""); }
     function itemPaymentsFor(items, eTotal){
@@ -6616,7 +6750,7 @@ window.startClinicApp = function(){
     // group cart by entity; one txn per entity
     var byEnt={}, entKeys=[];
     posCart.forEach(function(l){ var e=l.entity||"mjs"; if(!byEnt[e]){ byEnt[e]={items:[],sub:0,cost:0,net:0}; entKeys.push(e); } byEnt[e].items.push(l); byEnt[e].sub+=l.retail*l.qty; byEnt[e].cost+=l.cost*l.qty; byEnt[e].net+=lineNet(l); });
-    var saleGroup=txId(), allocT=0, allocD=0, allocAr=0, plan=[];
+    var saleGroup=txId(), allocT=0, allocD=0, allocAr=0, plan=[], gcAlloc={};
     entKeys.forEach(function(e, idx){
       var g=byEnt[e], last=(idx===entKeys.length-1), share=sub>0?g.sub/sub:(1/entKeys.length), eTotal, eDisc, eAr, ePayments=null;
       if(perItemDisc){ eTotal=Math.round(g.net*100)/100; eDisc=Math.round((g.sub-g.net)*100)/100; }
@@ -6630,12 +6764,18 @@ window.startClinicApp = function(){
         if(payments){ var eShare=total>0?eTotal/total:(1/entKeys.length); ePayments=payments.map(function(pm){return {method:pm.method, amount:Math.round(pm.amount*eShare*100)/100};}); var ps=ePayments.reduce(function(a,b){return a+b.amount;},0); var d=Math.round((eTotal-ps)*100)/100; if(ePayments.length) ePayments[ePayments.length-1].amount=Math.round((ePayments[ePayments.length-1].amount+d)*100)/100; }
       }
       eAr=Math.max(0, Math.min(eAr, eTotal));
+      // each certificate is spread over the companies in proportion to their share of the sale
+      var eGcParts=gcUse.map(function(x){ var full=x.amt, done=gcAlloc[x.c.id]||0;
+        var v = last ? Math.round((full-done)*100)/100 : Math.round(full*(total>0?eTotal/total:0)*100)/100;
+        gcAlloc[x.c.id]=Math.round((done+v)*100)/100;
+        return {id:x.c.id, num:x.c.num, amount:v, funded:gcFunded(x.c), issuer:x.c.entity||"alpha"}; }).filter(function(x){ return x.amount>0.004; });
+      var eGcAmt=Math.round(eGcParts.reduce(function(a,x){ return a+x.amount; },0)*100)/100;
       var gcGross=g.items.reduce(function(a,l){return a+(l.gcSell?l.retail*l.qty:0);},0);
       var gcSellAmt = gcGross>0 ? Math.min(eTotal, Math.round(gcGross*(g.sub>0?eTotal/g.sub:1)*100)/100) : 0;
       plan.push({ id:txId(), date:saleDate, type:"sale", clientId:p?p.id:"", clientName:p?p.name:"Walk-in",
         items:g.items.slice(), subtotal:g.sub, discountName:dn, discountPct:pct, discountAmt:eDisc, total:eTotal, cost:g.cost, profit:eTotal-g.cost,
         payment:paySummary, payments:ePayments, arAmount:eAr, source:"pos", entity:e, saleGroup:saleGroup,
-        gcAmount:gcAmt>0?gcAmt:undefined, gcId:gcAmt>0?gcCert.id:undefined, gcKind:gcAmt>0?gcCert.kind:undefined, gcNum:gcAmt>0?gcCert.num:undefined,
+        gcAmount:eGcAmt>0?eGcAmt:undefined, gcParts:eGcParts.length?eGcParts:undefined, gcId:eGcParts.length?eGcParts[0].id:undefined, gcNum:eGcParts.length?eGcParts.map(function(x){ return x.num; }).join(" + "):undefined,
         gcSell:gcSellAmt>0?true:undefined, gcSellAmt:gcSellAmt>0?gcSellAmt:undefined,
         promoId:promoRec?promoRec.pr.id:undefined, promoName:promoRec?promoRec.pr.name:undefined,
         promoAmount:promoRec?Math.round(g.items.reduce(function(a,l){return a+(l.promo?lineDisc(l):0);},0)*100)/100:undefined });
@@ -6659,14 +6799,15 @@ window.startClinicApp = function(){
     posCart.forEach(function(l){
       if(!l.gcSell) return;
       var num=gcNormNum(l.gcSell.num); if(gcFind(num)) num=gcNextNum();
-      giftcerts.push({ id:"g"+Date.now().toString(36)+Math.random().toString(36).slice(2,5), num:num, kind:"paid", entity:l.entity||"mjs", amount:l.gcSell.amount, issued:saleDate, expires:l.gcSell.expires,
+      giftcerts.push({ id:"g"+Date.now().toString(36)+Math.random().toString(36).slice(2,5), num:num, kind:"paid", entity:GC_ISSUER, amount:l.gcSell.amount, balance:l.gcSell.amount, issued:saleDate, expires:null, promotional:false, fundedLiability:true,
         purchaser:p?p.name:"Walk-in", purchaserId:p?p.id:"", recipient:l.gcSell.recipient||"", note:l.gcSell.note||"", saleId:saleGroup, redemptions:[] });
       gcMsg=" \u00b7 "+num+" issued";
     });
     if(gcAmt>0){
-      gcCert.redemptions=gcCert.redemptions||[];
-      gcCert.redemptions.push({ date:saleDate, amount:gcAmt, saleId:saleGroup, client:p?p.name:"Walk-in" });
-      gcMsg=" \u00b7 "+gcCert.num+" balance $"+money(gcBalance(gcCert));
+      plan.forEach(function(t){ (t.gcParts||[]).forEach(function(g){ var c=giftcerts.filter(function(x){ return x.id===g.id; })[0]; if(!c) return;
+        c.redemptions=c.redemptions||[]; c.redemptions.push({ date:saleDate, amount:g.amount, entity:t.entity, txnId:t.id, saleId:saleGroup, client:p?p.name:"Walk-in", clientId:p?p.id:"", funded:g.funded });
+        c.balance=gcBalance(c); }); });
+      gcMsg=" \u00b7 "+gcUse.map(function(x){ return x.c.num+" balance $"+money(gcBalance(x.c)); }).join(", ");
     }
     if(gcAmt>0 || cartHasGcSell()) saveGC();
     if(p){
