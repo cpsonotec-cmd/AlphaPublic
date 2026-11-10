@@ -763,6 +763,31 @@
   .sub-track{padding:9px 10px;border:1px solid var(--line);border-radius:9px;font-size:13px;background:var(--card);color:var(--ink);width:170px}
   .sub-done{padding:9px 13px}
   .sub-confirm{font-weight:600}
+  .gc-nav-due{margin-left:auto;background:#DC2626;color:#fff;font-size:11px;font-weight:800;border-radius:999px;padding:2px 7px}
+  .gc-tab-amt{margin-left:6px;background:#DC2626;color:#fff;font-size:11px;font-weight:800;border-radius:999px;padding:2px 7px}
+  .gc-tab-amt:empty{display:none}
+  .gc-panes{display:flex;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:5px;margin-bottom:12px}
+  .gc-panes button{flex:1;padding:11px 12px;border:none;border-radius:9px;background:transparent;font-size:14.5px;font-weight:700;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+  .gc-panes button.on{background:#111827;color:#fff}
+  .gc-xfer-banner{display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap;background:#FEF3C7;color:#78350F;border:1.5px solid #F59E0B;border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:14px}
+  .gc-xfer-head{border-radius:14px;padding:18px;text-align:center;margin-bottom:14px}
+  .gc-xfer-head.due{background:#FEF3C7;border:2px solid #F59E0B}
+  .gc-xfer-head.clear{background:#ECFDF5;border:2px solid #10B981}
+  .gc-xfer-lbl{font-weight:800;font-size:15px;text-transform:uppercase;letter-spacing:.04em}
+  .gc-xfer-big{font-family:'Space Grotesk',sans-serif;font-size:42px;font-weight:800;line-height:1.2;text-align:center}
+  .gc-xfer-sub{font-size:13px;opacity:.85}
+  .gc-xfer-steps{border:1.5px solid var(--line);border-radius:12px;padding:14px}
+  .gc-xfer-step{display:flex;gap:10px;align-items:center;margin-bottom:10px;font-size:15px}
+  .gc-xfer-step span{background:#1D4ED8;color:#fff;border-radius:999px;width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex:0 0 auto}
+  .gc-xfer-check{display:flex;gap:10px;align-items:center;font-size:16px;font-weight:700;margin:6px 0 12px 34px}
+  .gc-xfer-check input{width:22px;height:22px}
+  .gc-xfer-row{display:flex;gap:12px;flex-wrap:wrap;margin:0 0 12px 34px;font-size:13px}
+  .gc-xfer-row label{display:flex;flex-direction:column;gap:4px}
+  .gc-xfer-row input{padding:9px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--ink);font-size:14px}
+  .gc-xfer-steps .btn-primary{margin-left:34px}
+  .gc-xfer-steps .btn-primary:disabled{opacity:.45;cursor:not-allowed}
+  .gc-xfer-books{margin-top:16px;font-size:13.5px}
+  .gc-xfer-books summary{cursor:pointer;font-weight:600}
   .gc-ny{background:#FEF3C7;color:#78350F;border-radius:10px;padding:10px 12px;font-size:12.5px;line-height:1.45;margin:4px 0 10px}
   .gc-ny span{display:block;margin-top:6px;font-weight:600}
   .gc-ny-sign{font-weight:800;color:var(--ink)}
@@ -1867,8 +1892,11 @@
       <button class="ent-btn" data-gcent="alpha">AlphaPerformance</button>
       <button class="ent-btn" data-gcent="mjs">MJS</button>
     </div>
+    <div class="pos-subtabs gc-panes"><button type="button" class="on" data-gcpane="certs">Certificates</button><button type="button" data-gcpane="xfer">Transfer to MJS<span class="gc-tab-amt" id="gcXferTabAmt"></span></button></div>
+    <div id="gcXferPane" style="display:none"><div class="rep-card" id="gcSettleCard"></div></div>
+    <div id="gcCertsPane">
+    <div class="gc-xfer-banner" id="gcXferBanner" style="display:none"></div>
     <div class="rep-card"><div class="inv-statgrid" id="gcStats"></div><div class="gc-hint" id="gcExpiredNote" style="margin-top:10px"></div></div>
-    <div class="rep-card" id="gcSettleCard"></div>
     <div class="rep-card">
       <div class="inv-tools">
         <input type="text" id="gcSearch" placeholder="Search number, name or note" autocomplete="off">
@@ -1878,6 +1906,7 @@
         <button type="button" class="on" data-gcst="all">All</button><button type="button" data-gcst="open">Open</button><button type="button" data-gcst="expired">Expired</button><button type="button" data-gcst="redeemed">Redeemed</button><button type="button" data-gcst="void">Void</button>
       </div>
       <div id="gcList"></div>
+    </div>
     </div>
   </div>
   <div id="packagesView" style="display:none"><div id="pkgPage"></div></div>
@@ -3035,6 +3064,7 @@ window.startClinicApp = function(){
     renderFollowupBanner(); renderPatientStats(); renderPipeline(); renderPatientChips(); renderPatientList();
     if(activeView==="reports") renderReports();
     updateAddButton();
+    try{ gcNavBadge(); }catch(e){}
   }
   function renderFollowupBanner(){
     var el=$("followupBanner");
@@ -4823,7 +4853,7 @@ window.startClinicApp = function(){
       '<div class="inv-stat"><div class="inv-stat-val">$'+money(donOpen)+'</div><div class="inv-stat-lbl">Open promotional value</div></div>';
     $("gcExpiredNote").innerHTML = (dormant.length ? '<span class="gc-bad">'+dormant.length+' sold certificate'+(dormant.length===1?'':'s')+' unused for 4+ years ('+dormant.map(function(c){ return esc(c.num); }).join(", ")+'). Unredeemed value may have to be reported as abandoned property; check with your accountant.</span><br>' : '')+
       '<span class="gc-ny-sign">'+esc(GC_TERMS_NOTICE)+'</span> Sold certificates never expire and carry no fees. Keep the sign and the scam notice posted at the front desk.';
-    try{ renderGcSettlement(); }catch(e){ console.error(e); }
+    try{ gcNavBadge(); if(gcPane==="xfer") renderGcSettlement(); }catch(e){ console.error(e); }
     Array.prototype.forEach.call(document.querySelectorAll("[data-gcent]"),function(b){ b.classList.toggle("on", b.getAttribute("data-gcent")===gcFilter.ent); });
     Array.prototype.forEach.call(document.querySelectorAll("[data-gcst]"),function(b){ b.classList.toggle("on", b.getAttribute("data-gcst")===gcFilter.st); });
     var q=(gcFilter.q||"").toLowerCase();
@@ -4850,6 +4880,8 @@ window.startClinicApp = function(){
     $("posGcApply").onclick=function(){ applyPosGc($("posGcNum").value); };
     $("posGcNum").onkeydown=function(e){ if(e.key==="Enter"){ e.preventDefault(); applyPosGc(this.value); } };
     $("posGcSell").onclick=function(){ openGcIssue("paid", regEntity, true); };
+    Array.prototype.forEach.call(document.querySelectorAll("[data-gcpane]"),function(b){ b.onclick=function(){ gcSetPane(b.getAttribute("data-gcpane")); }; });
+    setTimeout(function(){ try{ gcNavBadge(); gcTransferPrompt(false); }catch(e){} }, 2500);
   }
 
   // ---------- view switching ----------
@@ -5215,56 +5247,95 @@ window.startClinicApp = function(){
   function saveGC(){ giftcerts.forEach(function(c){ try{ gcNormalize(c); }catch(e){} }); store.set("alphaperf_giftcerts", JSON.stringify(giftcerts)); if(typeof schedulePush==="function") schedulePush(); }
   setTimeout(function(){ try{ var need=giftcerts.some(function(c){ return c && (c.fundedLiability==null || c.promotional==null || (c.fundedLiability && c.expires && !c.expiryKept) || c.balance!==gcBalance(c)); }); if(need){ saveGC(); if(window.__recordWrite) window.__recordWrite("alphaperf_giftcerts"); } }catch(e){} }, 0);
   // ---------- Weekly gift certificate settlement: Alpha pays MJS for certificates used on MJS services ----------
-  var gcWeekOffset=1;   // 1 = last full week (Monday to Sunday)
-  function gcWeekRange(off){ var d=new Date(); d.setHours(0,0,0,0); var dow=(d.getDay()+6)%7; var mon=new Date(d); mon.setDate(d.getDate()-dow-7*off); var sun=new Date(mon); sun.setDate(mon.getDate()+6); return {start:isoFrom(mon), end:isoFrom(sun)}; }
   function gcLedgerBal(ent, code){
     var keep=acctEntity, out=0; acctEntity="both";
     try{ buildLedger().forEach(function(e){ if(e.ent!==ent) return; e.lines.forEach(function(l){ if(l.acct===code) out+=(+l.dr||0)-(+l.cr||0); }); }); } finally { acctEntity=keep; }
     return Math.round(out*100)/100+0;   // debit balance; liabilities come back negative
   }
-  function gcCrossRedemptions(r){
-    var out=[];
-    txns.forEach(function(t){ if(t.type!=="sale" || t.entity!=="mjs" || !t.gcParts || !inRangeR(t.date, {start:parseISO(r.start), end:parseISO(r.end)})) return;
-      t.gcParts.forEach(function(g){ if(g.funded && g.issuer==="alpha" && g.amount>0.004) out.push({date:t.date, num:g.num, client:t.clientName||"Walk-in", amount:+g.amount}); }); });
-    return out.sort(function(a,b){ return a.date.localeCompare(b.date); });
+  // ---------- Transfer to MJS: what Alpha owes MJS for sold certificates used on MJS services ----------
+  var gcPane="certs";
+  function gcSettlements(){ return (load("alphaperf_journals_alpha",[])||[]).filter(function(j){ return j.gcSettlement; }).map(function(j){
+      var amt=(j.lines||[]).filter(function(l){ return l.acct==="2255"; }).reduce(function(a,l){ return a+(+l.dr||0); },0);
+      return {date:j.date, amount:Math.round(amt*100)/100, by:j.by||"", ref:j.ref||"", at:j.at||""}; }).sort(function(a,b){ return (b.date||"").localeCompare(a.date||"") || (b.at||"").localeCompare(a.at||""); }); }
+  function gcOwed(){ return Math.round(Math.max(0, 0-gcLedgerBal("alpha","2255"))*100)/100+0; }
+  function gcXferState(){
+    var owed=gcOwed(), last=gcSettlements()[0], since=last?last.date:"";
+    var rows=[]; txns.forEach(function(t){ if(t.type!=="sale" || t.entity!=="mjs" || !t.gcParts) return; if(since && (t.date||"")<=since) return;
+      t.gcParts.forEach(function(g){ if(g.funded && g.issuer==="alpha" && g.amount>0.004) rows.push({date:t.date, num:g.num, client:t.clientName||"Walk-in", amount:+g.amount}); }); });
+    rows.sort(function(a,b){ return a.date.localeCompare(b.date); });
+    var d=new Date(); d.setHours(0,0,0,0); var mon=new Date(d); mon.setDate(d.getDate()-((d.getDay()+6)%7)); var monISO=isoFrom(mon);
+    var overdue=Math.round(rows.filter(function(r){ return r.date<monISO; }).reduce(function(a,r){ return a+r.amount; },0)*100)/100;
+    return {owed:owed, last:last, rows:rows, overdue:Math.min(overdue, owed), monday:monISO};
+  }
+  function gcSetPane(p){ gcPane=p; var a=$("gcCertsPane"), b=$("gcXferPane"); if(a) a.style.display=p==="certs"?"":"none"; if(b) b.style.display=p==="xfer"?"":"none";
+    Array.prototype.forEach.call(document.querySelectorAll("[data-gcpane]"),function(x){ x.classList.toggle("on", x.getAttribute("data-gcpane")===p); }); if(p==="xfer") renderGcSettlement(); }
+  function gcNavBadge(){
+    var link=document.querySelector('.nav-link[data-view="giftcerts"]'); if(!link) return; var b=link.querySelector(".gc-nav-due");
+    var owed=0; try{ owed=gcOwed(); }catch(e){}
+    if(owed>0.004){ if(!b){ b=document.createElement("span"); b.className="gc-nav-due"; link.appendChild(b); } b.textContent="$"+Math.round(owed); b.title="Transfer $"+money(owed)+" to MJS"; }
+    else if(b) b.remove();
+    var tb=$("gcXferTabAmt"); if(tb) tb.textContent=owed>0.004?" $"+money(owed):"";
+    var bn=$("gcXferBanner");
+    if(bn){ if(owed>0.004){ bn.style.display="flex"; bn.innerHTML='<span><b>Transfer $'+money(owed)+' to MJS.</b> Sold gift certificates were used for MJS services; the money is in Alpha.</span><button type="button" class="btn-primary" id="gcXferGo">Open transfer</button>'; $("gcXferGo").onclick=function(){ gcSetPane("xfer"); }; } else { bn.style.display="none"; bn.innerHTML=""; } }
+  }
+  function gcTransferPrompt(force){
+    if(!(window.__isAdmin && window.__isAdmin())) return;
+    var st; try{ st=gcXferState(); }catch(e){ return; }
+    var monday=(new Date().getDay()===1);
+    if(!(st.owed>0.004) || (!force && !monday && !(st.overdue>0.004))) return;
+    var key="alphaperf_gc_prompt_day", today=todayISO(); try{ if(!force && localStorage.getItem(key)===today) return; localStorage.setItem(key, today); }catch(e){}
+    gcModalShow("Transfer to MJS", '<div class="gc-xfer-big">$'+money(st.owed)+'</div><div class="gc-hint" style="text-align:center;margin-bottom:6px">from Alpha’s bank account to MJS’s bank account</div>'+
+      '<div class="gc-hint">'+st.rows.length+' sold gift certificate'+(st.rows.length===1?' was':'s were')+' used for MJS services'+(st.last?' since the last transfer on '+esc(fmtDate(parseISO(st.last.date))):'')+'. After you send it, tick it off on the Transfer to MJS screen.</div>',
+      '<button class="btn-ghost" id="gcPrLater" type="button">Remind me tomorrow</button><button class="btn-primary" id="gcPrOpen" type="button">Open transfer</button>');
+    $("gcPrLater").onclick=gcModalClose;
+    $("gcPrOpen").onclick=function(){ gcModalClose(); switchView("giftcerts"); gcSetPane("xfer"); };
   }
   function renderGcSettlement(){
     var el=$("gcSettleCard"); if(!el) return;
-    var r=gcWeekRange(gcWeekOffset), rows=gcCrossRedemptions(r), wk=Math.round(rows.reduce(function(a,x){ return a+x.amount; },0)*100)/100;
-    var due=0-gcLedgerBal("alpha","2255")+0, from=gcLedgerBal("mjs","1255"), agree=Math.abs(due-from)<0.005;
-    var funded=Math.round(giftcerts.filter(function(c){ return gcFunded(c) && (c.entity||"alpha")==="alpha" && !c.voided; }).reduce(function(a,c){ return a+gcBalance(c); },0)*100)/100, liab=Math.round((0-gcLedgerBal("alpha","2250"))*100)/100+0;
-    var admin=window.__isAdmin && window.__isAdmin();
-    el.innerHTML='<div class="inv-tools"><div class="rep-h" style="flex:1;margin:0">Weekly settlement \u00b7 Alpha \u2192 MJS</div>'+
-        '<button class="btn-ghost sub-mini" id="gcWkPrev" type="button">\u2190</button><span class="gc-wk">'+fmtDate(parseISO(r.start))+' \u2013 '+fmtDate(parseISO(r.end))+'</span><button class="btn-ghost sub-mini" id="gcWkNext" type="button"'+(gcWeekOffset<=0?' disabled':'')+'>\u2192</button></div>'+
-      '<div class="gc-hint" style="margin:0 0 10px">Sold certificates are cash in Alpha. When one is used on MJS services, Alpha owes MJS. Each Monday, transfer the balance of Alpha 2255 to MJS, then record it here.</div>'+
-      (rows.length?'<div class="pkg-tablewrap"><table class="pkg-table"><thead><tr><th>Date</th><th>Certificate</th><th>Patient</th><th>Used at</th><th class="num">Amount</th></tr></thead><tbody>'+
-        rows.map(function(x){ return '<tr><td>'+esc(fmtDate(parseISO(x.date)))+'</td><td>'+esc(x.num)+'</td><td>'+esc(x.client)+'</td><td>MJS</td><td class="num">$'+money(x.amount)+'</td></tr>'; }).join("")+
-        '</tbody></table></div>':'<div class="gc-hint">No sold certificates used at MJS this week.</div>')+
-      '<div class="gc-settle-sum"><div><span>Used at MJS this week</span><b>$'+money(wk)+'</b></div>'+
-        '<div><span>Alpha 2255 Due to MJS (transfer this)</span><b>$'+money(due)+'</b></div>'+
-        '<div><span>MJS 1255 Due from Alpha</span><b>$'+money(from)+'</b></div>'+
+    var st=gcXferState(), owed=st.owed, from=gcLedgerBal("mjs","1255")+0, agree=Math.abs(owed-from)<0.005;
+    var funded=Math.round(giftcerts.filter(function(c){ return gcFunded(c) && (c.entity||"alpha")==="alpha" && !c.voided; }).reduce(function(a,c){ return a+gcBalance(c); },0)*100)/100+0, liab=Math.round((0-gcLedgerBal("alpha","2250"))*100)/100+0;
+    var admin=window.__isAdmin && window.__isAdmin(), hist=gcSettlements();
+    var head = owed>0.004
+      ? '<div class="gc-xfer-head due"><div class="gc-xfer-lbl">Transfer to MJS now</div><div class="gc-xfer-big">$'+money(owed)+'</div><div class="gc-xfer-sub">from Alpha’s bank account to MJS’s bank account'+(st.overdue>0.004?' · <b>$'+money(st.overdue)+' is from before this week</b>':'')+'</div></div>'
+      : '<div class="gc-xfer-head clear"><div class="gc-xfer-lbl">Nothing to transfer</div><div class="gc-xfer-big">$0.00</div><div class="gc-xfer-sub">'+(st.last?'Last transfer: $'+money(st.last.amount)+' on '+esc(fmtDate(parseISO(st.last.date))):'No sold gift certificates have been used for MJS services yet.')+'</div></div>';
+    var steps = owed>0.004 ? (admin
+      ? '<div class="gc-xfer-steps"><div class="gc-xfer-step"><span>1</span>Send <b>$'+money(owed)+'</b> from Alpha’s bank to MJS’s bank.</div>'+
+        '<div class="gc-xfer-step"><span>2</span>Tick it off here:</div>'+
+        '<label class="gc-xfer-check"><input type="checkbox" id="gcXDone"> I sent $'+money(owed)+' to MJS</label>'+
+        '<div class="gc-xfer-row"><label>Date sent <input type="date" id="gcXDate" value="'+todayISO()+'" max="'+todayISO()+'"></label>'+
+        '<label>Bank confirmation # (optional) <input type="text" id="gcXRef" autocomplete="off"></label></div>'+
+        '<button class="btn-primary" id="gcXSave" type="button" disabled>Mark transfer done</button><div class="sub-err" id="gcXErr"></div></div>'
+      : '<div class="gc-hint">An Admin sends the transfer and ticks it off here.</div>') : '';
+    el.innerHTML=head+steps+
+      (st.rows.length?'<div class="rep-h" style="margin-top:16px">What it covers</div><div class="pkg-tablewrap"><table class="pkg-table"><thead><tr><th>Date</th><th>Certificate</th><th>Patient</th><th class="num">Used at MJS</th></tr></thead><tbody>'+
+        st.rows.map(function(x){ return '<tr><td>'+esc(fmtDate(parseISO(x.date)))+'</td><td>'+esc(x.num)+'</td><td>'+esc(x.client)+'</td><td class="num">$'+money(x.amount)+'</td></tr>'; }).join("")+'</tbody></table></div>':'')+
+      '<div class="rep-h" style="margin-top:16px">Past transfers</div>'+
+      (hist.length?'<div class="pkg-tablewrap"><table class="pkg-table"><thead><tr><th>Date sent</th><th class="num">Amount</th><th>Done by</th><th>Confirmation #</th></tr></thead><tbody>'+
+        hist.map(function(h){ return '<tr><td>✓ '+esc(fmtDate(parseISO(h.date)))+'</td><td class="num">$'+money(h.amount)+'</td><td>'+esc(h.by||"")+'</td><td>'+esc(h.ref||"")+'</td></tr>'; }).join("")+'</tbody></table></div>':'<div class="gc-hint">None yet.</div>')+
+      '<details class="gc-xfer-books"><summary>Books check</summary><div class="gc-settle-sum">'+
+        '<div><span>Alpha 2255 Due to MJS</span><b>$'+money(owed)+'</b></div><div><span>MJS 1255 Due from Alpha</span><b>$'+money(from)+'</b></div>'+
         '<div><span>Check</span><b class="'+(agree?'gc-ok':'gc-bad')+'">'+(agree?'Agree':'Do not agree: a redemption was posted on one side only')+'</b></div></div>'+
-      '<div class="gc-settle-sum"><div><span>Open sold certificates (Alpha)</span><b>$'+money(funded)+'</b></div><div><span>Alpha 2250 in the books</span><b>$'+money(liab)+'</b></div>'+
-        '<div><span>Check</span><b class="'+(Math.abs(funded-liab)<0.005?'gc-ok':'gc-bad')+'">'+(Math.abs(funded-liab)<0.005?'Agree':'Differ by $'+money(Math.abs(funded-liab)))+'</b></div></div>'+
-      (due>0.004?(admin?'<div class="gc-settle-go"><label>Transfer date <input type="date" id="gcStDate" value="'+todayISO()+'"></label><button class="btn-primary" id="gcStGo" type="button">Record transfer of $'+money(due)+'</button></div>':'<div class="gc-hint">An Admin records the transfer.</div>'):'<div class="gc-hint" style="margin-top:8px">Nothing to transfer. Both sides are at zero.</div>');
-    $("gcWkPrev").onclick=function(){ gcWeekOffset++; renderGcSettlement(); };
-    $("gcWkNext").onclick=function(){ if(gcWeekOffset>0){ gcWeekOffset--; renderGcSettlement(); } };
-    if($("gcStGo")) $("gcStGo").onclick=function(){
-      var d=$("gcStDate").value||todayISO(), amt=due;
-      askConfirm({ title:"Record the $"+money(amt)+" transfer?", message:"Only after the money has moved from Alpha\u2019s bank to MJS\u2019s bank. This posts the settlement in both companies and brings Alpha 2255 and MJS 1255 to zero.", okLabel:"Record transfer",
-        onConfirm:function(){
-          var by=window.__curEmail?window.__curEmail():"", id="gcs"+Date.now().toString(36), loc=(typeof sharedSite==="function")?sharedSite().id:"setauket";
-          var ja=load("alphaperf_journals_alpha",[])||[], jm=load("alphaperf_journals_mjs",[])||[];
-          ja.push({id:id+"a", date:d, memo:"Gift certificate settlement to MJS", gcSettlement:true, by:by, location:loc, lines:[{acct:"2255",dr:amt,cr:0},{acct:"1000",dr:0,cr:amt}]});
-          jm.push({id:id+"m", date:d, memo:"Gift certificate settlement from Alpha", gcSettlement:true, by:by, location:loc, lines:[{acct:"1000",dr:amt,cr:0},{acct:"1255",dr:0,cr:amt}]});
-          store.set("alphaperf_journals_alpha", JSON.stringify(ja)); store.set("alphaperf_journals_mjs", JSON.stringify(jm));
-          if(!isCombined()) journals=load("alphaperf_journals_"+acctEntity,[]);
-          if(window.__recordWrite){ try{ window.__recordWrite("alphaperf_journals_alpha"); window.__recordWrite("alphaperf_journals_mjs"); }catch(e){} }
-          if(typeof schedulePush==="function") schedulePush();
-          if(window.__hipAudit) window.__hipAudit("gc_settlement", "$"+money(amt)+" on "+d);
-          renderGcSettlement(); toast("Settlement of $"+money(amt)+" recorded");
-        } });
+        '<div class="gc-settle-sum"><div><span>Open sold certificates (Alpha)</span><b>$'+money(funded)+'</b></div><div><span>Alpha 2250 in the books</span><b>$'+money(liab)+'</b></div>'+
+        '<div><span>Check</span><b class="'+(Math.abs(funded-liab)<0.005?'gc-ok':'gc-bad')+'">'+(Math.abs(funded-liab)<0.005?'Agree':'Differ by $'+money(Math.abs(funded-liab)))+'</b></div></div></details>';
+    if($("gcXDone")) $("gcXDone").onchange=function(){ $("gcXSave").disabled=!this.checked; };
+    if($("gcXSave")) $("gcXSave").onclick=function(){
+      var d=$("gcXDate").value, ref=($("gcXRef").value||"").trim(), amt=gcOwed();
+      if(!$("gcXDone").checked){ $("gcXErr").textContent="Tick the box once the money has been sent."; return; }
+      if(!d){ $("gcXErr").textContent="Enter the date you sent it."; return; }
+      if(d>todayISO()){ $("gcXErr").textContent="The date can't be in the future."; return; }
+      if(!(amt>0.004)){ renderGcSettlement(); return; }
+      var by=window.__curEmail?window.__curEmail():"", id="gcs"+Date.now().toString(36), loc=(typeof sharedSite==="function")?sharedSite().id:"setauket", at=new Date().toISOString(), memo=ref?" (conf. "+ref+")":"";
+      var ja=load("alphaperf_journals_alpha",[])||[], jm=load("alphaperf_journals_mjs",[])||[];
+      ja.push({id:id+"a", date:d, at:at, memo:"Gift certificate transfer to MJS"+memo, gcSettlement:true, ref:ref, by:by, location:loc, lines:[{acct:"2255",dr:amt,cr:0},{acct:"1000",dr:0,cr:amt}]});
+      jm.push({id:id+"m", date:d, at:at, memo:"Gift certificate transfer from Alpha"+memo, gcSettlement:true, ref:ref, by:by, location:loc, lines:[{acct:"1000",dr:amt,cr:0},{acct:"1255",dr:0,cr:amt}]});
+      store.set("alphaperf_journals_alpha", JSON.stringify(ja)); store.set("alphaperf_journals_mjs", JSON.stringify(jm));
+      if(!isCombined()) journals=load("alphaperf_journals_"+acctEntity,[]);
+      if(window.__recordWrite){ try{ window.__recordWrite("alphaperf_journals_alpha"); window.__recordWrite("alphaperf_journals_mjs"); }catch(e){} }
+      if(typeof schedulePush==="function") schedulePush();
+      if(window.__hipAudit) window.__hipAudit("gc_settlement", "$"+money(amt)+" sent "+d+(ref?" conf "+ref:""));
+      renderGcSettlement(); gcNavBadge(); toast("Transfer of $"+money(amt)+" marked done");
     };
+    gcNavBadge();
   }
   function gcPrint(c){
     var promo=gcPromo(c), w=window.open("", "_blank", "width=720,height=900"); if(!w){ toast("Allow pop-ups to print"); return; }
