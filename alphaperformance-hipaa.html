@@ -2565,9 +2565,12 @@ window.startClinicApp = function(){
       document.getElementById("syncAlertText").textContent=msg; el.style.display="block";
     }catch(e){}
   };
+  // screen choices (company tab, analytics filters) stay on each device and never sync
+  var DEVICE_KEYS={"alphaperf_acct_entity":1,"alphaperf_reg_entity":1,"alphaperf_democfg":1};
   var store = {
-    get:function(k){ var m=window.__vaultMem||{}; return (k in m)? m[k] : null; },
-    set:function(k,v){ (window.__vaultMem||(window.__vaultMem={}))[k]=String(v); window.__lastSaveAt=Date.now(); if(window.__recordWrite) window.__recordWrite(k); if(window.__vaultSave) window.__vaultSave(); },
+    get:function(k){ if(DEVICE_KEYS[k]){ try{ var dv=localStorage.getItem("alphaperf_dev_"+k); if(dv!=null) return dv; }catch(e){} } var m=window.__vaultMem||{}; return (k in m)? m[k] : null; },
+    set:function(k,v){ if(DEVICE_KEYS[k]){ try{ localStorage.setItem("alphaperf_dev_"+k, String(v)); }catch(e){} var mm=window.__vaultMem; if(mm && (k in mm)){ delete mm[k]; if(window.__vaultSave) window.__vaultSave(); } return; }
+      (window.__vaultMem||(window.__vaultMem={}))[k]=String(v); window.__lastSaveAt=Date.now(); if(window.__recordWrite) window.__recordWrite(k); if(window.__vaultSave) window.__vaultSave(); },
     del:function(k){ if(window.__vaultMem) delete window.__vaultMem[k]; if(window.__vaultSave) window.__vaultSave(); }
   };
 
@@ -9529,6 +9532,20 @@ window.startClinicApp = function(){
       else if(k==="alphaperf_inventory"){ inventory=load(k,{}); if(!inventory||typeof inventory!=="object") inventory={}; }
       else if(k==="alphaperf_regprod_mjs"||k==="alphaperf_regprod_alpha"){ if(regProducts && regProducts.pending){ delete regProducts.pending; } if(regProducts){ regProducts.mjs=load("alphaperf_regprod_mjs",regProducts.mjs); regProducts.alpha=load("alphaperf_regprod_alpha",regProducts.alpha); } }
       else if(k==="alphaperf_journals_mjs"||k==="alphaperf_journals_alpha"){ if(!isCombined() && k==="alphaperf_journals_"+acctEntity) journals=load(k,[]); }
+      else if(k==="alphaperf_members") members=load(k,[]);
+      else if(k==="alphaperf_tiers") tiers=load(k,DEFAULT_TIERS);
+      else if(k==="alphaperf_treatments") treatments=load(k,DEFAULT_TREATMENTS);
+      else if(k==="alphaperf_visittypes") visitTypes=load(k,DEFAULT_VISIT_TYPES);
+      else if(k==="alphaperf_discounts") discounts=load(k,DEFAULT_DISCOUNTS);
+      else if(k==="alphaperf_locations"){ var _l=load(k,null); if(Array.isArray(_l)&&_l.length) locations=_l; }
+      else if(k==="alphaperf_pricing") treatmentPricing=load(k,{});
+      else if(k==="alphaperf_settings"){ settings=load(k,settings); try{ applyBrand(); }catch(e){} }
+      else if(k==="alphaperf_packages"){ var _p=load(k,null); if(Array.isArray(_p)) packages=_p; }
+      else if(k==="alphaperf_promos"){ var _pr=load(k,null); if(Array.isArray(_pr)) promos=_pr; }
+      else if(k==="alphaperf_ppp_groups"){ pppGroupMap=load(k,{})||{}; }
+      else if(k==="alphaperf_balance") balance=load(k,balance);
+      else if(k==="alphaperf_bookslock") booksLock=load(k,booksLock);
+      else if(k==="alphaperf_accounts_mjs"||k==="alphaperf_accounts_alpha"){ try{ if(!isCombined() && k==="alphaperf_accounts_"+acctEntity) accounts=load(k,accounts); }catch(e){} }
     });
     try{ renderAll(); }catch(e){}
     try{ if(activeView==="register"){ renderCart(); renderRegSub(); } else if(activeView==="giftcerts") renderGiftCerts(); else if(activeView==="promos") renderPromos(); else if(activeView==="subs" && !subEdit) renderSubsPage(); else if(activeView==="inventory") renderInventory(); else if(ACCT_VIEWS[activeView]) renderAccounting(activeView); }catch(e){}
@@ -9972,14 +9989,22 @@ window.startClinicApp = function(){
   function hideSyncFailBanner(){ var el=document.getElementById("wsSyncFail"); if(el) el.style.display="none"; }
 
   /* push */
+  // conditional save: only replaces the cloud row if it is still the version this device merged with (atomic in the database)
+  async function casRequest(payload, token, expected){
+    var body={}; Object.keys(payload).forEach(function(k){ if(k!=="id") body[k]=payload[k]; });
+    return rawFetch(SYNC_URL+"/rest/v1/workspace_sync?id=eq."+SYNC_ID+"&updated_at=eq."+encodeURIComponent(expected)+"&select=updated_at", {method:"PATCH",
+      headers:syncHeaders({"Content-Type":"application/json", Prefer:"return=representation"}, token), body:JSON.stringify(body)});
+  }
   async function pushRequest(payload, token){
     return fetch(SYNC_URL+"/rest/v1/workspace_sync?on_conflict=id&select=updated_at", {method:"POST",
       headers:syncHeaders({"Content-Type":"application/json", Prefer:"resolution=merge-duplicates,return=representation"}, token), body:JSON.stringify(payload)});
   }
+  var mergeRetry=0;
   async function syncPush(isRetry){
     if(window.__alphaReadOnly) return;
     if(!syncEnabled || !accounts.length) return;
     if(syncHold) return;
+    if(conflictPending && recLive && DKKey){ conflictPending=null; bootConflict=null; }   // merged automatically from now on
     if(conflictPending){ markSyncFailed(driftMsg(conflictPending.cloud, conflictPending.replaced),"conflict"); return; }
     if(storageBlocked){ markSyncFailed("Browser storage is full, so the last change could not be saved on this device and nothing was uploaded. Export a backup, then free space.","storage"); return; }
     if(syncInFlight){ pushSoon(); return; }
@@ -9992,18 +10017,26 @@ window.startClinicApp = function(){
     var unsentAtStart=unsentCount();
     var revAtStart=lsGet("vault_rev",null), cv=null, hash=null;
     if(recLive && DKKey){
-      cv=await cloudVaultPayload(); hash=await sha256hex(JSON.stringify(accounts)+"|"+cv.plain); cv.blob.h=hash;
       var chk=await readCloudStampAuto();
       if(!chk.ok){ markSyncFailed("Cannot reach the cloud ("+chk.msg+"). Your changes are saved on this device.","network"); return; }
+      var syncedLocal=lsGet("synced",null);
+      if(chk.stamp && (!syncedLocal || tsv(chk.stamp)>tsv(syncedLocal))){
+        // another device saved since this one last did: merge its changes in first, then upload the combined copy
+        var mr=await autoMerge("before uploading");
+        if(!mr.ok){ markSyncFailed("Could not load the other location\u2019s changes: "+mr.msg+". Your changes are saved on this device; trying again in a minute.","network"); return; }
+        if(mr.same){ mergeRetry=0; return; }
+        unsentAtStart=unsentCount(); revAtStart=lsGet("vault_rev",null); chk={ok:true, stamp:mr.stamp};
+      }
+      cv=await cloudVaultPayload(); hash=await sha256hex(JSON.stringify(accounts)+"|"+cv.plain); cv.blob.h=hash;
       if(chk.h && chk.h===hash){
-        // the cloud already holds exactly this vault content (often another device's identical save): nothing to upload
+        // the cloud already holds exactly this content: nothing to upload
         lsSet("blob_hash", hash); dbRead={ok:true, stamp:chk.stamp, h:chk.h, at:new Date().toISOString()};
+        await baseSave(JSON.parse(cv.plain), accounts); mergeRetry=0;
         markSyncOk(chk.stamp, unsentAtStart, revAtStart); return;
       }
-      if(hash===lsGet("blob_hash",null) && lsGet("synced",null)){
-        // nothing in the vault part changed here (a sale only touches records); the cloud's differs, so another device saved settings
-        setUnsent(unsentCount()-unsentAtStart); if(revAtStart) lsSet("pushed_rev", revAtStart);
-        if(chk.stamp && tsv(chk.stamp)>tsv(lsGet("synced",null))){ conflictPending={cloud:chk.stamp, replaced:false}; markSyncFailed(driftMsg(chk.stamp,false),"conflict"); return; }
+      if(hash===lsGet("blob_hash",null) && lsGet("synced",null) && !(chk.stamp && tsv(chk.stamp)>tsv(lsGet("synced",null)))){
+        // nothing in the shared part changed here (a sale only touches records)
+        setUnsent(unsentCount()-unsentAtStart); if(revAtStart) lsSet("pushed_rev", revAtStart); mergeRetry=0;
         markSyncOk(lsGet("synced",null), 0, revAtStart); return;
       }
     }
@@ -10011,15 +10044,28 @@ window.startClinicApp = function(){
     if(!auditSplit) payload.audit=lsGet("audit",[]);           // fallback: the access log rides in the main row as before
     else if(lsGet("audit_row_ok",false)) payload.audit=[];       // the access log has its own row; stop carrying the old copy (column is NOT NULL)
     var sess=await ensureSession(), token=sess.ok?sess.token:null, r;
+    var casStamp=(recLive && DKKey && chk && chk.stamp) ? chk.stamp : null;
     try{
-      r=await pushRequest(payload, token);
-      if(!r.ok && token && (r.status===401||r.status===403)){ token=null; r=await pushRequest(payload, null); }
+      if(casStamp){
+        r=await casRequest(payload, token, casStamp);
+        if(!r.ok && token && (r.status===401||r.status===403)){ token=null; r=await casRequest(payload, null, casStamp); }
+        if(r.ok){ var cb=null; try{ cb=await r.clone().json(); }catch(e){}
+          if(Array.isArray(cb) && cb.length===0){
+            // another location saved between this device's check and its save: merge again and retry
+            if(mergeRetry<6){ mergeRetry++; syncInFlight=false; setTimeout(function(){ syncPush(true); }, 300+Math.floor(Math.random()*1200)); return; }
+            markSyncFailed("The other location is saving at the same moment. Your changes are saved here and will upload within a minute.","busy"); return; } }
+      } else {
+        r=await pushRequest(payload, token);
+        if(!r.ok && token && (r.status===401||r.status===403)){ token=null; r=await pushRequest(payload, null); }
+      }
     }catch(e){
       if(!isRetry){ syncInFlight=false; setTimeout(function(){ syncPush(true); }, 2500); return; }
       markSyncFailed("Upload failed: no connection to the cloud. Your changes are only on this device.","network"); return;
     }
     var body=null; try{ body=await r.clone().json(); }catch(e){}
-    if(r.status===409 && body && body.blocked){ markDrift(body.cloud, false); return; }
+    if(r.status===409 && body && body.blocked){
+      if(recLive && DKKey && mergeRetry<4){ mergeRetry++; syncInFlight=false; setTimeout(function(){ syncPush(true); }, 400+Math.floor(Math.random()*900)); return; }   // another device saved a moment ago: merge and try again
+      markDrift(body.cloud, false); return; }
     if(!r.ok){
       if(!isRetry && (r.status>=500 || r.status===429)){ syncInFlight=false; setTimeout(function(){ syncPush(true); }, 2500); return; }
       var m=(body&&(body.message||body.msg))||("server returned "+r.status);
@@ -10031,10 +10077,14 @@ window.startClinicApp = function(){
     if(!row || !row.updated_at){ markSyncFailed("The cloud answered but returned no saved row, so nothing is confirmed"+(sess.expired?" (your cloud sign-in has expired; tap the red pill to sign in again)":"")+". Your changes are only on this device.", sess.expired?"auth":"norow"); return; }
     var back=await readCloudStamp(token);
     if(!back.ok){ markSyncFailed("Upload sent but could not be confirmed: reading the cloud back failed ("+back.msg+").","readback"); return; }
-    if(tsv(back.stamp)>tsv(row.updated_at)){ markDrift(back.stamp, true); return; }   // another device saved right after this upload
+    if(tsv(back.stamp)>tsv(row.updated_at)){
+      if(recLive && DKKey){ await baseSave(JSON.parse(cv.plain), accounts); lsSet("blob_hash", hash); mergeRetry=0; markSyncOk(row.updated_at, unsentAtStart, revAtStart); setTimeout(function(){ syncCheckCloud().catch(function(){}); }, 800); return; }
+      markDrift(back.stamp, true); return; }   // another device saved right after this upload
     if(tsv(back.stamp)!==tsv(row.updated_at)){ markSyncFailed("Upload not confirmed: the cloud holds a copy from "+fmtTs(back.stamp)+", not the one just sent.","readback"); return; }
     dbRead={ok:true, stamp:back.stamp, at:new Date().toISOString()};
     lsSet("blob_hash", hash);
+    if(recLive && cv && cv.plain){ try{ await baseSave(JSON.parse(cv.plain), accounts); }catch(e){} }
+    mergeRetry=0;
     markSyncOk(back.stamp, unsentAtStart, revAtStart);
   }
   /* ---------- per-record sync (change request section 6) ----------
@@ -10280,11 +10330,10 @@ window.startClinicApp = function(){
     $("wsMgCancel").onclick=closeModal;
     if($("wsMgGo")) $("wsMgGo").onclick=function(){ closeModal(); audit("records_migration_started", ""); recMigrate(); };
   }
-  // the cloud vault leaves out the record collections once they live in their own rows
+  // the cloud vault leaves out the record collections once they live in their own rows (and screen choices kept per device)
   async function cloudVaultPayload(){
     if(!recLive) return lsGet("vault",null);
-    var mem=window.__vaultMem||{}, slim={};
-    Object.keys(mem).forEach(function(k){ if(!REC_COLS[k]) slim[k]=mem[k]; });
+    var slim=slimOf(window.__vaultMem||{});
     var plain=JSON.stringify(slim), blob;
     if(ZIP_OK){ blob=await gcmEnc(DKKey, await gzipB64(plain)); blob.z=1; } else blob=await gcmEnc(DKKey, plain);
     blob.rec=1;   // marks a vault that does not carry the record collections
@@ -10392,6 +10441,127 @@ window.startClinicApp = function(){
     syncState="idle";
   }
   // after unlock: one authenticated read before any work starts
+  /* ---------- automatic merge of the shared settings file (13 Nov 2026) ----------
+     Each device keeps an encrypted copy of the last version it agreed with the cloud (the "base").
+     When another device has saved, the cloud copy is merged with this device's copy key by key and item by item:
+     only one side changed -> take that side; both changed different items -> keep both;
+     both changed the same item -> this device's (newest) change wins and a restore point keeps the other. */
+  var SYNC_DEVICE_KEYS={"alphaperf_acct_entity":1,"alphaperf_reg_entity":1,"alphaperf_democfg":1};
+  var mergeSt={busy:false, lastAt:"", lastChanged:0, lastConflicts:0, lastRp:0, log:[]};
+  window.__mergeLog=function(){ return mergeSt.log.slice(); };
+  function slimOf(mem){ var o={}; Object.keys(mem||{}).sort().forEach(function(k){ if(!REC_COLS[k] && !SYNC_DEVICE_KEYS[k]) o[k]=mem[k]; }); return o; }
+  async function baseSave(slim, accts){ if(!DKKey) return; try{ var b=await gcmEnc(DKKey, JSON.stringify({v:slim, a:accts||[]})); lsSet("merge_base", b); }catch(e){} }
+  async function baseLoad(){ var b=lsGet("merge_base",null); if(!b || !DKKey) return null; try{ return JSON.parse(await gcmDec(DKKey, b)); }catch(e){ return null; } }
+  async function cloudSlimOf(row){
+    if(!row || !row.vault || row.vault.rec!==1 || !DKKey) return null;
+    var txt=await gcmDec(DKKey, row.vault); if(row.vault.z===1) txt=await gunzipB64(txt);
+    return slimOf(JSON.parse(txt)||{});
+  }
+  function mParse(s){ if(s===undefined) return undefined; try{ return JSON.parse(s); }catch(e){ return s; } }
+  function mIsObj(o){ return !!o && typeof o==="object" && !Array.isArray(o); }
+  function mIdOf(x){ if(mIsObj(x)){ if(x.id!=null) return "id:"+x.id; if(x.email!=null) return "em:"+x.email; if(x.name!=null) return "nm:"+x.name; return null; } if(x===null || typeof x!=="object") return "v:"+JSON.stringify(x); return null; }
+  // three-way merge of JSON values; ctx counts true conflicts
+  function m3(b, l, c, ctx, depth){
+    var sb=JSON.stringify(b), sl=JSON.stringify(l), sc=JSON.stringify(c);
+    if(sl===sc) return l;
+    if(sb===sl) return c;            // only the cloud changed
+    if(sb===sc) return l;            // only this device changed
+    if(depth<3 && Array.isArray(l) && Array.isArray(c)){ var r=m3arr(Array.isArray(b)?b:[], l, c, ctx, depth); if(r) return r; }
+    if(depth<3 && mIsObj(l) && mIsObj(c)) return m3obj(mIsObj(b)?b:{}, l, c, ctx, depth);
+    ctx.conflicts++; ctx.keys.push(ctx.path); return l;   // same value changed on both: this device's (newest) change wins
+  }
+  function m3obj(b, l, c, ctx, depth){
+    var out={}, keys={}; [b,l,c].forEach(function(o){ Object.keys(o).forEach(function(k){ keys[k]=1; }); });
+    Object.keys(keys).forEach(function(k){
+      var hb=k in b, hl=k in l, hc=k in c, sb=JSON.stringify(b[k]);
+      if(hl && hc){ var p=ctx.path; ctx.path=p+"."+k; out[k]=m3(b[k], l[k], c[k], ctx, depth+1); ctx.path=p; }
+      else if(hl){ if(hb && JSON.stringify(l[k])===sb) return; out[k]=l[k]; }      // cloud deleted it and this device did not touch it -> deleted
+      else if(hc){ if(hb && JSON.stringify(c[k])===sb) return; out[k]=c[k]; }
+    });
+    return out;
+  }
+  function m3arr(b, l, c, ctx, depth){
+    var ids=function(a){ var m={}, ok=true; a.forEach(function(x){ var id=mIdOf(x); if(id==null || m[id]!==undefined) ok=false; else m[id]=x; }); return ok?m:null; };
+    var B=ids(b), L=ids(l), C=ids(c); if(!L || !C) return null; if(!B) B={};
+    var out=[], seen={};
+    function take(id){
+      if(seen[id]) return; seen[id]=1;
+      var hb=id in B, hl=id in L, hc=id in C, sb=JSON.stringify(B[id]);
+      if(hl && hc){ var p=ctx.path; ctx.path=p+"["+id+"]"; out.push(m3(B[id], L[id], C[id], ctx, depth+1)); ctx.path=p; }
+      else if(hl){ if(hb && JSON.stringify(L[id])===sb) return; out.push(L[id]); }   // deleted in the cloud, untouched here -> stays deleted
+      else if(hc){ if(hb && JSON.stringify(C[id])===sb) return; out.push(C[id]); }
+    }
+    l.forEach(function(x){ take(mIdOf(x)); }); c.forEach(function(x){ take(mIdOf(x)); });
+    return out;
+  }
+  function mergeSlim(base, local, cloud, ctx){
+    var out={}, keys={}; [base,local,cloud].forEach(function(o){ Object.keys(o).forEach(function(k){ keys[k]=1; }); });
+    Object.keys(keys).sort().forEach(function(k){
+      var hb=k in base, hl=k in local, hc=k in cloud;
+      if(hl && hc){ if(local[k]===cloud[k]){ out[k]=local[k]; return; } ctx.path=k;
+        var isJson=true; try{ JSON.parse(local[k]); JSON.parse(cloud[k]); }catch(e){ isJson=false; }
+        if(!isJson){ out[k]=(base[k]===local[k])?cloud[k]:local[k]; if(base[k]!==local[k] && base[k]!==cloud[k]){ ctx.conflicts++; ctx.keys.push(k); } return; }
+        out[k]=JSON.stringify(m3(mParse(base[k]), mParse(local[k]), mParse(cloud[k]), ctx, 0)); }
+      else if(hl){ if(hb && local[k]===base[k]) return; out[k]=local[k]; }
+      else if(hc){ if(hb && cloud[k]===base[k]) return; out[k]=cloud[k]; }
+    });
+    return out;
+  }
+  function mergeAccounts(base, local, cloud, ctx){
+    ctx.path="staff";
+    var m=m3arr(base||[], local||[], cloud||[], ctx, 1) || (local||[]).slice();
+    // a removal always beats an older copy of the same account
+    var tomb={}; [].concat(local||[], cloud||[]).forEach(function(a){ if(a && a.removedAt && (!tomb[a.email] || a.removedAt>tomb[a.email].removedAt)) tomb[a.email]=a; });
+    return m.map(function(a){ var t=tomb[a.email]; return (t && !a.removedAt && !((a.createdAt||"")>t.removedAt)) ? t : a; });
+  }
+  // pull the cloud copy and merge it into this device. Returns {ok, changed, conflicts, stamp, same}
+  async function autoMerge(why){
+    if(!recLive || !DKKey) return {ok:false, msg:"not ready"};
+    if(vaultPending){ try{ await saveVaultNow(); }catch(e){} }   // a change made in the last moment must count as this device's
+    var sess=await ensureSession(), res=await syncPull(sess.ok?sess.token:null);
+    if(res && !res.ok && sess.ok) res=await syncPull(null);
+    if(!res || !res.ok || !res.row) return {ok:false, msg:(res&&res.msg)||"no cloud copy"};
+    var row=res.row, cloud;
+    try{ cloud=await cloudSlimOf(row); }catch(e){ return {ok:false, msg:"could not read the cloud copy ("+(e&&e.message||e)+")"}; }
+    if(!cloud) return {ok:false, msg:"the cloud copy is not in the shared-records format"};
+    var mem=window.__vaultMem||{}, local=slimOf(mem), base=await baseLoad(), dirty=unsentCount()>0 || localDirty() || vaultPending;
+    // no agreed copy yet: keep everything from both sides (nothing is lost; a deletion elsewhere may come back once)
+    var B = base ? base.v : {};
+    var ctx={conflicts:0, keys:[], path:""};
+    var merged=mergeSlim(B, local, cloud, ctx);
+    var mAcc=mergeAccounts(base?base.a:[], accounts, row.accounts||[], ctx);
+    if(ctx.conflicts && Date.now()-mergeSt.lastRp>30*60000){ mergeSt.lastRp=Date.now(); try{ await window.__restorePoint("beforeAutoMerge"); }catch(e){} }
+    var changed=[];
+    Object.keys(local).forEach(function(k){ if(!(k in merged)){ delete mem[k]; changed.push(k); } });
+    Object.keys(merged).forEach(function(k){ if(mem[k]!==merged[k]){ mem[k]=merged[k]; changed.push(k); } });
+    var accChanged=JSON.stringify(mAcc)!==JSON.stringify(accounts);
+    if(accChanged){ accounts=mAcc; lsSet("accounts", accounts); }
+    if(changed.length){ try{ if(window.__reloadFromStore) window.__reloadFromStore(changed); }catch(e){ console.error("[merge] reload", e); } await saveVaultNow(); }
+    setSeen(row.updated_at);
+    var same = JSON.stringify(merged)===JSON.stringify(cloud) && JSON.stringify(mAcc)===JSON.stringify(row.accounts||[]);
+    if(same){
+      // nothing of this device's is missing from the cloud: this device is now current
+      await baseSave(cloud, row.accounts||[]);
+      lsSet("blob_hash", await sha256hex(JSON.stringify(accounts)+"|"+JSON.stringify(cloud)));
+      var rv=lsGet("vault_rev",null); markSyncOk(row.updated_at, unsentCount(), rv);
+    }
+    mergeSt.lastAt=new Date().toISOString(); mergeSt.lastChanged=changed.length+(accChanged?1:0); mergeSt.lastConflicts=ctx.conflicts;
+    mergeSt.log.push({at:mergeSt.lastAt, why:why, cloud:row.updated_at, base:!!base, dirty:dirty, changed:changed.slice(0,12), conflicts:ctx.keys.slice(0,6), same:same}); if(mergeSt.log.length>20) mergeSt.log.shift();
+    if(changed.length || accChanged || ctx.conflicts) try{ audit("sync_auto_merged", why+": "+changed.length+" setting"+(changed.length===1?"":"s")+" updated"+(accChanged?", staff list":"")+(ctx.conflicts?", "+ctx.conflicts+" both-sides change kept from this device ("+ctx.keys.slice(0,4).join(", ")+")":""), true); }catch(e){}
+    return {ok:true, changed:changed, conflicts:ctx.conflicts, stamp:row.updated_at, same:same};
+  }
+  var mergeTimer=null;
+  async function syncCheckCloud(){
+    if(!curUser || !recLive || !syncEnabled || mergeSt.busy || syncInFlight || window.__alphaReadOnly===undefined && false) return;
+    var rd=await readCloudStampAuto(); if(!rd.ok || !rd.stamp) return;
+    var local=lsGet("synced",null);
+    if(local && tsv(rd.stamp)<=tsv(local)) return;
+    mergeSt.busy=true;
+    try{ var r=await autoMerge("another device saved"); if(r.ok && !r.same && !window.__alphaReadOnly){ setUnsent(Math.max(1,unsentCount())); pushSoon(); } else if(!r.ok) markSyncFailed("Could not load another device’s changes: "+r.msg+". This device keeps working and tries again in a minute.","network"); }
+    finally{ mergeSt.busy=false; }
+  }
+  setInterval(function(){ if(document.visibilityState!=="hidden") syncCheckCloud().catch(function(){}); }, 60000);
+  document.addEventListener("visibilitychange", function(){ if(document.visibilityState==="visible") setTimeout(function(){ syncCheckCloud().catch(function(){}); }, 1500); });
   async function syncLiveness(){
     if(!syncEnabled){ syncHold=false; return; }
     var rd=await readCloudStampAuto();
@@ -10404,6 +10574,14 @@ window.startClinicApp = function(){
     if(localDirty() && unsentCount()===0) setUnsent(1);   // the vault on this computer changed after the last confirmed push
     auditPushSoon(3000);
     var cloud=rd.stamp, local=lsGet("synced",null), n=unsentCount();
+    if(recLive && DKKey && (bootConflict || (cloud && local && tsv(cloud)>tsv(local)))){
+      // another device saved while this one was closed: merge it in automatically
+      syncHold=false; bootConflict=null; conflictPending=null; mergeSt.busy=true;
+      try{ var mr=await autoMerge("opened after another device saved"); if(mr.ok){ if(!mr.same){ setUnsent(Math.max(1,unsentCount())); pushSoon(); } if(mr.changed.length) toast("Updated with the latest changes from the other location"); }
+        else markSyncFailed("Could not load the other location\u2019s changes: "+mr.msg+". This device keeps working and tries again in a minute.","network"); }
+      finally{ mergeSt.busy=false; }
+      refreshSyncUI(); return;
+    }
     if(bootConflict || (cloud && local && tsv(cloud)>tsv(local))){ syncHold=false; conflictPending={cloud:cloud||bootConflict.cloud}; conflictPrompt(conflictPending.cloud); return; }
     syncHold=false;
     if(!cloud){ if(accounts.length){ setUnsent(Math.max(1,n)); pushSoon(); } refreshSyncUI(); return; }
@@ -10414,6 +10592,7 @@ window.startClinicApp = function(){
     }
     if(n>0 || syncError()){ pushSoon(); refreshSyncUI(); return; }
     persist("cloud_confirmed", {stamp:cloud, at:new Date().toISOString()});
+    if(recLive && DKKey && !lsGet("merge_base",null)){ try{ await baseSave(slimOf(window.__vaultMem||{}), accounts); }catch(e){} }
     syncState="ok"; syncErrMsg=""; syncOkThisSession=true; blobOkThisSession=true; hideSyncFailBanner(); refreshSyncUI();
     if(bootAdopted) toast("Loaded the newer cloud copy saved by another device at "+fmtTs(bootAdopted));
   }
