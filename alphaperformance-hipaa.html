@@ -763,6 +763,20 @@
   .sub-track{padding:9px 10px;border:1px solid var(--line);border-radius:9px;font-size:13px;background:var(--card);color:var(--ink);width:170px}
   .sub-done{padding:9px 13px}
   .sub-confirm{font-weight:600}
+  .pos-nodisc{background:#FEF2F2;border:1.5px solid #FCA5A5;border-radius:11px;padding:10px 12px;margin-bottom:12px;font-size:13.5px;color:#7F1D1D}
+  .nd-head{margin-bottom:6px}
+  .nd-ck{display:flex;gap:8px;align-items:center;font-weight:700;color:var(--ink)}
+  .nd-ck input{width:18px;height:18px}
+  .nd-fields{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+  .nd-fields label{display:flex;flex-direction:column;gap:3px;font-size:12px;font-weight:700;color:var(--ink)}
+  .nd-fields .nd-r{flex:1;min-width:180px}
+  .nd-fields input{padding:9px;border:1.5px solid #FCA5A5;border-radius:9px;background:#fff;color:var(--ink);font-size:14px}
+  #ndIni{width:80px;text-transform:uppercase}
+  .nd-st{margin-top:6px;font-size:12.5px}
+  .nd-st.ok{color:#047857;font-weight:700}
+  .nd-tag{background:#FEE2E2;color:#991B1B}
+  .iv-nodisc{display:flex !important;flex-direction:row !important;gap:10px;align-items:flex-start;background:#FEF2F2;border-radius:10px;padding:10px}
+  .iv-nodisc input{width:20px;height:20px;margin-top:2px}
   .cash-locbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px;font-size:14px;font-weight:700}
   .cash-locbar select{margin-left:6px;padding:9px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font-size:14px;font-weight:700}
   .cash-loc{margin-bottom:12px}
@@ -1795,6 +1809,7 @@
         </div>
         <div class="reg-box reg-box-disc">
         <div class="reg-box-h">Discounts</div>
+        <div id="posNoDisc" class="pos-nodisc" style="display:none"></div>
         <div class="pos-line pos-promo-line"><span>Promotion</span><span class="pos-gc-ctl"><select id="posPromoSel"></select><button type="button" id="posPromoApply" class="btn-ghost pos-gc-apply">Apply</button><button type="button" id="posPromoRemove" class="btn-ghost pos-gc-apply" style="display:none">Remove</button></span></div>
         <label class="pos-promo-card" id="posPromoCardRow" style="display:none"><input type="checkbox" id="posPromoCard"> I collected the promotion card from the client</label>
         <div class="pos-gc-info" id="posPromoInfo" style="display:none"></div>
@@ -1886,6 +1901,7 @@
             <label class="ivf">SKU / Item #<input id="ivSku" autocomplete="off" placeholder="Optional"></label>
             <label class="ivf">Unit cost<input id="ivCost" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></label>
             <label class="ivf">Retail price <span class="ivf-note">= Register price</span><input id="ivRetail" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></label>
+            <label class="ivf ivf-full iv-nodisc"><input id="ivNoDisc" type="checkbox"> <span><b>No discounts on this item</b><br><span class="ivf-note">Promotions, member and order discounts skip it. A manager can override at the register with initials and a reason.</span></span></label>
           </div>
           <div id="ivInvFields">
             <div class="inv-modal-seclbl">Inventory</div>
@@ -6053,6 +6069,7 @@ window.startClinicApp = function(){
     $("ivSku").value = (p&&p.sku)||"";
     $("ivCost").value = p?(p.cost||0):"";
     $("ivRetail").value = p?(p.price||0):"";
+    $("ivNoDisc").checked = !!(p && p.noDiscount);
     $("ivStartQty").value = name?r.startQty:"";
     $("ivQty").value = name?r.qty:"";
     $("ivReorder").value = name?r.reorderAt:5;
@@ -6078,7 +6095,7 @@ window.startClinicApp = function(){
     if(!regProducts[target]) regProducts[target]=[];
     var dup=(regProducts[target]||[]).filter(function(x){ return x.name.toLowerCase()===name.toLowerCase() && x.name!==invEditName; })[0];
     if(dup){ $("ivName").focus(); toast("An item with that name already exists in "+entityName(target)); return; }
-    var fields={ price:retail, cost:cost, cat:cat, vendor:vendor, sku:sku, invNotes:notes, type:(isSvc?"service":"inventory") };
+    var fields={ price:retail, cost:cost, cat:cat, vendor:vendor, sku:sku, invNotes:notes, type:(isSvc?"service":"inventory"), noDiscount:!!($("ivNoDisc")&&$("ivNoDisc").checked) };
     var finalName=name;
     if(invEditName){
       var oldEntity=invEditEntity, p=prodInEntity(invEditName, oldEntity);
@@ -6669,6 +6686,46 @@ window.startClinicApp = function(){
   var PAY_METHODS=["Cash","Card","Zelle","Check","Invoice (unpaid)","Other"];
   var posSplitActive=false, posSplitLines=[], posSplitMode="item";
   var posDiscMode="order";
+  // ---------- Items that can never be discounted (15 Nov 2026) ----------
+  var posNoDiscOvr=null;   // {on, initials, reason}
+  function prodNoDisc(name, ent){ ensureRegProducts(); var f=false; ["mjs","alpha"].forEach(function(e){ if(ent && e!==ent) return; (regProducts[e]||[]).forEach(function(p){ if(p && p.name===name && p.noDiscount) f=true; }); }); return f; }
+  function lineNoDisc(l){ return !!l && !l.gcSell && (l.noDiscount || prodNoDisc(l.name, l.entity)); }
+  function cartNoDiscLines(){ return posCart.filter(lineNoDisc); }
+  function noDiscOvrOk(){ return !!(posNoDiscOvr && posNoDiscOvr.on && /^[A-Za-z]{2,4}$/.test((posNoDiscOvr.initials||"").trim()) && (posNoDiscOvr.reason||"").trim().length>=3); }
+  function enforceNoDisc(){
+    var prot=cartNoDiscLines(); if(!prot.length || noDiscOvrOk()) return false;
+    var moved=false;
+    if(posDiscMode!=="item" && $("posDiscount")){
+      var pct=discountByName($("posDiscount").value), damt=Math.max(0,parseFloat($("posDiscountAmt").value)||0);
+      if(pct>0 || damt>0){
+        // an order discount only applies to the items that may be discounted: spread it over those lines
+        var ok=posCart.filter(function(l){ return !lineNoDisc(l); }), base=ok.reduce(function(a,l){ return a+l.retail*l.qty; },0);
+        var dleft=Math.round(Math.min(damt, base*(1-pct/100))*100)/100, dtot=dleft;
+        ok.forEach(function(l,i){ var g=l.retail*l.qty; l.discPct=pct; var a=(i===ok.length-1)?dleft:Math.round(dtot*(base>0?g/base:0)*100)/100; a=Math.max(0,Math.min(a, g*(1-pct/100))); l.discAmt=a||0; dleft=Math.round((dleft-a)*100)/100; });
+        posDiscMode="item"; $("posDiscount").value=""; $("posDiscountAmt").value="";
+        Array.prototype.forEach.call(document.querySelectorAll("#posDiscMode [data-dmode]"),function(b){ b.classList.toggle("on", b.getAttribute("data-dmode")==="item"); });
+        if($("posDiscOrder")) $("posDiscOrder").style.display="none"; if($("posDiscItemHint")) $("posDiscItemHint").style.display="block";
+        moved=true;
+      }
+    }
+    prot.forEach(function(l){ l.discPct=0; l.discAmt=0; });
+    if(moved) toast(prot.map(function(l){ return l.name; }).join(", ")+(prot.length===1?" can\u2019t":" can\u2019t")+" be discounted. The discount was applied to the other items only.");
+    return moved;
+  }
+  function renderNoDisc(){
+    var el=$("posNoDisc"); if(!el) return;
+    var prot=cartNoDiscLines(); if(!prot.length){ el.style.display="none"; el.innerHTML=""; posNoDiscOvr=null; return; }
+    var o=posNoDiscOvr||{}, okNow=noDiscOvrOk();
+    el.style.display="block";
+    el.innerHTML='<div class="nd-head"><span class="nd-ic">\u26D4</span> No discounts allowed on: <b>'+esc(prot.map(function(l){ return l.name; }).join(", "))+'</b></div>'+
+      '<label class="nd-ck"><input type="checkbox" id="ndOn"'+(o.on?' checked':'')+'> Manager override (allow discounts on these items)</label>'+
+      (o.on?'<div class="nd-fields"><label>Initials<input type="text" id="ndIni" maxlength="4" autocomplete="off" value="'+esc(o.initials||"")+'" placeholder="e.g. CP"></label><label class="nd-r">Reason<input type="text" id="ndWhy" autocomplete="off" value="'+esc(o.reason||"")+'" placeholder="Why this item is being discounted"></label></div>'+
+        '<div class="nd-st '+(okNow?'ok':'')+'" id="ndSt">'+(okNow?'Override on: discounts now apply to these items. Saved with the sale.':'Enter initials (2 to 4 letters) and a reason to turn the override on.')+'</div>':'');
+    $("ndOn").onchange=function(){ posNoDiscOvr=Object.assign({}, posNoDiscOvr||{}, {on:this.checked}); renderCart(); if(this.checked) setTimeout(function(){ try{ $("ndIni").focus(); }catch(e){} },30); };
+    function upd(){ var was=noDiscOvrOk(); posNoDiscOvr=Object.assign({}, posNoDiscOvr||{}, {initials:($("ndIni").value||"").trim().toUpperCase(), reason:($("ndWhy").value||"").trim()}); var now=noDiscOvrOk();
+      $("ndSt").className="nd-st"+(now?" ok":""); $("ndSt").textContent=now?"Override on: discounts now apply to these items. Saved with the sale.":"Enter initials (2 to 4 letters) and a reason to turn the override on."; if(was!==now) renderCart(); }
+    if($("ndIni")){ $("ndIni").oninput=upd; $("ndWhy").oninput=upd; }
+  }
   function lineDisc(l){ var gross=l.retail*l.qty; var pct=+l.discPct||0, amt=+l.discAmt||0; return Math.min(gross, Math.max(0, Math.round((gross*pct/100+amt)*100)/100)); }
   function lineNet(l){ return Math.round((l.retail*l.qty - lineDisc(l))*100)/100; }
   function discPctOpts(sel){ var has=discounts.some(function(d){ return +d.percent===+sel; }); return '<option value="0">No %</option>'+(+sel>0&&!has?'<option value="'+(+sel)+'" selected>'+(+sel)+'%'+(+sel===SUB_DISC?' Subscription':'')+'</option>':'')+discounts.map(function(d){return '<option value="'+d.percent+'"'+(+sel===+d.percent?" selected":"")+'>'+d.percent+'% '+esc(d.name)+'</option>';}).join(""); }
@@ -6761,6 +6818,7 @@ window.startClinicApp = function(){
   function renderCart(){
     var el=$("posCart");
     if(posPromo) promoReapply();
+    try{ enforceNoDisc(); }catch(e){ console.error(e); }
     var perItem = posDiscMode==="item";
     var _hasPkg = cartHasPkg();
     if(_hasPkg && !posPkgOverride){ posCart.forEach(function(l){ l.discPct=0; l.discAmt=0; }); if($("posDiscount")) $("posDiscount").value=""; if($("posDiscountAmt")) $("posDiscountAmt").value=""; }
@@ -6774,9 +6832,10 @@ window.startClinicApp = function(){
         var priceCell = (perItem && d>0)
           ? '<span class="cart-price"><s class="cart-gross">$'+money(l.retail*l.qty)+'</s> $'+money(lineNet(l))+'</span>'
           : '<span class="cart-price">$'+money(l.retail*l.qty)+'</span>';
+        var _nd = lineNoDisc(l) && !noDiscOvrOk(), _lk2 = _nd ? " disabled" : _lk;
         var discRow = perItem
-          ? '<div class="cart-disc"><select data-cdpct="'+i+'"'+_lk+'>'+discPctOpts(l.discPct)+'</select>'+
-            '<input type="number" class="cart-disc-amt" data-cdamt="'+i+'" value="'+(l.discAmt||"")+'" placeholder="$ off" min="0" step="0.01" inputmode="decimal"'+_lk+'>'+
+          ? '<div class="cart-disc"><select data-cdpct="'+i+'"'+_lk2+'>'+discPctOpts(l.discPct)+'</select>'+
+            '<input type="number" class="cart-disc-amt" data-cdamt="'+i+'" value="'+(l.discAmt||"")+'" placeholder="$ off" min="0" step="0.01" inputmode="decimal"'+_lk2+'>'+(_nd?'<span class="cart-disc-tag nd-tag">No discount</span>':'')+
             (d>0?'<span class="cart-disc-tag">−$'+money(d)+'</span>':'')+(l.promo?'<span class="cart-disc-tag cart-promo-tag">Promo</span>':'')+'</div>'
           : '';
         var pkgTag = l.pkg ? '<span class="cart-pkg-tag">'+esc(l.pkg.name)+(l.listRetail>l.retail?' \u00b7 reg $'+money(l.listRetail):'')+'</span>' : '';
@@ -6812,6 +6871,7 @@ window.startClinicApp = function(){
     renderPosGc();
     renderPosPromo();
     renderPosPkg();
+    try{ renderNoDisc(); }catch(e){}
     try{ renderConsultAlert(); }catch(e){}
     updateMembAlert();
     clearTimeout(window.__pkgDetT); window.__pkgDetT=setTimeout(function(){ try{ pkgDetect(); }catch(e){} }, 350);
@@ -6972,6 +7032,7 @@ window.startClinicApp = function(){
       if(posPromo){ removePosPromo(); }
       posCart.forEach(function(l){ l.discPct=0; l.discAmt=0; }); $("posDiscount").value=""; $("posDiscountAmt").value="";
     }
+    try{ if(enforceNoDisc()) renderCart(); }catch(e){}
     var saleDate = (p && $("posVisitDate") && $("posVisitDate").value) ? $("posVisitDate").value : todayISO();
     var perItemDisc = posDiscMode==="item";
     var sub=posCart.reduce(function(s,l){return s+l.retail*l.qty;},0);
@@ -7076,7 +7137,12 @@ window.startClinicApp = function(){
     if(posSubCharge && p && p.id===posSubCharge.clientId) subRecordCharge(plan, saleGroup, total); else posSubCharge=null;
     var _ovr=(cartHasPkg() && posPkgOverride && (sub-total>0.004 || promoRec)) ? posPkgOverride : null;
     var _site=tillSite(), _siteSrc=tillToday()?"till":"till-default";
-    plan.forEach(function(t){ t.chargeConfirmedAt=_cAt; t.chargeConfirmedBy=_cBy; if(_ovr) t.pkgDiscountOverride=_ovr; t.location=_site; t.locSrc=_siteSrc; txns.push(t); });
+    var _ndLines=cartNoDiscLines(), _ndOvr=null;
+    if(_ndLines.length && noDiscOvrOk() && (posCart.some(function(l){ return lineNoDisc(l) && lineDisc(l)>0; }) || (!perItemDisc && (pct>0 || damt>0)))){
+      _ndOvr={initials:posNoDiscOvr.initials.trim().toUpperCase(), reason:posNoDiscOvr.reason.trim(), items:_ndLines.map(function(l){ return l.name; }), by:window.__curEmail?window.__curEmail():"", at:new Date().toISOString()};
+      if(window.__hipAudit) window.__hipAudit("no_discount_override", _ndOvr.initials+" \u00b7 "+_ndOvr.items.join(", ")+" \u00b7 "+_ndOvr.reason);
+    }
+    plan.forEach(function(t){ t.chargeConfirmedAt=_cAt; t.chargeConfirmedBy=_cBy; if(_ovr) t.pkgDiscountOverride=_ovr; if(_ndOvr) t.noDiscOverride=_ndOvr; t.location=_site; t.locSrc=_siteSrc; txns.push(t); });
     saveTxns();
     if(promoRec){
       promoUses.push({ id:"pu"+Date.now().toString(36)+Math.random().toString(36).slice(2,5), promoId:promoRec.pr.id, promoName:promoRec.pr.name, clientId:p.id, clientName:p.name,
@@ -7139,7 +7205,7 @@ window.startClinicApp = function(){
     }
     if(window.__hipAudit) window.__hipAudit("sale", p?p.id:"walk-in");
     decrementInventoryForSale(posCart);
-    posPromo=null; posPkgDeclined={}; posPkgOverride=null; posConsultWaive=null; posSubCharge=null; if($("posPromoCard")) $("posPromoCard").checked=false; if($("posPromoSel")) $("posPromoSel").value="";
+    posPromo=null; posPkgDeclined={}; posPkgOverride=null; posConsultWaive=null; posSubCharge=null; posNoDiscOvr=null; if($("posPromoCard")) $("posPromoCard").checked=false; if($("posPromoSel")) $("posPromoSel").value="";
     posCart=[]; posGC=null; if($("posGcNum")) $("posGcNum").value=""; $("posDiscount").value=""; $("posDiscountAmt").value=""; if(posSplitActive) toggleSplit(false); if(posDiscMode==="item") setDiscMode("order"); setPosClient(""); renderCart();
     if(p) renderAll();
     try{ if(window.__syncCommit) window.__syncCommit("sale"); }catch(e){}   // push on commit; the sale is already saved locally either way
@@ -8022,7 +8088,7 @@ window.startClinicApp = function(){
     $("posComplete").onclick=function(){ completeSale(); };
     if($("posCancel")) $("posCancel").onclick=function(){
       if(!posCart.length && !posClientId){ toast("Nothing to cancel"); return; }
-      posPromo=null; posPkgDeclined={}; posPkgOverride=null; posConsultWaive=null; posSubCharge=null; if($("posPromoCard")) $("posPromoCard").checked=false; if($("posPromoSel")) $("posPromoSel").value="";
+      posPromo=null; posPkgDeclined={}; posPkgOverride=null; posConsultWaive=null; posSubCharge=null; posNoDiscOvr=null; if($("posPromoCard")) $("posPromoCard").checked=false; if($("posPromoSel")) $("posPromoSel").value="";
       posCart=[]; posGC=null; if($("posGcNum")) $("posGcNum").value=""; $("posDiscount").value=""; $("posDiscountAmt").value="";
       if(posSplitActive) toggleSplit(false);
       if(posDiscMode==="item") setDiscMode("order");
