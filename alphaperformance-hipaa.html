@@ -777,6 +777,7 @@
   .nd-tag{background:#FEE2E2;color:#991B1B}
   .iv-nodisc{display:flex !important;flex-direction:row !important;gap:10px;align-items:flex-start;background:#FEF2F2;border-radius:10px;padding:10px}
   .iv-nodisc input{width:20px;height:20px;margin-top:2px}
+  .cr-row{background:#ECFDF5;border-radius:9px;padding:7px 10px;color:#065F46}
   .cash-locbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px;font-size:14px;font-weight:700}
   .cash-locbar select{margin-left:6px;padding:9px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font-size:14px;font-weight:700}
   .cash-loc{margin-bottom:12px}
@@ -1507,6 +1508,7 @@
       <a class="nav-link" data-view="inventory"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7l-8-4-8 4 8 4 8-4z"/><path d="M4 7v10l8 4 8-4V7"/><path d="M12 11v10"/></svg><span>Items</span></a>
       <a class="nav-link" data-view="ordering"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h2l2.4 12.2a2 2 0 002 1.6h8.8a2 2 0 002-1.6L22 7H6"/><circle cx="10" cy="20.5" r="1"/><circle cx="18" cy="20.5" r="1"/></svg><span>Suggested ordering</span></a>
       <a class="nav-link" data-view="giftcerts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M12 8v13M3 12h18M12 8c-2-4-6-3-5 0 .5 1.5 3 1.5 5 0zM12 8c2-4 6-3 5 0-.5 1.5-3 1.5-5 0z"/></svg><span>Gift Certificates</span></a>
+      <a class="nav-link" data-view="credits"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12v8H4v-8"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/><path d="M8.5 4.5L12 7l3.5-2.5"/></svg><span>Customer credits</span></a>
       <a class="nav-link" data-view="promos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4l-7.2 7.2a2 2 0 01-2.8 0L3 13V3h10l7.6 7.6a2 2 0 010 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg><span>Promotions</span></a>
       <a class="nav-link" data-view="packages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><path d="M3.3 7L12 12l8.7-5M12 22V12"/></svg><span>Packages</span></a>
       <a class="nav-link" data-view="subs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-3-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M12 7v5l3 2"/></svg><span>Subscriptions</span></a>
@@ -1954,6 +1956,7 @@
   <div id="packagesView" style="display:none"><div id="pkgPage"></div></div>
   <div id="subsView" style="display:none"><div id="subsPage"></div></div>
   <div id="orderView" style="display:none"><div id="orderPage"></div></div>
+  <div id="creditsView" style="display:none"><div id="creditsPage"></div></div>
   <div id="promosView" style="display:none">
     <div class="rep-card"><div class="inv-statgrid" id="prStats"></div></div>
     <div class="rep-card">
@@ -4104,6 +4107,93 @@ window.startClinicApp = function(){
       gcModalClose(); renderCashPage(); toast("Cash paid out: $"+money(a));
     };
   }
+  // ---------- Customer credits (15 Nov 2026) ----------
+  // A credit is issued to a client with a reason and an amount. It is applied automatically at their next sale(s)
+  // until used up. What has been used is worked out from the sales themselves, so two locations can't lose a use.
+  // In the books a used credit is a discount (Discounts Given), like a promotional certificate.
+  var credits = load("alphaperf_credits", []); if(!Array.isArray(credits)) credits=[];
+  function saveCredits(){ store.set("alphaperf_credits", JSON.stringify(credits)); if(window.__recordWrite) window.__recordWrite("alphaperf_credits"); if(typeof schedulePush==="function") schedulePush(); }
+  var posCreditSkip=false, crFilter="open", crQ="";
+  function creditUsedList(id){ var out=[]; txns.forEach(function(t){ (t.gcParts||[]).forEach(function(g){ if(g.id===id && g.credit) out.push({date:t.date, amount:+g.amount||0, entity:t.entity, saleId:t.saleGroup||t.id}); }); }); return out; }
+  function creditUsed(id){ return Math.round(creditUsedList(id).reduce(function(a,u){ return a+u.amount; },0)*100)/100; }
+  function creditBalance(c){ if(!c || c.voided) return 0; return Math.round(Math.max(0,(+c.amount||0)-creditUsed(c.id))*100)/100; }
+  function creditsFor(clientId){ return credits.filter(function(c){ return c.clientId===clientId && creditBalance(c)>0.004; }).sort(function(a,b){ return (a.issued||"").localeCompare(b.issued||""); }); }
+  function posCreditList(){
+    if(posCreditSkip || !posClientId || cartHasGcSell()) return [];
+    return creditsFor(posClientId).map(function(c){ var b=creditBalance(c); return {id:c.id, num:"Credit", kind:"credit", isCredit:true, reason:c.reason, fundedLiability:false, promotional:true, entity:"any", amount:b, redemptions:[], issued:c.issued, expires:null}; });
+  }
+  function clientCreditTotal(clientId){ return Math.round(creditsFor(clientId).reduce(function(a,c){ return a+creditBalance(c); },0)*100)/100; }
+  function renderCredits(){
+    var el=$("creditsPage"); if(!el) return;
+    var q=crQ.trim().toLowerCase();
+    var list=credits.slice().sort(function(a,b){ return (b.issued||"").localeCompare(a.issued||"") || (b.at||"").localeCompare(a.at||""); }).filter(function(c){
+      var bal=creditBalance(c), st=c.voided?"void":(bal>0.004?"open":"used");
+      if(crFilter!=="all" && st!==crFilter) return false;
+      if(q){ var p=findPatient(c.clientId); var hay=((p?p.name:c.clientName)+" "+(c.reason||"")+" "+(c.byName||"")).toLowerCase(); if(hay.indexOf(q)<0) return false; }
+      return true; });
+    var open=credits.filter(function(c){ return creditBalance(c)>0.004; }), openTot=open.reduce(function(a,c){ return a+creditBalance(c); },0);
+    var usedTot=credits.reduce(function(a,c){ return a+creditUsed(c.id); },0);
+    el.innerHTML='<div class="rep-card"><div class="inv-statgrid"><div class="inv-stat"><div class="inv-stat-val">$'+money(openTot)+'</div><div class="inv-stat-lbl">Open credit owed to clients</div></div>'+
+        '<div class="inv-stat"><div class="inv-stat-val">'+open.length+'</div><div class="inv-stat-lbl">Clients with credit</div></div>'+
+        '<div class="inv-stat"><div class="inv-stat-val">$'+money(usedTot)+'</div><div class="inv-stat-lbl">Used so far</div></div></div></div>'+
+      '<div class="rep-card"><div class="inv-tools"><input type="text" id="crQ" class="cash-q" style="margin:0;flex:1" placeholder="Search client or reason" value="'+esc(crQ)+'"><button class="btn-primary inv-add" id="crNewBtn" type="button">+ Issue credit</button></div>'+
+        '<div class="gc-chips" style="margin:10px 0">'+[["open","Open"],["used","Used"],["void","Void"],["all","All"]].map(function(x){ return '<button type="button" data-crf="'+x[0]+'" class="'+(crFilter===x[0]?'on':'')+'">'+x[1]+'</button>'; }).join("")+'</div>'+
+        (list.length?list.map(function(c){ var p=findPatient(c.clientId), bal=creditBalance(c), used=creditUsed(c.id), st=c.voided?"Void":(bal>0.004?"Open":"Used");
+          return '<div class="gc-row" data-crid="'+esc(c.id)+'"><div class="gc-r-main"><div class="gc-r-num">'+esc(p?p.name:(c.clientName||"Unknown client"))+' <span class="gc-chip '+(st==="Open"?'gc-open':'gc-void')+'">'+st+'</span></div>'+
+            '<div class="gc-r-sub">'+esc(c.reason||"")+' \u00b7 issued '+esc(fmtDate(parseISO(c.issued)))+(c.byName?' by '+esc(c.byName):'')+(used>0?' \u00b7 used $'+money(used):'')+'</div></div>'+
+            '<div class="gc-r-amt"><b>$'+money(bal)+'</b><span>of $'+money(c.amount)+'</span></div></div>'; }).join(""):'<div class="pos-cart-empty">'+(q?'No credits match.':'No credits here.')+'</div>')+'</div>';
+    $("crNewBtn").onclick=function(){ openIssueCredit(null); };
+    $("crQ").oninput=function(){ crQ=this.value; var p=this.selectionStart; renderCredits(); var n=$("crQ"); n.focus(); try{ n.setSelectionRange(p,p); }catch(e){} };
+    Array.prototype.forEach.call(el.querySelectorAll("[data-crf]"),function(b){ b.onclick=function(){ crFilter=b.getAttribute("data-crf"); renderCredits(); }; });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-crid]"),function(r){ r.onclick=function(){ openCreditDetail(r.getAttribute("data-crid")); }; });
+  }
+  function openIssueCredit(clientId){
+    var sel=clientId||"";
+    gcModalShow("Issue a credit",
+      '<div class="pos-field"><label>Client</label><div class="client-search" style="position:relative"><input type="text" id="crClientQ" placeholder="Search client by name, phone or email" autocomplete="off" value="'+esc(sel?((findPatient(sel)||{}).name||""):"")+'"><div class="client-drop" id="crClientDrop" style="display:none"></div></div></div>'+
+      '<div class="gc-row2"><div class="pos-field"><label>Amount</label><input type="number" id="crAmt" min="0.01" step="0.01" inputmode="decimal" placeholder="0.00"></div><div class="pos-field"><label>Your initials</label><input type="text" id="crIni" maxlength="4" placeholder="e.g. CP" style="text-transform:uppercase"></div></div>'+
+      '<div class="pos-field"><label>Reason for the credit</label><input type="text" id="crWhy" placeholder="e.g. Overcharged on 11/12, vial not available, service issue"></div>'+
+      '<div class="gc-hint">It is applied automatically the next time this client buys anything, until it is used up.</div><div class="sub-err" id="crErr"></div>',
+      '<button class="btn-ghost" id="crCancel" type="button">Cancel</button><button class="btn-primary" id="crGo" type="button">Issue credit</button>');
+    var q=$("crClientQ"), dd=$("crClientDrop");
+    q.oninput=function(){ sel=""; var v=q.value.trim().toLowerCase(), dig=v.replace(/\D/g,""); if(!v){ dd.style.display="none"; return; }
+      var hits=patients.filter(function(x){ return (x.name||"").toLowerCase().indexOf(v)>=0 || (x.email||"").toLowerCase().indexOf(v)>=0 || (dig.length>=3 && (x.phone||"").replace(/\D/g,"").indexOf(dig)>=0); }).slice(0,10);
+      dd.innerHTML=hits.length?hits.map(function(x){ return '<div class="cd-item" data-crc="'+esc(x.id)+'"><span class="pd-name">'+esc(x.name)+'</span><span class="pkg-sub">'+esc(x.phone||x.email||"")+'</span></div>'; }).join(""):'<div class="cd-empty">No clients match</div>';
+      dd.style.display="block";
+      Array.prototype.forEach.call(dd.querySelectorAll("[data-crc]"),function(it){ it.onmousedown=function(e){ e.preventDefault(); sel=it.getAttribute("data-crc"); q.value=(findPatient(sel)||{}).name||""; dd.style.display="none"; }; }); };
+    q.onblur=function(){ setTimeout(function(){ dd.style.display="none"; },150); };
+    $("crCancel").onclick=gcModalClose;
+    $("crGo").onclick=function(){
+      var p=findPatient(sel), amt=Math.round((+$("crAmt").value||0)*100)/100, ini=($("crIni").value||"").trim().toUpperCase(), why=($("crWhy").value||"").trim();
+      if(!p){ $("crErr").textContent="Choose the client from the list."; return; }
+      if(!(amt>0)){ $("crErr").textContent="Enter the credit amount."; return; }
+      if(!/^[A-Z]{2,4}$/.test(ini)){ $("crErr").textContent="Enter your initials (2 to 4 letters)."; return; }
+      if(why.length<3){ $("crErr").textContent="Enter the reason for the credit."; return; }
+      var c={id:"cr"+Date.now().toString(36)+Math.random().toString(36).slice(2,5), clientId:p.id, clientName:p.name, amount:amt, reason:why, issued:todayISO(), at:new Date().toISOString(), by:window.__curEmail?window.__curEmail():"", byName:ini, location:(typeof tillSite==="function")?tillSite():""};
+      credits.push(c); saveCredits();
+      if(window.__hipAudit) window.__hipAudit("credit_issued", p.name+" $"+money(amt)+" \u00b7 "+why+" \u00b7 "+ini);
+      gcModalClose(); if(activeView==="credits") renderCredits(); if(activeView==="register" && posClientId===p.id) renderCart();
+      toast("$"+money(amt)+" credit issued to "+p.name);
+    };
+    setTimeout(function(){ try{ (sel?$("crAmt"):q).focus(); }catch(e){} },50);
+  }
+  function openCreditDetail(id){
+    var c=credits.filter(function(x){ return x.id===id; })[0]; if(!c) return;
+    var p=findPatient(c.clientId), bal=creditBalance(c), uses=creditUsedList(c.id), admin=window.__isAdmin && window.__isAdmin();
+    gcModalShow("Credit \u00b7 "+(p?p.name:c.clientName),
+      '<div class="gc-det-grid"><div><span>Amount</span><b>$'+money(c.amount)+'</b></div><div><span>Left</span><b>$'+money(bal)+'</b></div><div><span>Issued</span><b>'+esc(fmtDate(parseISO(c.issued)))+'</b></div><div><span>By</span><b>'+esc(c.byName||"")+'</b></div></div>'+
+      '<div class="gc-note" style="margin:10px 0"><b>Reason:</b> '+esc(c.reason||"")+'</div>'+
+      (c.voided?'<div class="gc-bad">Void: '+esc(c.voidReason||"")+' ('+esc(c.voidBy||"")+')</div>':'')+
+      '<div class="gc-hist-h">Used</div>'+(uses.length?uses.map(function(u){ return '<div class="gc-hist"><span>'+esc(fmtDate(parseISO(u.date)))+' \u00b7 '+(u.entity==="alpha"?"Alpha":"MJS")+'</span><b>\u2212$'+money(u.amount)+'</b></div>'; }).join(""):'<div class="gc-hint">Not used yet.</div>'),
+      (bal>0.004 && !c.voided && admin?'<button class="btn-danger" id="crVoid" type="button">Void</button>':'')+'<button class="btn-primary" id="crClose" type="button">Close</button>');
+    $("crClose").onclick=gcModalClose;
+    if($("crVoid")) $("crVoid").onclick=function(){
+      var why=prompt("Reason for voiding this credit?"); if(!why || why.trim().length<3) return;
+      c.voided=true; c.voidReason=why.trim(); c.voidBy=window.__curEmail?window.__curEmail():""; c.voidAt=new Date().toISOString(); saveCredits();
+      if(window.__hipAudit) window.__hipAudit("credit_voided", (p?p.name:"")+" $"+money(bal)+" \u00b7 "+why.trim());
+      gcModalClose(); renderCredits(); toast("Credit voided");
+    };
+  }
   // ---------- Suggested ordering: average patients per month on each item ----------
   var ordState={months:3, ent:"all", site:"all", q:"", all:false};
   var ORD_SKIP_CAT=/^(membership|gift certificate|service)$/i;
@@ -4897,9 +4987,9 @@ window.startClinicApp = function(){
   var gcFilter={ent:"all", st:"all", q:""};
   var gcDraft=null;          // issue modal state
   function entLabel(e){ return e==="alpha"?"AlphaPerformance":"MJS"; }
-  function posGcList(){ return (posGC||[]).map(function(g){ return gcFind(g.num); }).filter(Boolean).sort(function(a,b){ return (gcFunded(a)?0:1)-(gcFunded(b)?0:1); }); }
+  function posGcList(){ return (posGC||[]).map(function(g){ return gcFind(g.num); }).filter(Boolean).sort(function(a,b){ return (gcFunded(a)?0:1)-(gcFunded(b)?0:1); }).concat(posCreditList()); }
   function posGcCredit(){
-    if(!posGC || !posGC.length) return {c:null,amt:0,parts:[]};
+    if((!posGC || !posGC.length) && !posCreditList().length) return {c:null,amt:0,parts:[]};
     var due=Math.round(cartTotalNow()*100)/100, parts=[], used=0;
     posGcList().forEach(function(c){ var a=Math.round(Math.max(0,Math.min(gcBalance(c), due-used))*100)/100; parts.push({c:c, amt:a}); used=Math.round((used+a)*100)/100; });
     return {c:parts.length?parts[0].c:null, amt:used, parts:parts};
@@ -4909,14 +4999,17 @@ window.startClinicApp = function(){
   function cartHasGcSell(){ return posCart.some(function(l){return !!l.gcSell;}); }
   function renderPosGc(){
     var el=$("posGcInfo"); if(!el) return;
-    if(!posGC || !posGC.length){ el.style.display="none"; el.innerHTML=""; return; }
+    var _crAvail=(posClientId && !cartHasGcSell())?clientCreditTotal(posClientId):0;
+    if((!posGC || !posGC.length) && !posCreditList().length){ if(_crAvail>0.004 && posCreditSkip){ el.style.display="block"; el.innerHTML='<div class="gc-apply-row cr-row">Customer credit <b>$'+money(_crAvail)+'</b> not used this time <button type="button" class="pos-split-toggle" id="crUse">Use it</button></div>'; $("crUse").onclick=function(){ posCreditSkip=false; renderCart(); }; return; } el.style.display="none"; el.innerHTML=""; return; }
     el.style.display="block";
     var cr=posGcCredit();
     el.innerHTML=cr.parts.map(function(p){ var c=p.c;
+      if(c.isCredit) return '<div class="gc-apply-row cr-row"><b>Customer credit</b> \u00b7 '+esc(c.reason||"")+' \u00b7 available <b>$'+money(c.amount)+'</b>'+(p.amt>0?' \u00b7 applying <b>$'+money(p.amt)+'</b>':' \u00b7 not needed')+' <button type="button" class="pos-split-toggle" data-crskip="1">Don\u2019t use this time</button></div>';
       return '<div class="gc-apply-row"><b>'+esc(c.num)+'</b> \u00b7 '+(gcFunded(c)?'Sold':'Promotional')+' \u00b7 balance <b>$'+money(gcBalance(c))+'</b>'+
         (p.amt>0?' \u00b7 applying <b>$'+money(p.amt)+'</b>':' \u00b7 not needed')+(gcFunded(c)?'':' \u00b7 expires '+esc(c.expires||"never"))+
         ' <button type="button" class="pos-split-toggle" data-gcrm="'+esc(c.num)+'">Remove</button></div>'; }).join("")+
       (cr.parts.length>1?'<div class="gc-hint">Sold value is used first, then promotional value.</div>':'');
+    Array.prototype.forEach.call(el.querySelectorAll("[data-crskip]"),function(b){ b.onclick=function(){ posCreditSkip=true; renderCart(); }; });
     Array.prototype.forEach.call(el.querySelectorAll("[data-gcrm]"),function(b){ b.onclick=function(){ var n=b.getAttribute("data-gcrm"); posGC=(posGC||[]).filter(function(g){ return gcNormNum(g.num)!==gcNormNum(n); }); if(!posGC.length) posGC=null; $("posGcNum").value=""; renderCart(); }; });
   }
   function applyPosGc(num){
@@ -5121,6 +5214,7 @@ window.startClinicApp = function(){
     subs:["Subscriptions","Monthly supplement shipments and pickups, 5% off"],
     ordering:["Suggested ordering","Average patients per month on each item, last 3 months"],
     cash:["Cash & deposits","Cash collected each day, cash in the safe and bank deposits"],
+    credits:["Customer credits","Credits owed to clients, applied automatically at their next sale"],
     expenses:["Expenses","Record business costs"],
     gl:["General Ledger","Double-entry transactions"],
     coa:["Chart of Accounts","Your account structure"],
@@ -5141,6 +5235,7 @@ window.startClinicApp = function(){
     $("packagesView").style.display = v==="packages" ? "block" : "none";
     $("subsView").style.display = v==="subs" ? "block" : "none";
     $("orderView").style.display = v==="ordering" ? "block" : "none";
+    $("creditsView").style.display = v==="credits" ? "block" : "none";
     $("booksView").style.display = ACCT_VIEWS[v] ? "block" : "none";
     Array.prototype.forEach.call(document.querySelectorAll(".nav-link"),function(b){
       b.classList.toggle("active", b.getAttribute("data-view")===v);
@@ -5158,6 +5253,7 @@ window.startClinicApp = function(){
     if(v==="packages"){ pkgEdit=null; renderPackagesPage(); }
     if(v==="subs"){ subEdit=null; renderSubsPage(); }
     if(v==="ordering") renderOrdering();
+    if(v==="credits") renderCredits();
     if(ACCT_VIEWS[v]) renderAccounting(v);
     updateAddButton();
     window.scrollTo(0,0);
@@ -6489,7 +6585,7 @@ window.startClinicApp = function(){
     fillPosSelects(); renderCart();
   }
   function setPosClient(id){
-    if((id||"")!==posClientId){ posConsultWaive=null; posSubCharge=null; }
+    if((id||"")!==posClientId){ posConsultWaive=null; posSubCharge=null; posCreditSkip=false; }
     if(posPromo && posPromo.clientId!==(id||"")){ posPromo=null; promoClearLines(); if($("posPromoCard")) $("posPromoCard").checked=false; setTimeout(function(){ renderCart(); },0); if(id) toast("Promotion removed because the client changed"); }
     posClientId=id||"";
     var p=id?findPatient(id):null;
@@ -6621,7 +6717,7 @@ window.startClinicApp = function(){
     el.style.display="block";
     el.innerHTML='<div class="pci-row"><span>'+esc(p.name)+(p.isMember?' · Member':'')+'</span>'+
       '<button type="button" class="pci-link" id="pciOpen">View record →</button></div>'+
-      '<div class="pci-sub">'+bits.join(" · ")+'</div>';
+      '<div class="pci-sub">'+bits.join(" · ")+(function(){ var cr=clientCreditTotal(id); return cr>0.004?' · <b style="color:#047857">$'+money(cr)+' credit on file</b>':''; })()+'</div>';
     $("pciOpen").onclick=function(){ openEditClient(id); };
   }
   function openRegisterForClient(id){
@@ -6812,7 +6908,7 @@ window.startClinicApp = function(){
   }
   function gcTotRows(){
     var cr=posGcCredit(); if(!(cr.amt>0)) return "";
-    return cr.parts.filter(function(p){ return p.amt>0; }).map(function(p){ return '<div class="pos-tot-row"><span>Gift certificate '+esc(p.c.num)+(gcFunded(p.c)?'':' (promotional)')+'</span><span>\u2212$'+money(p.amt)+'</span></div>'; }).join("")+
+    return cr.parts.filter(function(p){ return p.amt>0; }).map(function(p){ return '<div class="pos-tot-row"><span>'+(p.c.isCredit?'Customer credit':'Gift certificate '+esc(p.c.num)+(gcFunded(p.c)?'':' (promotional)'))+'</span><span>\u2212$'+money(p.amt)+'</span></div>'; }).join("")+
       '<div class="pos-tot-row grand"><span>Due now</span><span>$'+money(Math.round((cartTotalNow()-cr.amt)*100)/100)+'</span></div>';
   }
   function renderCart(){
@@ -6955,7 +7051,7 @@ window.startClinicApp = function(){
     var collect=[], notes=[];
     pays.forEach(function(pm){
       var a=Math.round((+pm.amount||0)*100)/100; if(a<=0.004) return;
-      if(pm.method==="Gift Certificate") notes.push("Gift certificate "+(t.gcNum||"")+" covers $"+money(a)+" (nothing to charge)");
+      if(pm.method==="Gift Certificate") notes.push((/Credit/.test(t.gcNum||"")?"Gift certificate / customer credit ":"Gift certificate ")+(t.gcNum||"")+" covers $"+money(a)+" (nothing to charge)");
       else if(/invoice|account|unpaid/i.test(pm.method||"")) notes.push("Invoice (unpaid) $"+money(a)+": not collected now");
       else collect.push({method:pm.method||"Payment", amount:a});
     });
@@ -7058,7 +7154,7 @@ window.startClinicApp = function(){
       }
     }
     var gcc=posGcCredit(), gcAmt=gcc.amt, gcCert=gcc.c, gcUse=gcc.parts.filter(function(x){ return x.amt>0.004; });
-    if(posGC && posGC.length && posGcList().length!==posGC.length){ toast("A gift certificate in this sale was not found"); return; }
+    if(posGC && posGC.length && posGcList().filter(function(c){ return !c.isCredit; }).length!==posGC.length){ toast("A gift certificate in this sale was not found"); return; }
     if(cartHasGcSell()){
       if(total<sub-0.005){ toast("Gift certificates can't be discounted. Sell it without a discount."); return; }
       if(posCart.some(function(l){return l.gcSell && l.qty>1;})){ toast("Add each gift certificate as its own line"); return; }
@@ -7087,7 +7183,7 @@ window.startClinicApp = function(){
       var gcLine={method:"Gift Certificate", amount:gcAmt};
       if(payments) payments=[gcLine].concat(payments);
       else { payments=[gcLine]; if(cashDue>0.004) payments.push({method:pay, amount:cashDue}); }
-      paySummary=payments.map(function(pm){ return (pm.method==="Gift Certificate"?"Gift Certificate "+gcUse.map(function(x){ return x.c.num; }).join(" + "):pm.method)+" $"+money(pm.amount); }).join(" + ");
+      paySummary=payments.map(function(pm){ return (pm.method==="Gift Certificate"?gcUse.map(function(x){ return x.c.isCredit?"Customer credit":"Gift Certificate "+x.c.num; }).join(" + "):pm.method)+" $"+money(pm.amount); }).join(" + ");
     }
     function invMethod(m){ return /invoice|account|unpaid/i.test(m||""); }
     function itemPaymentsFor(items, eTotal){
@@ -7119,7 +7215,7 @@ window.startClinicApp = function(){
       var eGcParts=gcUse.map(function(x){ var full=x.amt, done=gcAlloc[x.c.id]||0;
         var v = last ? Math.round((full-done)*100)/100 : Math.round(full*(total>0?eTotal/total:0)*100)/100;
         gcAlloc[x.c.id]=Math.round((done+v)*100)/100;
-        return {id:x.c.id, num:x.c.num, amount:v, funded:gcFunded(x.c), issuer:x.c.entity||"alpha"}; }).filter(function(x){ return x.amount>0.004; });
+        return {id:x.c.id, num:x.c.num, amount:v, funded:gcFunded(x.c), issuer:x.c.entity||"alpha", credit:x.c.isCredit?true:undefined}; }).filter(function(x){ return x.amount>0.004; });
       var eGcAmt=Math.round(eGcParts.reduce(function(a,x){ return a+x.amount; },0)*100)/100;
       var gcGross=g.items.reduce(function(a,l){return a+(l.gcSell?l.retail*l.qty:0);},0);
       var gcSellAmt = gcGross>0 ? Math.min(eTotal, Math.round(gcGross*(g.sub>0?eTotal/g.sub:1)*100)/100) : 0;
@@ -7163,7 +7259,7 @@ window.startClinicApp = function(){
       plan.forEach(function(t){ (t.gcParts||[]).forEach(function(g){ var c=giftcerts.filter(function(x){ return x.id===g.id; })[0]; if(!c) return;
         c.redemptions=c.redemptions||[]; c.redemptions.push({ date:saleDate, amount:g.amount, entity:t.entity, txnId:t.id, saleId:saleGroup, client:p?p.name:"Walk-in", clientId:p?p.id:"", funded:g.funded });
         c.balance=gcBalance(c); }); });
-      gcMsg=" \u00b7 "+gcUse.map(function(x){ return x.c.num+" balance $"+money(gcBalance(x.c)); }).join(", ");
+      gcMsg=" \u00b7 "+gcUse.map(function(x){ return x.c.isCredit?"credit left $"+money(Math.max(0,x.c.amount-x.amt)):x.c.num+" balance $"+money(gcBalance(x.c)); }).join(", ");
     }
     if(gcAmt>0 || cartHasGcSell()) saveGC();
     if(p){
@@ -7205,7 +7301,7 @@ window.startClinicApp = function(){
     }
     if(window.__hipAudit) window.__hipAudit("sale", p?p.id:"walk-in");
     decrementInventoryForSale(posCart);
-    posPromo=null; posPkgDeclined={}; posPkgOverride=null; posConsultWaive=null; posSubCharge=null; posNoDiscOvr=null; if($("posPromoCard")) $("posPromoCard").checked=false; if($("posPromoSel")) $("posPromoSel").value="";
+    posPromo=null; posPkgDeclined={}; posPkgOverride=null; posConsultWaive=null; posSubCharge=null; posNoDiscOvr=null; posCreditSkip=false; if($("posPromoCard")) $("posPromoCard").checked=false; if($("posPromoSel")) $("posPromoSel").value="";
     posCart=[]; posGC=null; if($("posGcNum")) $("posGcNum").value=""; $("posDiscount").value=""; $("posDiscountAmt").value=""; if(posSplitActive) toggleSplit(false); if(posDiscMode==="item") setDiscMode("order"); setPosClient(""); renderCart();
     if(p) renderAll();
     try{ if(window.__syncCommit) window.__syncCommit("sale"); }catch(e){}   // push on commit; the sale is already saved locally either way
@@ -8088,7 +8184,7 @@ window.startClinicApp = function(){
     $("posComplete").onclick=function(){ completeSale(); };
     if($("posCancel")) $("posCancel").onclick=function(){
       if(!posCart.length && !posClientId){ toast("Nothing to cancel"); return; }
-      posPromo=null; posPkgDeclined={}; posPkgOverride=null; posConsultWaive=null; posSubCharge=null; posNoDiscOvr=null; if($("posPromoCard")) $("posPromoCard").checked=false; if($("posPromoSel")) $("posPromoSel").value="";
+      posPromo=null; posPkgDeclined={}; posPkgOverride=null; posConsultWaive=null; posSubCharge=null; posNoDiscOvr=null; posCreditSkip=false; if($("posPromoCard")) $("posPromoCard").checked=false; if($("posPromoSel")) $("posPromoSel").value="";
       posCart=[]; posGC=null; if($("posGcNum")) $("posGcNum").value=""; $("posDiscount").value=""; $("posDiscountAmt").value="";
       if(posSplitActive) toggleSplit(false);
       if(posDiscMode==="item") setDiscMode("order");
@@ -9347,7 +9443,7 @@ window.startClinicApp = function(){
       app:"AlphaPerformance", schema:4, exportedAt:new Date().toISOString(),
       members:members, tiers:tiers, patients:patients, treatments:treatments,
       visitTypes:visitTypes, discounts:discounts, pricing:treatmentPricing, settings:settings,
-      txns:txns, giftcerts:giftcerts, promos:promos, promoUses:promoUses, promoAttempts:promoAttempts, packages:packages, subs:subs, sites:sites, regProducts:regProducts,
+      txns:txns, giftcerts:giftcerts, credits:credits, promos:promos, promoUses:promoUses, promoAttempts:promoAttempts, packages:packages, subs:subs, sites:sites, regProducts:regProducts,
       books:{ accounts:{ mjs:load("alphaperf_accounts_mjs",[]), alpha:load("alphaperf_accounts_alpha",[]) },
               journals:{ mjs:load("alphaperf_journals_mjs",[]), alpha:load("alphaperf_journals_alpha",[]) } },
       bookslock:booksLock
@@ -9390,6 +9486,7 @@ window.startClinicApp = function(){
           patients.forEach(function(p){ if(!Array.isArray(p.visitLog)) p.visitLog=[]; if(!Array.isArray(p.treatments)) p.treatments=[]; });
           if(Array.isArray(data.txns)){ txns=data.txns; store.set("alphaperf_txns", JSON.stringify(txns)); }
           if(Array.isArray(data.giftcerts)){ giftcerts=data.giftcerts; store.set("alphaperf_giftcerts", JSON.stringify(giftcerts)); }
+          if(Array.isArray(data.credits)){ credits=data.credits; store.set("alphaperf_credits", JSON.stringify(credits)); }
           if(Array.isArray(data.packages)){ packages=data.packages; savePackages(); }
           if(Array.isArray(data.promos)){ promos=data.promos; savePromos(); } if(Array.isArray(data.promoUses)){ promoUses=data.promoUses; savePromoUses(); } if(Array.isArray(data.promoAttempts)){ promoAttempts=data.promoAttempts; savePromoAttempts(); }
           if(data.regProducts){ ensureRegProducts();
@@ -9445,7 +9542,7 @@ window.startClinicApp = function(){
   function serializeState(){
     return { v:4, tiers:tiers, patients:patients, treatments:treatments, visitTypes:visitTypes, discounts:discounts, pricing:treatmentPricing,
              settings:{ name:settings.name, accent:settings.accent, followupDays:settings.followupDays },
-             txns:txns, giftcerts:giftcerts, promos:promos, promoUses:promoUses, promoAttempts:promoAttempts, packages:packages, subs:subs,
+             txns:txns, giftcerts:giftcerts, credits:credits, promos:promos, promoUses:promoUses, promoAttempts:promoAttempts, packages:packages, subs:subs,
              regProducts:(ensureRegProducts(), regProducts),
              books:{ accounts:{ mjs:load("alphaperf_accounts_mjs",[]), alpha:load("alphaperf_accounts_alpha",[]) },
                      journals:{ mjs:load("alphaperf_journals_mjs",[]), alpha:load("alphaperf_journals_alpha",[]) } },
@@ -9495,6 +9592,7 @@ window.startClinicApp = function(){
     }
     if(Array.isArray(d.txns)){ txns=d.txns; store.set("alphaperf_txns", JSON.stringify(txns)); }
     if(Array.isArray(d.giftcerts)){ giftcerts=d.giftcerts; store.set("alphaperf_giftcerts", JSON.stringify(giftcerts)); }
+    if(Array.isArray(d.credits)){ credits=d.credits; store.set("alphaperf_credits", JSON.stringify(credits)); }
     if(Array.isArray(d.packages)){ packages=d.packages; store.set("alphaperf_packages", JSON.stringify(packages)); }
     if(Array.isArray(d.sites)&&d.sites.length){ sites=d.sites; store.set("alphaperf_sites", JSON.stringify(sites)); }
     if(Array.isArray(d.subs)){ subs=d.subs; store.set("alphaperf_subs", JSON.stringify(subs)); }
@@ -9808,6 +9906,7 @@ window.startClinicApp = function(){
       else if(k==="alphaperf_patients") patients=load(k,[]);
       else if(k==="alphaperf_giftcerts") giftcerts=load(k,[]);
       else if(k==="alphaperf_sites"){ sites=load(k,sites); }
+      else if(k==="alphaperf_credits"){ credits=load(k,[]); if(!Array.isArray(credits)) credits=[]; }
       else if(k==="alphaperf_subs"){ subs=load(k,[]); if(!Array.isArray(subs)) subs=[]; }
       else if(k==="alphaperf_promouses") promoUses=load(k,[]);
       else if(k==="alphaperf_promoattempts") promoAttempts=load(k,[]);
@@ -10377,6 +10476,7 @@ window.startClinicApp = function(){
     "alphaperf_txns":{k:"txn",t:"arr",label:"sales and transactions"},
     "alphaperf_patients":{k:"pat",t:"arr",label:"clients"},
     "alphaperf_giftcerts":{k:"gc",t:"arr",label:"gift certificates"},
+    "alphaperf_credits":{k:"cr",t:"arr",label:"customer credits"},
     "alphaperf_promouses":{k:"pu",t:"arr",label:"promotion redemptions"},
     "alphaperf_promoattempts":{k:"pa",t:"arr",label:"promotion attempts"},
     "alphaperf_journals_mjs":{k:"jm",t:"arr",label:"MJS journal entries"},
@@ -11541,7 +11641,7 @@ window.startClinicApp = function(){
     put("alphaperf_discounts", data.discounts);
     put("alphaperf_pricing", data.pricing);
     put("alphaperf_txns", data.txns);
-    put("alphaperf_giftcerts", data.giftcerts);
+    put("alphaperf_giftcerts", data.giftcerts); put("alphaperf_credits", data.credits);
     put("alphaperf_packages", data.packages); put("alphaperf_subs", data.subs); put("alphaperf_sites", data.sites); put("alphaperf_promos", data.promos); put("alphaperf_promouses", data.promoUses); put("alphaperf_promoattempts", data.promoAttempts);
     if(data.settings){ var s; try{ s=JSON.parse(JSON.stringify(data.settings)); }catch(e){ s={}; } delete s.supabaseUrl; delete s.supabaseKey; put("alphaperf_settings", s); }
     if(data.regProducts){ put("alphaperf_regprod_mjs", data.regProducts.mjs); put("alphaperf_regprod_alpha", data.regProducts.alpha); }
