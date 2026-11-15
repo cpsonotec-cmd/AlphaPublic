@@ -763,6 +763,11 @@
   .sub-track{padding:9px 10px;border:1px solid var(--line);border-radius:9px;font-size:13px;background:var(--card);color:var(--ink);width:170px}
   .sub-done{padding:9px 13px}
   .sub-confirm{font-weight:600}
+  .cash-locbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px;font-size:14px;font-weight:700}
+  .cash-locbar select{margin-left:6px;padding:9px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font-size:14px;font-weight:700}
+  .cash-loc{margin-bottom:12px}
+  .cash-loc tbody tr{cursor:pointer}
+  .cash-loc tbody tr:hover td{background:var(--canvas,#F3F4F6)}
   .cash-start{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:#FEF3C7;color:#78350F;border:1.5px solid #F59E0B;border-radius:12px;padding:14px;margin-bottom:14px;font-size:14px;line-height:1.45}
   .cash-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:12px}
   .cash-card{background:var(--card);border:1.5px solid var(--line);border-left:5px solid #047857;border-radius:14px;padding:14px 16px}
@@ -3908,7 +3913,7 @@ window.startClinicApp = function(){
   // ---------- Cash summary, safe and bank deposits (15 Nov 2026) ----------
   // From the day the safe is first counted, cash taken at the register is booked to 1005 Cash on Hand (Safe)
   // instead of 1000. A deposit moves it to the bank (Dr bank, Cr 1005). Counts post any over/short to 7990.
-  var CASH_SAFE="1005", CASH_OVERSHORT="7990", cashOpen={}, cashQ="";
+  var CASH_SAFE="1005", CASH_OVERSHORT="7990", cashOpen={}, cashQ="", cashSite="all";
   function cashFrom(){ var c=load("alphaperf_cash_from", null); return c&&c.date?c.date:null; }
   function cashOf(t){
     if(!t || t.type!=="sale") return 0;
@@ -3916,12 +3921,13 @@ window.startClinicApp = function(){
     if(/^cash$/i.test(t.payment||"")) return Math.round(Math.max(0,(+t.total||0)-(+t.gcAmount||0)-(+t.arAmount||0))*100)/100;
     return 0;
   }
-  function cashLedgerBal(ent, code){ var keep=acctEntity, out=0; acctEntity="both";
-    try{ buildLedger().forEach(function(e){ if(e.ent!==ent) return; e.lines.forEach(function(l){ if(l.acct===code) out+=(+l.dr||0)-(+l.cr||0); }); }); } finally { acctEntity=keep; }
+  function cashLedgerBal(ent, code, loc){ var keep=acctEntity, out=0, sh=(typeof sharedSite==="function")?sharedSite().id:"setauket"; acctEntity="both";
+    try{ buildLedger().forEach(function(e){ if(e.ent!==ent) return; if(loc && loc!=="all" && (e.loc||sh)!==loc) return; e.lines.forEach(function(l){ if(l.acct===code) out+=(+l.dr||0)-(+l.cr||0); }); }); } finally { acctEntity=keep; }
     return Math.round(out*100)/100+0; }
   function cashBankAccts(ent){ return (load("alphaperf_accounts_"+ent,[])||[]).filter(function(a){ return a.type==="Asset" && a.code!==CASH_SAFE && /cash|check|bank|saving/i.test(a.name||""); }); }
-  function cashOps(){ var out=[]; ["mjs","alpha"].forEach(function(e){ (load("alphaperf_journals_"+e,[])||[]).forEach(function(j){ if(j.cashOp) out.push({e:e, j:j}); }); });
-    txns.forEach(function(t){ if(t.type==="expense" && t.paidFrom==="safe") out.push({e:t.entity||"mjs", t:t}); });
+  function cashOps(){ var out=[], sh=(typeof sharedSite==="function")?sharedSite().id:"setauket", ok=function(l){ return cashSite==="all" || (l||sh)===cashSite; };
+    ["mjs","alpha"].forEach(function(e){ (load("alphaperf_journals_"+e,[])||[]).forEach(function(j){ if(j.cashOp && ok(j.location)) out.push({e:e, j:j}); }); });
+    txns.forEach(function(t){ if(t.type==="expense" && t.paidFrom==="safe" && ok(t.location)) out.push({e:t.entity||"mjs", t:t}); });
     return out.sort(function(a,b){ var da=(a.j||a.t).date||"", db=(b.j||b.t).date||""; return db.localeCompare(da) || ((b.j||b.t).at||"").localeCompare((a.j||a.t).at||""); }); }
   function cashPostJE(ent, je){ var k="alphaperf_journals_"+ent, js=load(k,[])||[]; js.push(je); store.set(k, JSON.stringify(js)); if(!isCombined() && acctEntity===ent) journals=js;
     if(window.__recordWrite){ try{ window.__recordWrite(k); }catch(e){} } if(typeof schedulePush==="function") schedulePush(); }
@@ -3930,15 +3936,19 @@ window.startClinicApp = function(){
   function renderCashPage(){
     var el=$("cashPage"); if(!el) return;
     var from=cashFrom(), range=posRange(), lbl=posPeriodLabel()||((range.start?fmtDate(range.start):"start")+" \u2013 "+(range.end?fmtDate(range.end):"today"));
-    var safe={mjs:cashLedgerBal("mjs",CASH_SAFE), alpha:cashLedgerBal("alpha",CASH_SAFE)};
-    var ops=cashOps(), lastDep={}, lastCount=null;
+    var safe={mjs:cashLedgerBal("mjs",CASH_SAFE,cashSite), alpha:cashLedgerBal("alpha",CASH_SAFE,cashSite)};
+    var ops=cashOps(), lastDep={}, lastCount=null, sh=(typeof sharedSite==="function")?sharedSite().id:"setauket", byLoc={};
     ops.forEach(function(o){ if(o.j && o.j.cashOp==="deposit" && !lastDep[o.e]) lastDep[o.e]=o.j; if(o.j && (o.j.cashOp==="count"||o.j.cashOp==="opening") && !lastCount) lastCount=o.j; });
     // cash collected per day
     var days={}, q=cashQ.trim().toLowerCase(), qNum=q.replace(/[$,]/g,"");
     txns.forEach(function(t){ var c=cashOf(t); if(!(c>0.004) || !inRangeR(t.date, range)) return;
+      var lc=t.location||sh; if(cashSite!=="all" && lc!==cashSite) return;
       if(q){ var hay=((t.clientName||"Walk-in")+" "+(t.items||[]).map(function(i){ return i.name; }).join(" ")+" "+siteName(t.location||"")).toLowerCase(); if(hay.indexOf(q)<0 && !(qNum && /^\d+(\.\d+)?$/.test(qNum) && Math.abs(c-(+qNum))<0.01) && t.date.indexOf(q)<0) return; }
       var d=days[t.date]||(days[t.date]={date:t.date, mjs:0, alpha:0, n:0, sales:[]}); var e=t.entity==="alpha"?"alpha":"mjs";
-      d[e]+=c; d.n++; d.sales.push({t:t, c:c, e:e}); });
+      d[e]+=c; d.n++; d.sales.push({t:t, c:c, e:e});
+      var bl=byLoc[lc]||(byLoc[lc]={mjs:0, alpha:0, n:0}); bl[e]+=c; bl.n++; });
+    var siteIds=sites.map(function(x){ return x.id; }); Object.keys(byLoc).forEach(function(k){ if(siteIds.indexOf(k)<0) siteIds.push(k); });
+    var locSafe=siteIds.filter(function(id){ var st=siteById(id); return (st && st.active!==false) || byLoc[id]; }).map(function(id){ return {id:id, mjs:from?cashLedgerBal("mjs",CASH_SAFE,id):0, alpha:from?cashLedgerBal("alpha",CASH_SAFE,id):0, col:byLoc[id]||{mjs:0,alpha:0,n:0}}; });
     var list=Object.keys(days).sort().reverse().map(function(k){ return days[k]; });
     var tot={mjs:0, alpha:0, n:0}; list.forEach(function(d){ tot.mjs+=d.mjs; tot.alpha+=d.alpha; tot.n+=d.n; });
     function card(e, name){
@@ -3947,13 +3957,16 @@ window.startClinicApp = function(){
         '<div class="cash-sub">'+(from?(ld?'Last deposit $'+money((ld.lines||[]).reduce(function(a,l){ return a+(l.acct===CASH_SAFE?(+l.cr||0):0); },0))+' on '+esc(fmtDate(parseISO(ld.date))):'No deposits recorded yet'):'Not tracking yet')+'</div></div>';
     }
     el.innerHTML=
+      '<div class="cash-locbar"><label>Location <select id="cashSite"><option value="all">All locations</option>'+sites.map(function(x){ return '<option value="'+esc(x.id)+'"'+(cashSite===x.id?' selected':'')+'>'+esc(x.name)+'</option>'; }).join("")+'</select></label>'+(cashSite!=="all"?'<span class="pkg-sub">Showing '+esc(siteName(cashSite))+' only: its safe, its cash and its deposits.</span>':'')+'</div>'+
       (from?'':'<div class="cash-start"><b>Start tracking the safe.</b> Count the cash in the safe now. From then on, cash taken at the register is held as “cash in safe” until you record a deposit to the bank.<button type="button" class="btn-primary" id="cashStartBtn">Count the safe to start</button></div>')+
       '<div class="cash-cards">'+card("mjs","MJS Medical Wellness")+card("alpha","Alpha Male Health Restoration")+
-        '<div class="cash-card cash-total"><div class="cash-ent">Both companies</div><div class="cash-lbl">Should be in the safe</div><div class="cash-big">$'+money(from?safe.mjs+safe.alpha:0)+'</div>'+
+        '<div class="cash-card cash-total"><div class="cash-ent">Both companies'+(cashSite!=="all"?' \u00b7 '+esc(siteName(cashSite)):'')+'</div><div class="cash-lbl">Should be in the safe</div><div class="cash-big">$'+money(from?safe.mjs+safe.alpha:0)+'</div>'+
         '<div class="cash-sub">'+(lastCount?'Last counted '+esc(fmtDate(parseISO(lastCount.date))):(from?'':'Tracking starts at the first count'))+'</div></div></div>'+
-      (from?'<div class="cash-actions"><button type="button" class="btn-primary" id="cashDepBtn">Record a bank deposit</button><button type="button" class="btn-ghost" id="cashCountBtn">Count the safe</button><button type="button" class="btn-ghost" id="cashOutBtn">Cash paid out</button></div>':'')+
+      (from?'<div class="cash-actions"><button type="button" class="btn-primary" id="cashDepBtn">Record a bank deposit</button><button type="button" class="btn-ghost" id="cashCountBtn">Count the safe</button><button type="button" class="btn-ghost" id="cashOutBtn">Cash paid out</button><button type="button" class="btn-ghost" id="cashStart2Btn">Starting count for a location</button></div>':'')+
       '<div class="rep-card"><div class="inv-tools"><div class="rep-h" style="flex:1;margin:0">Cash collected · '+esc(lbl)+'</div><button class="btn-ghost sub-mini" id="cashCsv" type="button">Download CSV</button></div>'+
         '<div class="cash-sumrow"><div><span>MJS</span><b>$'+money(tot.mjs)+'</b></div><div><span>Alpha</span><b>$'+money(tot.alpha)+'</b></div><div><span>Total cash</span><b>$'+money(tot.mjs+tot.alpha)+'</b></div><div><span>Cash sales</span><b>'+tot.n+'</b></div></div>'+
+        (cashSite==="all"?'<div class="pkg-tablewrap"><table class="pkg-table cash-loc"><thead><tr><th>Location</th><th class="num">MJS cash</th><th class="num">Alpha cash</th><th class="num">Total collected</th><th class="num">Sales</th>'+(from?'<th class="num">In safe now</th>':'')+'</tr></thead><tbody>'+
+          locSafe.map(function(x){ return '<tr data-cloc="'+esc(x.id)+'"><td><b>'+esc(siteName(x.id))+'</b></td><td class="num">$'+money(x.col.mjs)+'</td><td class="num">$'+money(x.col.alpha)+'</td><td class="num"><b>$'+money(x.col.mjs+x.col.alpha)+'</b></td><td class="num">'+x.col.n+'</td>'+(from?'<td class="num">$'+money(x.mjs+x.alpha)+'</td>':'')+'</tr>'; }).join("")+'</tbody></table></div>':'')+
         '<input type="text" id="cashQ" class="cash-q" placeholder="Search by client, item, location, amount or date (2026-11-14)" value="'+esc(cashQ)+'">'+
         (list.length?'<div class="pkg-tablewrap"><table class="pkg-table cash-table"><thead><tr><th>Day</th><th class="num">MJS</th><th class="num">Alpha</th><th class="num">Total</th><th class="num">Sales</th></tr></thead><tbody>'+
           list.map(function(d){ var open=cashOpen[d.date];
@@ -3962,14 +3975,17 @@ window.startClinicApp = function(){
           '</tbody></table></div>':'<div class="pos-cart-empty">'+(q?'No cash sales match.':'No cash sales in this period.')+'</div>')+'</div>'+
       '<div class="rep-card"><div class="rep-h">Safe activity</div>'+
         (ops.length?ops.slice(0,60).map(function(o){
-          if(o.t) return '<div class="gc-hist"><span>'+esc(fmtDate(parseISO(o.t.date)))+' · Paid out · '+(o.e==="alpha"?"Alpha":"MJS")+' · '+esc(o.t.name||o.t.category||"")+'</span><b>−$'+money(o.t.amount)+'</b></div>';
+          if(o.t) return '<div class="gc-hist"><span>'+esc(fmtDate(parseISO(o.t.date)))+' \u00b7 Paid out \u00b7 '+(o.e==="alpha"?"Alpha":"MJS")+' \u00b7 '+esc(siteName(o.t.location||sh))+' \u00b7 '+esc(o.t.name||o.t.category||"")+'</span><b>−$'+money(o.t.amount)+'</b></div>';
           var j=o.j, a=(j.lines||[]).reduce(function(s,l){ return s+(l.acct===CASH_SAFE?(+l.dr||0)-(+l.cr||0):0); },0);
           var what={deposit:"Deposited to bank", opening:"Starting count", count:"Count "+(a>=0?"over":"short"), payout:"Paid out"}[j.cashOp]||j.cashOp;
-          return '<div class="gc-hist"><span>'+esc(fmtDate(parseISO(j.date)))+' · '+what+' · '+(o.e==="alpha"?"Alpha":"MJS")+(j.ref?' · slip '+esc(j.ref):'')+(j.by?' · '+esc(j.by):'')+'</span><b>'+(a>=0?'+':'−')+'$'+money(Math.abs(a))+'</b></div>'; }).join(""):'<div class="gc-hint">Nothing yet.</div>')+'</div>';
+          return '<div class="gc-hist"><span>'+esc(fmtDate(parseISO(j.date)))+' \u00b7 '+what+' \u00b7 '+(o.e==="alpha"?"Alpha":"MJS")+' \u00b7 '+esc(siteName(j.location||sh))+(j.ref?' · slip '+esc(j.ref):'')+(j.by?' · '+esc(j.by):'')+'</span><b>'+(a>=0?'+':'−')+'$'+money(Math.abs(a))+'</b></div>'; }).join(""):'<div class="gc-hint">Nothing yet.</div>')+'</div>';
     if($("cashStartBtn")) $("cashStartBtn").onclick=function(){ openCashCount(true); };
+    if($("cashStart2Btn")) $("cashStart2Btn").onclick=function(){ openCashCount(true); };
     if($("cashDepBtn")) $("cashDepBtn").onclick=openCashDeposit;
     if($("cashCountBtn")) $("cashCountBtn").onclick=function(){ openCashCount(false); };
     if($("cashOutBtn")) $("cashOutBtn").onclick=openCashOut;
+    $("cashSite").onchange=function(){ cashSite=this.value; cashOpen={}; renderCashPage(); };
+    Array.prototype.forEach.call(el.querySelectorAll("[data-cloc]"),function(r){ r.onclick=function(){ cashSite=r.getAttribute("data-cloc"); renderCashPage(); }; });
     $("cashQ").oninput=function(){ cashQ=this.value; var p=this.selectionStart; renderCashPage(); var n=$("cashQ"); n.focus(); try{ n.setSelectionRange(p,p); }catch(e){} };
     Array.prototype.forEach.call(el.querySelectorAll("[data-cday]"),function(r){ r.onclick=function(){ var d=r.getAttribute("data-cday"); cashOpen[d]=!cashOpen[d]; renderCashPage(); }; });
     $("cashCsv").onclick=function(){
@@ -3980,51 +3996,64 @@ window.startClinicApp = function(){
       if(window.__hipAudit) window.__hipAudit("export_cash", list.length+" days");
     };
   }
+  function cashLocField(id){ var cur=cashSite!=="all"?cashSite:((typeof tillSite==="function")?tillSite():"setauket");
+    return '<div class="pos-field"><label>Location</label><select id="'+id+'">'+sites.filter(function(x){ return x.active!==false || x.id===cur; }).map(function(x){ return '<option value="'+esc(x.id)+'"'+(x.id===cur?' selected':'')+'>'+esc(x.name)+'</option>'; }).join("")+'</select></div>'; }
   function openCashDeposit(){
-    var safe={mjs:cashLedgerBal("mjs",CASH_SAFE), alpha:cashLedgerBal("alpha",CASH_SAFE)};
+    var loc0=cashSite!=="all"?cashSite:((typeof tillSite==="function")?tillSite():"setauket");
+    var safe={mjs:cashLedgerBal("mjs",CASH_SAFE,loc0), alpha:cashLedgerBal("alpha",CASH_SAFE,loc0)};
     function bankSel(e){ var l=cashBankAccts(e); if(!l.length) l=[{code:"1000",name:"Cash / Checking"}]; return '<select id="cdBank_'+e+'">'+l.map(function(a){ return '<option value="'+esc(a.code)+'"'+(a.code==="1000"?' selected':'')+'>'+esc(a.code+" "+a.name)+'</option>'; }).join("")+'</select>'; }
     gcModalShow("Record a bank deposit",
-      '<div class="gc-hint" style="margin-bottom:10px">Enter what each company actually took to its own bank. Each company’s cash goes to its own account.</div>'+
+      '<div class="gc-hint" style="margin-bottom:10px">Enter what each company actually took to its own bank from this location\u2019s safe. Each company\u2019s cash goes to its own account.</div>'+cashLocField("cdLoc")+
       '<div class="cash-dep-row"><div><b>MJS</b><div class="pkg-sub">In safe $'+money(safe.mjs)+'</div></div><input type="number" step="0.01" min="0" id="cdAmt_mjs" value="'+(safe.mjs>0?safe.mjs.toFixed(2):"")+'">'+bankSel("mjs")+'</div>'+
       '<div class="cash-dep-row"><div><b>Alpha</b><div class="pkg-sub">In safe $'+money(safe.alpha)+'</div></div><input type="number" step="0.01" min="0" id="cdAmt_alpha" value="'+(safe.alpha>0?safe.alpha.toFixed(2):"")+'">'+bankSel("alpha")+'</div>'+
       '<div class="gc-row2"><div class="pos-field"><label>Date deposited</label><input type="date" id="cdDate" value="'+todayISO()+'" max="'+todayISO()+'"></div><div class="pos-field"><label>Deposit slip # (optional)</label><input type="text" id="cdRef"></div></div>'+
       '<label class="gc-xfer-check" style="margin-left:0"><input type="checkbox" id="cdDone"> The cash was deposited at the bank</label><div class="sub-err" id="cdErr"></div>',
       '<button class="btn-ghost" id="cdCancel" type="button">Cancel</button><button class="btn-primary" id="cdGo" type="button">Record deposit</button>');
     $("cdCancel").onclick=gcModalClose;
+    $("cdLoc").onchange=function(){ var l=this.value; safe={mjs:cashLedgerBal("mjs",CASH_SAFE,l), alpha:cashLedgerBal("alpha",CASH_SAFE,l)};
+      Array.prototype.forEach.call(document.querySelectorAll(".cash-dep-row .pkg-sub"),function(x,i){ x.textContent="In safe $"+money(i?safe.alpha:safe.mjs); });
+      $("cdAmt_mjs").value=safe.mjs>0?safe.mjs.toFixed(2):""; $("cdAmt_alpha").value=safe.alpha>0?safe.alpha.toFixed(2):""; };
     $("cdGo").onclick=function(){
       var d=$("cdDate").value, ref=($("cdRef").value||"").trim(), am={mjs:+$("cdAmt_mjs").value||0, alpha:+$("cdAmt_alpha").value||0};
       if(!$("cdDone").checked){ $("cdErr").textContent="Tick the box once the cash is at the bank."; return; }
       if(!d || d>todayISO()){ $("cdErr").textContent="Enter the date it was deposited."; return; }
       if(!(am.mjs>0 || am.alpha>0)){ $("cdErr").textContent="Enter the amount deposited."; return; }
       var warn=[]; ["mjs","alpha"].forEach(function(e){ if(am[e]-safe[e]>0.004) warn.push((e==="alpha"?"Alpha":"MJS")+" deposit is $"+money(am[e]-safe[e])+" more than the books say is in the safe"); });
-      var at=new Date().toISOString(), by=cashWho(), loc=(typeof sharedSite==="function")?sharedSite().id:"setauket";
+      var at=new Date().toISOString(), by=cashWho(), loc=$("cdLoc").value;
       ["mjs","alpha"].forEach(function(e){ var a=Math.round(am[e]*100)/100; if(!(a>0)) return; var bank=$("cdBank_"+e).value||"1000";
         cashPostJE(e, {id:cashId(), date:d, at:at, by:by, ref:ref, cashOp:"deposit", location:loc, memo:"Cash deposit to bank"+(ref?" (slip "+ref+")":""), lines:[{acct:bank,dr:a,cr:0},{acct:CASH_SAFE,dr:0,cr:a}]}); });
-      if(window.__hipAudit) window.__hipAudit("cash_deposit", "MJS $"+money(am.mjs)+", Alpha $"+money(am.alpha)+" on "+d);
+      if(window.__hipAudit) window.__hipAudit("cash_deposit", siteName(loc)+": MJS $"+money(am.mjs)+", Alpha $"+money(am.alpha)+" on "+d);
       gcModalClose(); renderCashPage(); toast("Deposit recorded"+(warn.length?". Note: "+warn.join("; "):""));
     };
   }
   function openCashCount(start){
-    var safe={mjs:cashLedgerBal("mjs",CASH_SAFE), alpha:cashLedgerBal("alpha",CASH_SAFE)}, exp=Math.round((safe.mjs+safe.alpha)*100)/100;
+    var loc0=cashSite!=="all"?cashSite:((typeof tillSite==="function")?tillSite():"setauket");
+    var safe={mjs:cashLedgerBal("mjs",CASH_SAFE,loc0), alpha:cashLedgerBal("alpha",CASH_SAFE,loc0)}, exp=Math.round((safe.mjs+safe.alpha)*100)/100;
     gcModalShow(start?"Starting count":"Count the safe",
       (start?'<div class="gc-hint" style="margin-bottom:10px">Count the cash in the safe and split it by company as best you can (put it all under MJS if you can’t tell). This cash is already in the books as in the bank, so it is moved to “cash in safe”.</div>'+
         '<div class="gc-row2"><div class="pos-field"><label>MJS cash</label><input type="number" step="0.01" min="0" id="ccMjs"></div><div class="pos-field"><label>Alpha cash</label><input type="number" step="0.01" min="0" id="ccAlpha"></div></div>'+
-        '<div class="pos-field"><label>Counted</label><select id="ccWhen"><option value="before">Before today’s sales (today’s cash sales go to the safe)</option><option value="after">After today’s sales (tracking starts tomorrow)</option></select></div>'
-       :'<div class="gc-hint" style="margin-bottom:10px">The books say <b>$'+money(exp)+'</b> should be in the safe (MJS $'+money(safe.mjs)+', Alpha $'+money(safe.alpha)+'). Count it and enter the total.</div>'+
+        (cashFrom()?'':'<div class="pos-field"><label>Counted</label><select id="ccWhen"><option value="before">Before today’s sales (today’s cash sales go to the safe)</option><option value="after">After today’s sales (tracking starts tomorrow)</option></select></div>')
+       :'<div class="gc-hint" style="margin-bottom:10px" id="ccExp">The books say <b>$'+money(exp)+'</b> should be in this safe (MJS $'+money(safe.mjs)+', Alpha $'+money(safe.alpha)+'). Count it and enter the total.</div>'+
         '<div class="pos-field"><label>Cash counted</label><input type="number" step="0.01" min="0" id="ccTotal"></div><div class="gc-hint" id="ccDiff"></div>')+
-      '<div class="pos-field"><label>Counted by</label><input type="text" id="ccBy" placeholder="First and last name"></div><div class="sub-err" id="ccErr"></div>',
+      cashLocField("ccLoc")+'<div class="pos-field"><label>Counted by</label><input type="text" id="ccBy" placeholder="First and last name"></div><div class="sub-err" id="ccErr"></div>',
       '<button class="btn-ghost" id="ccCancel" type="button">Cancel</button><button class="btn-primary" id="ccGo" type="button">'+(start?'Start tracking':'Save count')+'</button>');
     $("ccCancel").onclick=gcModalClose;
+    $("ccLoc").onchange=function(){ var l=this.value; safe={mjs:cashLedgerBal("mjs",CASH_SAFE,l), alpha:cashLedgerBal("alpha",CASH_SAFE,l)}; exp=Math.round((safe.mjs+safe.alpha)*100)/100;
+      if($("ccExp")) $("ccExp").innerHTML='The books say <b>$'+money(exp)+'</b> should be in this safe (MJS $'+money(safe.mjs)+', Alpha $'+money(safe.alpha)+'). Count it and enter the total.'; if($("ccTotal")) $("ccTotal").dispatchEvent(new Event("input")); };
     if($("ccTotal")) $("ccTotal").oninput=function(){ var v=+this.value||0, d=Math.round((v-exp)*100)/100; $("ccDiff").innerHTML = this.value===""?"":(Math.abs(d)<0.005?'<span class="gc-ok">Matches the books.</span>':'<span class="gc-bad">'+(d>0?'Over':'Short')+' by $'+money(Math.abs(d))+'. It will be booked to Cash Over/Short.</span>'); };
     $("ccGo").onclick=function(){
       var who=($("ccBy").value||"").trim(); if(who.split(/\s+/).filter(function(w){ return w.length>=2; }).length<2){ $("ccErr").textContent="Enter the first and last name of who counted."; return; }
-      var at=new Date().toISOString(), loc=(typeof sharedSite==="function")?sharedSite().id:"setauket", d=todayISO();
+      var at=new Date().toISOString(), loc=$("ccLoc").value, d=todayISO();
       if(start){
         var m=Math.round((+$("ccMjs").value||0)*100)/100, a=Math.round((+$("ccAlpha").value||0)*100)/100;
         if($("ccMjs").value==="" && $("ccAlpha").value===""){ $("ccErr").textContent="Enter what is in the safe (0 if empty)."; return; }
-        var fromD = $("ccWhen").value==="after" ? isoFrom(new Date(parseISO(d).getTime()+86400000)) : d;
-        [["mjs",m],["alpha",a]].forEach(function(x){ if(!(x[1]>0)) return; cashPostJE(x[0], {id:cashId(), date:d, at:at, by:cashWho(), countedBy:who, cashOp:"opening", location:loc, memo:"Starting safe count (counted by "+who+")", lines:[{acct:CASH_SAFE,dr:x[1],cr:0},{acct:"1000",dr:0,cr:x[1]}]}); });
-        store.set("alphaperf_cash_from", JSON.stringify({date:fromD, at:at, by:cashWho(), countedBy:who, mjs:m, alpha:a})); if(typeof schedulePush==="function") schedulePush();
+        var fromD = ($("ccWhen") && $("ccWhen").value==="after") ? isoFrom(new Date(parseISO(d).getTime()+86400000)) : d;
+        // once tracking is on, this location's cash sales are already in its safe balance: only the older cash is moved from the bank
+        var tracking=!!cashFrom(), bk={mjs:tracking?cashLedgerBal("mjs",CASH_SAFE,loc):0, alpha:tracking?cashLedgerBal("alpha",CASH_SAFE,loc):0};
+        [["mjs",m],["alpha",a]].forEach(function(x){ var v=Math.round((x[1]-bk[x[0]])*100)/100; if(Math.abs(v)<0.005) return;
+          var lines = v>0 ? [{acct:CASH_SAFE,dr:v,cr:0},{acct:"1000",dr:0,cr:v}] : [{acct:"1000",dr:-v,cr:0},{acct:CASH_SAFE,dr:0,cr:-v}];
+          cashPostJE(x[0], {id:cashId(), date:d, at:at, by:cashWho(), countedBy:who, counted:x[1], cashOp:"opening", location:loc, memo:"Starting safe count at "+siteName(loc)+" (counted by "+who+")", lines:lines}); });
+        if(!cashFrom()){ store.set("alphaperf_cash_from", JSON.stringify({date:fromD, at:at, by:cashWho(), countedBy:who, mjs:m, alpha:a, site:loc})); if(typeof schedulePush==="function") schedulePush(); }
         if(window.__hipAudit) window.__hipAudit("cash_tracking_started", "MJS $"+money(m)+", Alpha $"+money(a)+", cash sales from "+fromD);
         gcModalClose(); renderCashPage(); toast("Safe tracking started"); return;
       }
@@ -4036,7 +4065,7 @@ window.startClinicApp = function(){
         var lines = Math.abs(v)<0.005 ? [{acct:CASH_SAFE,dr:0,cr:0},{acct:CASH_OVERSHORT,dr:0,cr:0}] : (v>0 ? [{acct:CASH_SAFE,dr:v,cr:0},{acct:CASH_OVERSHORT,dr:0,cr:v}] : [{acct:CASH_OVERSHORT,dr:-v,cr:0},{acct:CASH_SAFE,dr:0,cr:-v}]);
         if(Math.abs(v)<0.005 && x[0]==="alpha") return;
         cashPostJE(x[0], {id:cashId(), date:d, at:at, by:cashWho(), countedBy:who, counted:tot, expected:exp, cashOp:"count", location:loc, memo:"Safe count by "+who+": counted $"+money(tot)+", books $"+money(exp)+(Math.abs(diff)<0.005?" (matches)":(diff>0?" (over)":" (short)")), lines:lines}); });
-      if(window.__hipAudit) window.__hipAudit("cash_count", "counted $"+money(tot)+", books $"+money(exp));
+      if(window.__hipAudit) window.__hipAudit("cash_count", siteName(loc)+": counted $"+money(tot)+", books $"+money(exp));
       gcModalClose(); renderCashPage(); toast(Math.abs(diff)<0.005?"Count matches the books":"Count saved: "+(diff>0?"over":"short")+" by $"+money(Math.abs(diff)));
     };
   }
@@ -4046,7 +4075,7 @@ window.startClinicApp = function(){
     gcModalShow("Cash paid out of the safe",
       '<div class="gc-hint" style="margin-bottom:10px">For small purchases paid with cash from the safe. It is added to Expenses and comes off the safe balance.</div>'+
       '<div class="gc-row2"><div class="pos-field"><label>Company</label><select id="coEnt"><option value="mjs">MJS</option><option value="alpha">Alpha</option></select></div><div class="pos-field"><label>Amount</label><input type="number" step="0.01" min="0" id="coAmt"></div></div>'+
-      '<div class="pos-field"><label>Account</label><select id="coAcct">'+opts("mjs")+'</select></div>'+
+      '<div class="pos-field"><label>Account</label><select id="coAcct">'+opts("mjs")+'</select></div>'+cashLocField("coLoc")+
       '<div class="gc-row2"><div class="pos-field"><label>What for</label><input type="text" id="coNote" placeholder="e.g. Office supplies"></div><div class="pos-field"><label>Date</label><input type="date" id="coDate" value="'+todayISO()+'"></div></div><div class="sub-err" id="coErr"></div>',
       '<button class="btn-ghost" id="coCancel" type="button">Cancel</button><button class="btn-primary" id="coGo" type="button">Save</button>');
     $("coEnt").onchange=function(){ $("coAcct").innerHTML=opts(this.value); };
@@ -4054,7 +4083,7 @@ window.startClinicApp = function(){
     $("coGo").onclick=function(){
       var e=$("coEnt").value, a=Math.round((+$("coAmt").value||0)*100)/100, nm=$("coAcct").value, note=($("coNote").value||"").trim(), d=$("coDate").value||todayISO();
       if(!(a>0)){ $("coErr").textContent="Enter the amount."; return; } if(!nm){ $("coErr").textContent="Choose an account."; return; } if(!note){ $("coErr").textContent="Say what it was for."; return; }
-      txns.push({ id:txId(), date:d, type:"expense", name:note, category:nm, amount:a, note:note, entity:e, paidFrom:"safe", at:new Date().toISOString(), by:cashWho(), location:(typeof tillSite==="function")?tillSite():"setauket", locSrc:"entered" });
+      txns.push({ id:txId(), date:d, type:"expense", name:note, category:nm, amount:a, note:note, entity:e, paidFrom:"safe", at:new Date().toISOString(), by:cashWho(), location:$("coLoc").value, locSrc:"entered" });
       saveTxns(); if(window.__hipAudit) window.__hipAudit("cash_payout", (e==="alpha"?"Alpha":"MJS")+" $"+money(a)+" "+note);
       gcModalClose(); renderCashPage(); toast("Cash paid out: $"+money(a));
     };
