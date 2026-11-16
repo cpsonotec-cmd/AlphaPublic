@@ -778,7 +778,7 @@
   .iv-nodisc{display:flex !important;flex-direction:row !important;gap:10px;align-items:flex-start;background:#FEF2F2;border-radius:10px;padding:10px}
   .iv-nodisc input{width:20px;height:20px;margin-top:2px}
   .cr-row{background:#ECFDF5;border-radius:9px;padding:7px 10px;color:#065F46}
-  .hs-list{display:flex;flex-direction:column;gap:12px;margin-top:12px}.hs-top{display:flex;justify-content:space-between;font-weight:700;font-size:14px;margin-bottom:5px}.hs-nm{display:flex;align-items:center;gap:7px}.hs-sub{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted);margin-top:4px;flex-wrap:wrap}
+  .hs-table td:first-child,.hs-table th:first-child{text-align:left}.hs-table tfoot td{font-weight:800;border-top:2px solid var(--line)}.hs-un td{color:var(--muted);font-style:italic}.hs-dim{color:var(--muted);font-size:11px;font-weight:500}.hs-flag{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:99px;background:#FEF3C7;color:#92400E;font-size:11px;font-weight:700;font-style:normal}.hs-notes{margin-top:10px;font-size:12.5px;color:var(--muted);display:flex;flex-direction:column;gap:5px}
   .cash-locbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px;font-size:14px;font-weight:700}
   .cash-locbar select{margin-left:6px;padding:9px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font-size:14px;font-weight:700}
   .cash-loc{margin-bottom:12px}
@@ -5982,7 +5982,8 @@ window.startClinicApp = function(){
     var _shLoc=(typeof sharedSite==="function")?sharedSite().id:"setauket";
     txns.forEach(function(t){
       var _n0=entries.length; ledgerTxn(t);
-      for(var _i=_n0;_i<entries.length;_i++) entries[_i].loc=t.location||_shLoc;
+      var _inf=!!(t.location && t.locSrc!=="default" && (t.locInferred===true || t.locSrc==="backfill"));
+      for(var _i=_n0;_i<entries.length;_i++){ entries[_i].loc=t.location||_shLoc; entries[_i].tid=t.id; entries[_i].locRaw=(t.locSrc==="default")?"":(t.location||""); entries[_i].locInf=_inf; }
     });
     function ledgerTxn(t){
       // a sold Alpha certificate redeemed on MJS items: Alpha now owes MJS (settled weekly)
@@ -7559,20 +7560,47 @@ window.startClinicApp = function(){
       '<div class="hc-head"><span class="hc-title">Monthly revenue, expenses &amp; profit</span><span class="hc-period">'+esc(lbl)+'</span></div>'+
       kpis+legend+'<div class="hm-chart">'+monthlyChartSVG(months)+'</div>'+table+'</div>';
   }
-  function homeSitesCard(range, lbl){
-    var pr=priorRange(range), sh=sharedSite().id;
-    function agg(r){ var o={}; txns.forEach(function(t){ if(t.type!=="sale" || !inRangeR(t.date, r)) return; var e=t.entity||"mjs"; if(acctEntity!=="both" && e!==acctEntity) return;
-      var k=(t.location && siteById(t.location))?t.location:sh, b=o[k]||(o[k]={amt:0, n:0, mjs:0, alpha:0, grp:{}}), a=+t.total||0;
-      b.amt+=a; b[e==="alpha"?"alpha":"mjs"]+=a; var g=t.saleGroup||t.id; if(!b.grp[g]){ b.grp[g]=1; b.n++; } }); return o; }
-    var cur=agg(range), prv=pr?agg(pr):{};
-    var ids=sites.filter(function(x){ return x.active!==false || cur[x.id]; }).map(function(x){ return x.id; });
-    var tot=ids.reduce(function(a,id){ return a+(cur[id]?cur[id].amt:0); },0), PAL=["#2563EB","#0D9488","#7C3AED","#DB2777","#B45309"];
-    var rows=ids.map(function(id,i){ var c=cur[id]||{amt:0,n:0,mjs:0,alpha:0}, p=prv[id]?prv[id].amt:0, sh2=tot?c.amt/tot*100:0, st=siteById(id);
-      return '<div class="hs-row"><div class="hs-top"><span class="hs-nm"><i class="hc-dot" style="background:'+PAL[i%PAL.length]+'"></i>'+esc(st?st.name:id)+'</span><span class="hs-amt">$'+money(c.amt)+'</span></div>'+
-        '<div class="hc-track"><div class="hc-fill" style="width:'+sh2.toFixed(1)+'%;background:'+PAL[i%PAL.length]+'"></div></div>'+
-        '<div class="hs-sub"><span>'+c.n+' sale'+(c.n===1?'':'s')+(c.n?' · avg $'+money(c.amt/c.n):'')+' · '+Math.round(sh2)+'% of sales'+(acctEntity==="both" && c.amt?' · MJS $'+money(c.mjs)+' / Alpha $'+money(c.alpha):'')+'</span>'+(pr && (c.amt||p)?'<span>'+changeTag(pctChange(c.amt, p), true)+' <span class="hc-chg-note">vs prior</span></span>':'')+'</div></div>'; }).join("");
-    return '<div class="home-card" id="homeSites"><div class="hc-head"><span class="hc-title">Sales by location</span><span class="hc-period">'+esc(lbl)+'</span></div>'+
-      '<div class="hc-sub">Total sales</div><div class="hc-big">$'+money(tot)+'</div><div class="hs-list">'+rows+'</div></div>';
+  // Sales by location (15 Nov 2026). Revenue comes from the same ledger lines as the summary's revenue, so the total ties.
+  function homeSitesData(range){
+    var R={}, order=activeSites().map(function(x){ return x.id; }), total=0, jr=0;
+    function row(k){ return R[k]||(R[k]={rev:0, infRev:0, grp:{}, infGrp:{}, days:{}}); }
+    order.forEach(row);
+    buildLedger().forEach(function(e){ if(!inRangeR(e.date, range)) return;
+      var inc=0; e.lines.forEach(function(l){ var a=acctByCode(l.acct); if(a && a.type==="Income") inc+=(l.cr-l.dr); });
+      if(Math.abs(inc)<0.0001) return; total+=inc;
+      if(!e.tid){ jr+=inc; return; }
+      var k=(e.locRaw && siteById(e.locRaw))?e.locRaw:"_un", r=row(k); r.rev+=inc; if(e.locInf) r.infRev+=inc; });
+    var nAll={}, nInf={};
+    txns.forEach(function(t){ if(!pppSaleInView(t) || !inRangeR(t.date, range)) return;
+      var k=(t.location && t.locSrc!=="default" && siteById(t.location))?t.location:"_un", r=row(k), g=t.saleGroup||t.id;
+      r.grp[g]=1; nAll[g]=1; if(k!=="_un" && (t.locInferred===true || t.locSrc==="backfill")){ r.infGrp[g]=1; nInf[g]=1; } if(t.date && k!=="_un") r.days[t.date]=1; });
+    if(R._un && !R._un.rev && !Object.keys(R._un.grp).length) delete R._un;
+    var rows=order.concat(R._un?["_un"]:[]).map(function(k){ var r=R[k], st=siteById(k), n=Object.keys(r.grp).length, days=Object.keys(r.days).length, cost=null;
+      if(st && !st.shared){ cost=Math.round((days*(+st.dayCost||0)+pppRentFor(st, range))*100)/100; }
+      return {id:k, name:k==="_un"?"Unassigned":(st?st.name:k), shared:!!(st&&st.shared), rev:r.rev, n:n, nInf:Object.keys(r.infGrp).length, infShare:r.rev>0.004?r.infRev/r.rev:(n?Object.keys(r.infGrp).length/n:0), days:days, cost:cost}; });
+    return {rows:rows, total:total, journals:jr, n:Object.keys(nAll).length, nInf:Object.keys(nInf).length};
+  }
+  function homeSitesCard(range, lbl, summaryRev){
+    var d=homeSitesData(range), T=d.total, pc=function(v){ return T>0.004?(v/T*100).toFixed(1)+"%":"–"; };
+    var tied=Math.abs(T-summaryRev)<0.005;
+    if(!tied) console.error("[sales by location] total "+T+" does not tie to summary revenue "+summaryRev);
+    var body=d.rows.map(function(r){ var flag=r.infShare>0.2;
+      return '<tr'+(r.id==="_un"?' class="hs-un"':'')+'><td>'+esc(r.name)+(flag?' <span class="hs-flag" title="More than 20% of this row was assigned to the location in bulk, not captured at the till">bulk-assigned '+Math.round(r.infShare*100)+'%</span>':'')+'</td>'+
+        '<td>'+r.n+'</td><td>'+sMoney(r.rev)+'</td><td>'+pc(r.rev)+'</td>'+
+        '<td>'+(r.days?sMoney(r.rev/r.days)+'<span class="hs-dim"> · '+r.days+' day'+(r.days===1?'':'s')+'</span>':'–')+'</td>'+
+        '<td>'+(r.cost==null?'<span class="hs-dim">'+(r.shared?'shared':'–')+'</span>':sMoney(r.cost))+'</td>'+
+        '<td>'+(r.cost==null?'–':'<span style="color:'+(r.rev-r.cost<0?'var(--red)':'var(--good-deep)')+'">'+sMoney(r.rev-r.cost)+'</span>')+'</td></tr>'; }).join("")+
+      (Math.abs(d.journals)>0.004?'<tr class="hs-un"><td>Journal entries (not a sale)</td><td>–</td><td>'+sMoney(d.journals)+'</td><td>'+pc(d.journals)+'</td><td></td><td></td><td></td></tr>':'');
+    var foot='<tr><td>Total</td><td>'+d.n+'</td><td>'+sMoney(T)+'</td><td>'+(T>0.004?'100%':'–')+'</td><td></td><td></td><td></td></tr>';
+    var notes=[];
+    if(d.nInf) notes.push('<b>'+d.nInf.toLocaleString("en-US")+' of '+d.n.toLocaleString("en-US")+' sales in this period were assigned to a location in bulk rather than captured at the till.</b> Rows marked "bulk-assigned" are mostly those, so treat them as an estimate.');
+    if(d.rows.some(function(r){ return r.id==="_un"; })) notes.push('Unassigned: sales saved without a location, or with a location that is not set up.');
+    if(Math.abs(d.journals)>0.004) notes.push('Journal entries are income posted in the books (for example a QuickBooks alignment), not sales, so they have no location.');
+    notes.push('Per day open uses the days the location had sales. Site cost is labour per clinic day × days open plus rent for the period; the shared site carries the general costs, so it has no separate figure.');
+    if(!tied) notes.push('<span style="color:var(--red)">Total does not match the summary revenue ($'+money(summaryRev)+'). Please report this.</span>');
+    return '<div class="home-card home-wide" id="homeSites"><div class="hc-head"><span class="hc-title">Sales by location</span><span class="hc-period">'+esc(lbl)+'</span></div>'+
+      '<div class="hm-table-wrap"><table class="hm-table hs-table"><thead><tr><th>Location</th><th>Sales</th><th>Revenue</th><th>% of revenue</th><th>Per day open</th><th>Site cost</th><th>After site cost</th></tr></thead><tbody>'+body+'</tbody><tfoot>'+foot+'</tfoot></table></div>'+
+      '<div class="hs-notes">'+notes.map(function(n){ return '<div>'+n+'</div>'; }).join("")+'</div></div>';
   }
   function renderHomeSummary(){
     var range=posRange(), lbl=posPeriodLabel();
@@ -7607,7 +7635,7 @@ window.startClinicApp = function(){
       '<div class="hc-sub">Total cash balance</div><div class="hc-big">$'+money(cashTotal)+'</div>'+
       '<div class="hc-acct-list">'+acctList+'</div></div>';
     var _ppp=''; try{ _ppp=homePppCard(range, lbl); }catch(e){ console.error('[ppp]', e); }
-    var _sites=''; try{ _sites=homeSitesCard(range, lbl); }catch(e){ console.error('[sites]', e); }
+    var _sites=''; try{ _sites=homeSitesCard(range, lbl, cur.income); }catch(e){ console.error('[sites]', e); }
     $("homeGrid").innerHTML=plCard+expCard+bankCard+_sites+homeMonthlyCard(range, lbl)+_ppp;
     if($("pppGroupsBtn")) $("pppGroupsBtn").onclick=openPppGroups;
   }
