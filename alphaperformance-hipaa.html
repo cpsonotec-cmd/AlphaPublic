@@ -778,6 +778,7 @@
   .iv-nodisc{display:flex !important;flex-direction:row !important;gap:10px;align-items:flex-start;background:#FEF2F2;border-radius:10px;padding:10px}
   .iv-nodisc input{width:20px;height:20px;margin-top:2px}
   .cr-row{background:#ECFDF5;border-radius:9px;padding:7px 10px;color:#065F46}
+  .hs-list{display:flex;flex-direction:column;gap:12px;margin-top:12px}.hs-top{display:flex;justify-content:space-between;font-weight:700;font-size:14px;margin-bottom:5px}.hs-nm{display:flex;align-items:center;gap:7px}.hs-sub{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted);margin-top:4px;flex-wrap:wrap}
   .cash-locbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px;font-size:14px;font-weight:700}
   .cash-locbar select{margin-left:6px;padding:9px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font-size:14px;font-weight:700}
   .cash-loc{margin-bottom:12px}
@@ -7558,6 +7559,21 @@ window.startClinicApp = function(){
       '<div class="hc-head"><span class="hc-title">Monthly revenue, expenses &amp; profit</span><span class="hc-period">'+esc(lbl)+'</span></div>'+
       kpis+legend+'<div class="hm-chart">'+monthlyChartSVG(months)+'</div>'+table+'</div>';
   }
+  function homeSitesCard(range, lbl){
+    var pr=priorRange(range), sh=sharedSite().id;
+    function agg(r){ var o={}; txns.forEach(function(t){ if(t.type!=="sale" || !inRangeR(t.date, r)) return; var e=t.entity||"mjs"; if(acctEntity!=="both" && e!==acctEntity) return;
+      var k=(t.location && siteById(t.location))?t.location:sh, b=o[k]||(o[k]={amt:0, n:0, mjs:0, alpha:0, grp:{}}), a=+t.total||0;
+      b.amt+=a; b[e==="alpha"?"alpha":"mjs"]+=a; var g=t.saleGroup||t.id; if(!b.grp[g]){ b.grp[g]=1; b.n++; } }); return o; }
+    var cur=agg(range), prv=pr?agg(pr):{};
+    var ids=sites.filter(function(x){ return x.active!==false || cur[x.id]; }).map(function(x){ return x.id; });
+    var tot=ids.reduce(function(a,id){ return a+(cur[id]?cur[id].amt:0); },0), PAL=["#2563EB","#0D9488","#7C3AED","#DB2777","#B45309"];
+    var rows=ids.map(function(id,i){ var c=cur[id]||{amt:0,n:0,mjs:0,alpha:0}, p=prv[id]?prv[id].amt:0, sh2=tot?c.amt/tot*100:0, st=siteById(id);
+      return '<div class="hs-row"><div class="hs-top"><span class="hs-nm"><i class="hc-dot" style="background:'+PAL[i%PAL.length]+'"></i>'+esc(st?st.name:id)+'</span><span class="hs-amt">$'+money(c.amt)+'</span></div>'+
+        '<div class="hc-track"><div class="hc-fill" style="width:'+sh2.toFixed(1)+'%;background:'+PAL[i%PAL.length]+'"></div></div>'+
+        '<div class="hs-sub"><span>'+c.n+' sale'+(c.n===1?'':'s')+(c.n?' · avg $'+money(c.amt/c.n):'')+' · '+Math.round(sh2)+'% of sales'+(acctEntity==="both" && c.amt?' · MJS $'+money(c.mjs)+' / Alpha $'+money(c.alpha):'')+'</span>'+(pr && (c.amt||p)?'<span>'+changeTag(pctChange(c.amt, p), true)+' <span class="hc-chg-note">vs prior</span></span>':'')+'</div></div>'; }).join("");
+    return '<div class="home-card" id="homeSites"><div class="hc-head"><span class="hc-title">Sales by location</span><span class="hc-period">'+esc(lbl)+'</span></div>'+
+      '<div class="hc-sub">Total sales</div><div class="hc-big">$'+money(tot)+'</div><div class="hs-list">'+rows+'</div></div>';
+  }
   function renderHomeSummary(){
     var range=posRange(), lbl=posPeriodLabel();
     var cur=plForRange(range);
@@ -7591,7 +7607,8 @@ window.startClinicApp = function(){
       '<div class="hc-sub">Total cash balance</div><div class="hc-big">$'+money(cashTotal)+'</div>'+
       '<div class="hc-acct-list">'+acctList+'</div></div>';
     var _ppp=''; try{ _ppp=homePppCard(range, lbl); }catch(e){ console.error('[ppp]', e); }
-    $("homeGrid").innerHTML=plCard+expCard+bankCard+homeMonthlyCard(range, lbl)+_ppp;
+    var _sites=''; try{ _sites=homeSitesCard(range, lbl); }catch(e){ console.error('[sites]', e); }
+    $("homeGrid").innerHTML=plCard+expCard+bankCard+_sites+homeMonthlyCard(range, lbl)+_ppp;
     if($("pppGroupsBtn")) $("pppGroupsBtn").onclick=openPppGroups;
   }
 
