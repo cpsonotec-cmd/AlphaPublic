@@ -779,6 +779,7 @@
   .iv-nodisc input{width:20px;height:20px;margin-top:2px}
   .cr-row{background:#ECFDF5;border-radius:9px;padding:7px 10px;color:#065F46}
   .hs-table td:first-child,.hs-table th:first-child{text-align:left}.hs-table tfoot td{font-weight:800;border-top:2px solid var(--line)}.hs-un td{color:var(--muted);font-style:italic}.hs-dim{color:var(--muted);font-size:11px;font-weight:500}.hs-flag{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:99px;background:#FEF3C7;color:#92400E;font-size:11px;font-weight:700;font-style:normal}.hs-notes{margin-top:10px;font-size:12.5px;color:var(--muted);display:flex;flex-direction:column;gap:5px}
+  .inv-locbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 12px}.inv-locl{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-right:4px}.inv-locs{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;align-items:center}.inv-lc{border:1px solid var(--line);background:#fff;border-radius:99px;padding:2px 9px;font-size:12px;cursor:pointer;color:var(--ink,#0F172A)}.inv-lc.on{border-color:#2563EB;background:#EFF6FF}.inv-lc.zero{color:var(--muted)}.inv-lc-tot{font-size:12px;color:var(--muted);margin-left:2px}.inv-lc-mv{border:0;background:none;color:#2563EB;font-size:12px;font-weight:700;cursor:pointer;padding:2px 4px}.inv-totbox{min-width:64px;text-align:center;font-size:20px;font-weight:800;line-height:1}.inv-totbox span{display:block;font-size:10.5px;font-weight:600;color:var(--muted);text-transform:uppercase;margin-top:2px}
   .cash-locbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px;font-size:14px;font-weight:700}
   .cash-locbar select{margin-left:6px;padding:9px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font-size:14px;font-weight:700}
   .cash-loc{margin-bottom:12px}
@@ -1878,6 +1879,7 @@
       <button class="ent-btn" data-inv="alpha">AlphaPerformance</button>
       <button class="ent-btn" data-inv="mjs">MJS</button>
     </div>
+    <div class="inv-locbar" id="invLocBar"></div>
     <div class="rep-card">
       <div class="inv-statgrid" id="invStats"></div>
     </div>
@@ -1888,6 +1890,7 @@
         <label class="inv-lowtoggle"><input type="checkbox" id="invLowOnly"> Low / out only</label>
         <button class="btn-primary inv-add" id="invAddBtn">+ Add item</button>
         <button class="btn-ghost inv-add" id="invUploadBtn" title="Import from an invoice or price list">Upload invoice</button>
+        <button class="btn-ghost inv-add" id="invMoveBtn" title="Move stock from one location to another">Move stock</button>
       </div>
       <div class="scrim" id="invFormScrim" style="display:none"></div>
       <div class="inv-modal" id="invForm" style="display:none" role="dialog" aria-hidden="true">
@@ -1911,7 +1914,8 @@
             <div class="inv-modal-seclbl">Inventory</div>
             <div class="inv-form-grid">
               <label class="ivf">Starting inventory<input id="ivStartQty" type="number" min="0" step="1" inputmode="numeric" placeholder="0"></label>
-              <label class="ivf">Current inventory<input id="ivQty" type="number" min="0" step="1" inputmode="numeric" placeholder="0"></label>
+              <label class="ivf">Location<select id="ivLoc"></select></label>
+              <label class="ivf">Current inventory <span class="ivf-note" id="ivQtyNote"></span><input id="ivQty" type="number" min="0" step="1" inputmode="numeric" placeholder="0"></label>
               <label class="ivf">Reorder at<input id="ivReorder" type="number" min="0" step="1" inputmode="numeric" placeholder="5"></label>
               <label class="ivf">Adjustment <span class="ivf-note">applied on save</span><input id="ivAdjust" type="number" step="1" inputmode="numeric" placeholder="e.g. -3 or +12"></label>
             </div>
@@ -2780,9 +2784,19 @@ window.startClinicApp = function(){
   function saveDiscounts(){ store.set("alphaperf_discounts", JSON.stringify(discounts)); schedulePush(); }
   function saveLocations(){ store.set("alphaperf_locations", JSON.stringify(locations)); schedulePush(); }
   function saveInventory(){ store.set("alphaperf_inventory", JSON.stringify(inventory)); schedulePush(); }
-  function invRec(name){ var r=inventory[name]; return {qty:(r&&r.qty)||0, reorderAt:(r&&r.reorderAt!=null)?r.reorderAt:5, startQty:(r&&r.startQty!=null)?r.startQty:((r&&r.qty)||0), adj:(r&&r.adj)||[]}; }
-  function invSet(name, qty, reorderAt){ var r=invRec(name); if(qty!=null) r.qty=Math.max(0,Math.round(qty)); if(reorderAt!=null) r.reorderAt=Math.max(0,Math.round(reorderAt)); inventory[name]={qty:r.qty, reorderAt:r.reorderAt, startQty:r.startQty, adj:r.adj}; saveInventory(); }
-  function invSetFull(name, rec){ inventory[name]={qty:Math.max(0,Math.round(rec.qty||0)), reorderAt:Math.max(0,Math.round(rec.reorderAt||0)), startQty:Math.max(0,Math.round(rec.startQty||0)), adj:rec.adj||[]}; saveInventory(); }
+  // Stock is kept per location (17 Nov 2026): rec.loc = {siteId: qty}; rec.qty is always the total so older readers keep working.
+  // Stock recorded before then (no loc) is treated as being at the shared site.
+  var invLoc="all";
+  function invShared(){ return (typeof sharedSite==="function" && sharedSite())?sharedSite().id:"setauket"; }
+  function invLocMap(r){ var m={}; if(r && r.loc && typeof r.loc==="object"){ for(var k in r.loc) m[k]=Math.max(0,Math.round(+r.loc[k]||0)); } else if(r && (+r.qty||0)>0){ m[invShared()]=Math.max(0,Math.round(+r.qty||0)); } return m; }
+  function invSum(m){ var t=0; for(var k in m) t+=m[k]; return t; }
+  function invRec(name){ var r=inventory[name], m=invLocMap(r); return {qty:invSum(m), loc:m, reorderAt:(r&&r.reorderAt!=null)?r.reorderAt:5, startQty:(r&&r.startQty!=null)?r.startQty:((r&&r.qty)||0), adj:(r&&r.adj)||[]}; }
+  function invAt(name, site){ var r=invRec(name); return (!site || site==="all") ? r.qty : (r.loc[site]||0); }
+  function invPut(name, r){ var m={}; for(var k in r.loc){ var v=Math.max(0,Math.round(+r.loc[k]||0)); if(v) m[k]=v; } inventory[name]={qty:invSum(m), loc:m, reorderAt:Math.max(0,Math.round(r.reorderAt||0)), startQty:Math.max(0,Math.round(r.startQty||0)), adj:r.adj||[]}; }
+  // qty is the count at `site` (default: the location being viewed, else the shared site)
+  function invSet(name, qty, reorderAt, site){ var r=invRec(name); site=site||(invLoc!=="all"?invLoc:invShared());
+    if(qty!=null) r.loc[site]=Math.max(0,Math.round(qty)); if(reorderAt!=null) r.reorderAt=Math.max(0,Math.round(reorderAt)); invPut(name, r); saveInventory(); }
+  function invSetFull(name, rec){ var r={loc:rec.loc||invLocMap(rec), reorderAt:rec.reorderAt, startQty:rec.startQty, adj:rec.adj}; invPut(name, r); saveInventory(); }
   // Treatments are managed in Items; keep the client-form list + pricing in sync.
   function ensureTreatmentsInItems(){
     ensureRegProducts(); if(regProducts.pending) return;
@@ -6313,7 +6327,13 @@ window.startClinicApp = function(){
     $("ivRetail").value = p?(p.price||0):"";
     $("ivNoDisc").checked = !!(p && p.noDiscount);
     $("ivStartQty").value = name?r.startQty:"";
-    $("ivQty").value = name?r.qty:"";
+    var _l0=invLoc!=="all"?invLoc:((typeof tillSite==="function" && tillSite())?tillSite():invShared());
+    $("ivLoc").innerHTML=sites.filter(function(x){ return x.active!==false || r.loc[x.id]; }).map(function(x){ return '<option value="'+esc(x.id)+'"'+(x.id===_l0?' selected':'')+'>'+esc(x.name)+'</option>'; }).join("");
+    $("ivLoc").value=_l0; ivLocQ={}; for(var _k in r.loc) ivLocQ[_k]=r.loc[_k];
+    $("ivQty").value = name?(r.loc[_l0]||0):"";
+    $("ivQtyNote").textContent = name?"total all locations "+r.qty:"";
+    $("ivLoc").onchange=function(){ ivLocQ[ivLocPrev]=Math.max(0,Math.round(parseFloat($("ivQty").value)||0)); ivLocPrev=this.value; $("ivQty").value=ivLocQ[this.value]||0; };
+    ivLocPrev=_l0;
     $("ivReorder").value = name?r.reorderAt:5;
     $("ivAdjust").value=""; $("ivAdjustReason").value="";
     $("ivNotes").value = (p&&p.invNotes)||"";
@@ -6324,6 +6344,7 @@ window.startClinicApp = function(){
     $("invFormScrim").style.display="block"; $("invForm").style.display="block"; $("invForm").setAttribute("aria-hidden","false");
     try{ $("ivName").focus(); }catch(e){}
   }
+  var ivLocQ={}, ivLocPrev="";
   function closeInvForm(){ $("invForm").style.display="none"; $("invFormScrim").style.display="none"; $("invForm").setAttribute("aria-hidden","true"); invEditName=null; invEditEntity=null; }
   function saveInvItem(){
     ensureRegProducts();
@@ -6363,8 +6384,11 @@ window.startClinicApp = function(){
       var rec=invRec(finalName);
       rec.startQty = ($("ivStartQty").value!=="") ? startQ : rec.startQty;
       rec.reorderAt = reorderAt;
-      rec.qty = curQ;
-      if(adjVal){ rec.qty=Math.max(0, rec.qty+adjVal); rec.adj=(rec.adj||[]).concat([{date:todayISO(), delta:adjVal, reason:($("ivAdjustReason").value||"").trim()||"manual"}]); }
+      var _site=$("ivLoc").value||invShared(); ivLocQ[_site]=curQ;
+      // only locations whose box was touched (or the one showing) change; others keep their live counts
+      var _live=rec.loc; rec.loc={}; for(var _k2 in _live) rec.loc[_k2]=_live[_k2]; for(var _k3 in ivLocQ){ if(_k3===_site || ivLocQ[_k3]!==(_live[_k3]||0)) rec.loc[_k3]=ivLocQ[_k3]; }
+      rec.loc[_site]=curQ;
+      if(adjVal){ rec.loc[_site]=Math.max(0, curQ+adjVal); rec.adj=(rec.adj||[]).concat([{date:todayISO(), delta:adjVal, site:_site, reason:($("ivAdjustReason").value||"").trim()||"manual"}]); }
       invSetFull(finalName, rec);
     }
     if(typeof fillPosSelects==="function") fillPosSelects();
@@ -6384,6 +6408,7 @@ window.startClinicApp = function(){
       $("invLowOnly").onchange=paintInventory;
       $("invTrackedOnly").onchange=paintInventory;
       $("invAddBtn").onclick=function(){ openInvForm(null,null); };
+      $("invMoveBtn").onclick=function(){ openInvMove(null); };
       $("invUploadBtn").onclick=openInvImport;
       $("invImpClose").onclick=closeInvImport;
       $("invImportScrim").onclick=closeInvImport;
@@ -6467,7 +6492,7 @@ window.startClinicApp = function(){
   function renderImpReview(){
     var company=$("invImpCompany").value, existing={};
     (regProducts[company]||[]).forEach(function(p){ existing[p.name.toLowerCase()]=1; });
-    $("invImpReviewNote").innerHTML='Review the <b>'+invImpRows.length+'</b> item'+(invImpRows.length===1?"":"s")+' below. Uncheck any you don\u2019t want, edit values, then import into <b>'+esc(entityName(company))+'</b>.';
+    $("invImpReviewNote").innerHTML='Review the <b>'+invImpRows.length+'</b> item'+(invImpRows.length===1?"":"s")+' below. Uncheck any you don\u2019t want, edit values, then import into <b>'+esc(entityName(company))+'</b>. Quantities go to <b>'+esc(siteName(invImpSite()))+'</b>'+(invLoc==="all"?' (choose a location at the top of Inventory to change this)':'')+'.';
     var head='<thead><tr><th></th><th>Item</th><th>Vendor</th><th>Cost</th><th>Retail</th><th>Qty</th><th></th></tr></thead>';
     var body=invImpRows.map(function(it,i){
       var isNew = !existing[(it.name||"").toLowerCase()];
@@ -6487,6 +6512,7 @@ window.startClinicApp = function(){
     function bind(attr,key){ t.querySelectorAll("["+attr+"]").forEach(function(inp){ inp.onchange=function(){ invImpRows[+inp.getAttribute(attr)][key]=inp.value; if(attr==="data-impname") renderImpReview(); }; }); }
     bind("data-impname","name"); bind("data-impvendor","vendor"); bind("data-impcost","cost"); bind("data-impretail","retail"); bind("data-impqty","qty");
   }
+  function invImpSite(){ return invLoc!=="all" ? invLoc : ((typeof tillSite==="function" && tillSite())?tillSite():invShared()); }
   function invImpDoImport(){
     ensureRegProducts();
     var company=$("invImpCompany").value, cat=$("invImpCat").value, mode=$("invImpMode").value;
@@ -6499,9 +6525,10 @@ window.startClinicApp = function(){
       if(!p){ p={ id:pid(), name:name, price:retail||0, cost:cost||0, cat:cat, vendor:it.vendor||"", sku:it.sku||"" }; arr.push(p); }
       else { if(cost!=null) p.cost=cost; if(retail!=null && mode==="price") p.price=retail; if(retail!=null && mode!=="price" && !p.price) p.price=retail; if(it.vendor) p.vendor=it.vendor; }
       var cur=invRec(name);
-      if(mode==="set" && qty!=null) invSet(name, qty, cur.reorderAt);
-      else if(mode==="add" && qty!=null) invSet(name, cur.qty+qty, cur.reorderAt);
-      else if(!inventory[name]) invSet(name, (mode==="add"||mode==="set")&&qty!=null?qty:0, cur.reorderAt); // ensure tracked
+      var _st=invImpSite();
+      if(mode==="set" && qty!=null) invSet(name, qty, cur.reorderAt, _st);
+      else if(mode==="add" && qty!=null) invSet(name, (cur.loc[_st]||0)+qty, cur.reorderAt, _st);
+      else if(!inventory[name]) invSet(name, (mode==="add"||mode==="set")&&qty!=null?qty:0, cur.reorderAt, _st); // ensure tracked
       n++;
     });
     saveRegProducts();
@@ -6538,23 +6565,50 @@ window.startClinicApp = function(){
   }  var STOCK_CATS={Supplement:1, Supply:1, Medication:1, Equipment:1};
   function isServiceItem(p){ return p.type==="service" || (!inventory[p.name] && (p.cat==="Treatment"||p.cat==="Membership")); }
   function invIsTracked(p){ return !!inventory[p.name] || (!!STOCK_CATS[p.cat] && !isServiceItem(p)); }
+  function invLocBar(){ var el=$("invLocBar"); if(!el) return; var act=sites.filter(function(x){ return x.active!==false; });
+    if(invLoc!=="all" && !siteById(invLoc)) invLoc="all";
+    el.innerHTML='<span class="inv-locl">Location</span>'+[{id:"all",name:"All locations (total)"}].concat(act).map(function(x){ return '<button type="button" class="ent-btn'+(invLoc===x.id?' on':'')+'" data-invloc="'+esc(x.id)+'">'+esc(x.name)+'</button>'; }).join("");
+    Array.prototype.forEach.call(el.querySelectorAll("[data-invloc]"),function(b){ b.onclick=function(){ invLoc=b.getAttribute("data-invloc"); paintInventory(); }; }); }
+  function openInvMove(name){
+    var act=sites.filter(function(x){ return x.active!==false; });
+    var items=invRows().filter(function(x){ return !isServiceItem(x.p) && inventory[x.p.name]; }).map(function(x){ return x.p.name; }).filter(function(n,i,a){ return a.indexOf(n)===i; }).sort();
+    var from0=invLoc!=="all"?invLoc:invShared(), to0=(act.filter(function(x){ return x.id!==from0; })[0]||{}).id||"";
+    function so(id,sel){ return '<select id="'+id+'">'+act.map(function(x){ return '<option value="'+esc(x.id)+'"'+(x.id===sel?' selected':'')+'>'+esc(x.name)+'</option>'; }).join("")+'</select>'; }
+    gcModalShow("Move stock between locations",
+      '<div class="pos-field"><label>Item</label><select id="imItem"><option value="">Choose an item\u2026</option>'+items.map(function(n){ return '<option'+(n===name?' selected':'')+'>'+esc(n)+'</option>'; }).join("")+'</select></div>'+
+      '<div class="gc-row2"><div class="pos-field"><label>From</label>'+so("imFrom",from0)+'</div><div class="pos-field"><label>To</label>'+so("imTo",to0)+'</div></div>'+
+      '<div class="gc-row2"><div class="pos-field"><label>How many</label><input type="number" id="imQty" min="1" step="1" inputmode="numeric"></div><div class="pos-field"><label>Your initials</label><input type="text" id="imIni" maxlength="4" style="text-transform:uppercase"></div></div>'+
+      '<div class="gc-hint" id="imHave"></div><div class="sub-err" id="imErr"></div>',
+      '<button class="btn-ghost" id="imCancel" type="button">Cancel</button><button class="btn-primary" id="imGo" type="button">Move</button>');
+    function have(){ var n=$("imItem").value; $("imHave").textContent=n?("On hand: "+act.map(function(x){ return x.name+" "+invAt(n,x.id); }).join(" \u00b7 ")):""; }
+    $("imItem").onchange=have; have(); $("imCancel").onclick=gcModalClose;
+    $("imGo").onclick=function(){ var n=$("imItem").value, f=$("imFrom").value, t=$("imTo").value, q=Math.round(+$("imQty").value||0), ini=($("imIni").value||"").trim().toUpperCase();
+      if(!n){ $("imErr").textContent="Choose the item."; return; } if(f===t){ $("imErr").textContent="Pick two different locations."; return; }
+      if(!(q>0)){ $("imErr").textContent="Enter how many."; return; } if(q>invAt(n,f)){ $("imErr").textContent=siteName(f)+" only has "+invAt(n,f)+"."; return; }
+      if(!/^[A-Z]{2,4}$/.test(ini)){ $("imErr").textContent="Enter your initials."; return; }
+      var r=invRec(n); r.loc[f]=(r.loc[f]||0)-q; r.loc[t]=(r.loc[t]||0)+q; r.adj=(r.adj||[]).concat([{date:todayISO(), delta:0, moved:q, from:f, to:t, by:ini, reason:"moved "+q+" "+siteName(f)+" \u2192 "+siteName(t)+" ("+ini+")"}]);
+      invPut(n, r); saveInventory(); if(window.__hipAudit) window.__hipAudit("stock_moved", n+": "+q+" "+siteName(f)+" -> "+siteName(t)+" ("+ini+")");
+      gcModalClose(); paintInventory(); toast("Moved "+q+" "+n+" to "+siteName(t)); };
+  }
   function paintInventory(){
-    var base=invRows();
+    invLocBar();
+    var base=invRows(), L=invLoc, Q=function(n){ return invAt(n, L); };
     if($("invTrackedOnly").checked) base=base.filter(function(x){ return invIsTracked(x.p) || isServiceItem(x.p); });
     var q=($("invSearch").value||"").trim().toLowerCase();
     var lowOnly=$("invLowOnly").checked;
     var showCo = invEntity==="all";
     var items=0, low=0, out=0, value=0;
-    base.forEach(function(x){ if(isServiceItem(x.p)) return; var r=invRec(x.p.name); items++; value+=r.qty*(+x.p.cost||0); if(r.qty<=0) out++; else if(r.qty<=r.reorderAt) low++; });
+    base.forEach(function(x){ if(isServiceItem(x.p)) return; var r=invRec(x.p.name), qn=Q(x.p.name); items++; value+=qn*(+x.p.cost||0); if(qn<=0) out++; else if(qn<=r.reorderAt) low++; });
     $("invStats").innerHTML=
-      statCell("Products", items, "") + statCell("Low stock", low, low?"warn":"") + statCell("Out of stock", out, out?"bad":"") + statCell("Stock value", "$"+money(value), "");
-    var rows=base.filter(function(x){ if(q && x.p.name.toLowerCase().indexOf(q)<0) return false; if(lowOnly){ var r=invRec(x.p.name); return r.qty<=r.reorderAt; } return true; })
+      statCell("Products", items, "") + statCell("Low stock", low, low?"warn":"") + statCell("Out of stock", out, out?"bad":"") + statCell("Stock value"+(L==="all"?"":" \u00b7 "+siteName(L)), "$"+money(value), "");
+    var rows=base.filter(function(x){ if(q && x.p.name.toLowerCase().indexOf(q)<0) return false; if(lowOnly){ var r=invRec(x.p.name); return Q(x.p.name)<=r.reorderAt; } return true; })
       .sort(function(a,b){ return a.p.name.localeCompare(b.p.name); });
     if(!rows.length){ $("invList").innerHTML='<div class="rep-empty">No products'+(q?" match your search":"")+'.</div>'; return; }
     $("invList").innerHTML=rows.map(function(x){
-      var p=x.p, r=invRec(p.name);
+      var p=x.p, r=invRec(p.name), qn=Q(p.name);
       var isSvc = p.type==="service" || (!inventory[p.name] && (p.cat==="Treatment"||p.cat==="Membership"));
-      var state = r.qty<=0 ? "out" : (r.qty<=r.reorderAt ? "low" : "ok");
+      var state = qn<=0 ? "out" : (qn<=r.reorderAt ? "low" : "ok");
+      var locLine = isSvc ? '' : '<div class="inv-locs">'+sites.filter(function(st){ return st.active!==false || r.loc[st.id]; }).map(function(st){ return '<button type="button" class="inv-lc'+(L===st.id?' on':'')+((r.loc[st.id]||0)<=0?' zero':'')+'" data-invloc2="'+esc(st.id)+'">'+esc(st.name)+' <b>'+(r.loc[st.id]||0)+'</b></button>'; }).join("")+'<span class="inv-lc-tot">Total <b>'+r.qty+'</b></span><button type="button" class="inv-lc-mv" data-invmove="'+esc(p.name)+'">Move</button></div>';
       var badge = isSvc ? '<span class="inv-badge b-svc">Service</span>' : (state==="out" ? '<span class="inv-badge b-out">Out</span>' : state==="low" ? '<span class="inv-badge b-low">Low</span>' : '<span class="inv-badge b-ok">In stock</span>');
       var tag = p.cat==="Supplement" ? '<span class="inv-tag">Supplement</span>' : (p.cat ? '<span class="inv-tag t-other">'+esc(p.cat)+'</span>' : '');
       var coTag = showCo ? '<span class="inv-co inv-co-'+x.entity+'">'+(x.entity==="alpha"?"Alpha":"MJS")+'</span>' : '';
@@ -6564,31 +6618,35 @@ window.startClinicApp = function(){
         ('<div class="inv-ctrls"><span class="inv-svc-price">$'+money(p.price)+'</span>'+badge+
           '<button type="button" class="inv-edit" data-invedit="'+esc(p.name)+'" data-invent="'+x.entity+'" aria-label="Edit item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4z"/></svg></button></div>') :
         ('<div class="inv-ctrls">'+
+          (L==="all" ? '<div class="inv-totbox" title="Total of all locations. Pick a location above to change counts.">'+r.qty+'<span>total</span></div>' :
           '<div class="inv-stepper"><button type="button" class="inv-step" data-invdec="'+esc(p.name)+'">\u2212</button>'+
-          '<input type="number" class="inv-qty" data-invqty="'+esc(p.name)+'" value="'+r.qty+'" min="0" inputmode="numeric">'+
-          '<button type="button" class="inv-step" data-invinc="'+esc(p.name)+'">+</button></div>'+
+          '<input type="number" class="inv-qty" data-invqty="'+esc(p.name)+'" value="'+qn+'" min="0" inputmode="numeric">'+
+          '<button type="button" class="inv-step" data-invinc="'+esc(p.name)+'">+</button></div>')+
           '<div class="inv-reorder">Reorder at <input type="number" class="inv-ro" data-invro="'+esc(p.name)+'" value="'+r.reorderAt+'" min="0" inputmode="numeric"></div>'+
           badge+
           '<button type="button" class="inv-edit" data-invedit="'+esc(p.name)+'" data-invent="'+x.entity+'" aria-label="Edit item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4z"/></svg></button>'+
         '</div>');
       return '<div class="inv-row '+(isSvc?"is-svc":state)+'">'+
-        '<div class="inv-name">'+coTag+esc(p.name)+(isSvc?'':tag)+'<div class="inv-sub">$'+money(p.price)+' retail \u00b7 $'+money(p.cost)+' cost'+(metaLine?' \u00b7 '+metaLine:'')+'</div></div>'+
+        '<div class="inv-name">'+coTag+esc(p.name)+(isSvc?'':tag)+'<div class="inv-sub">$'+money(p.price)+' retail \u00b7 $'+money(p.cost)+' cost'+(metaLine?' \u00b7 '+metaLine:'')+'</div>'+locLine+'</div>'+
         ctrls+
       '</div>';
         '</div>'+
       '</div>';
     }).join("");
     var el=$("invList");
-    Array.prototype.forEach.call(el.querySelectorAll("[data-invdec]"),function(b){ b.onclick=function(){ var n=b.getAttribute("data-invdec"); invSet(n, invRec(n).qty-1, null); paintInventory(); }; });
-    Array.prototype.forEach.call(el.querySelectorAll("[data-invinc]"),function(b){ b.onclick=function(){ var n=b.getAttribute("data-invinc"); invSet(n, invRec(n).qty+1, null); paintInventory(); }; });
-    Array.prototype.forEach.call(el.querySelectorAll("[data-invqty]"),function(inp){ inp.onchange=function(){ var n=inp.getAttribute("data-invqty"); invSet(n, parseInt(inp.value,10)||0, null); paintInventory(); }; });
-    Array.prototype.forEach.call(el.querySelectorAll("[data-invro]"),function(inp){ inp.onchange=function(){ var n=inp.getAttribute("data-invro"); invSet(n, null, parseInt(inp.value,10)||0); paintInventory(); }; });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-invdec]"),function(b){ b.onclick=function(){ var n=b.getAttribute("data-invdec"); invSet(n, invAt(n,L)-1, null, L); paintInventory(); }; });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-invinc]"),function(b){ b.onclick=function(){ var n=b.getAttribute("data-invinc"); invSet(n, invAt(n,L)+1, null, L); paintInventory(); }; });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-invloc2]"),function(b){ b.onclick=function(){ invLoc=b.getAttribute("data-invloc2"); paintInventory(); }; });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-invmove]"),function(b){ b.onclick=function(){ openInvMove(b.getAttribute("data-invmove")); }; });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-invqty]"),function(inp){ inp.onchange=function(){ var n=inp.getAttribute("data-invqty"); invSet(n, parseInt(inp.value,10)||0, null, L); paintInventory(); }; });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-invro]"),function(inp){ inp.onchange=function(){ var n=inp.getAttribute("data-invro"); invSet(n, null, parseInt(inp.value,10)||0, L==="all"?null:L); paintInventory(); }; });
     Array.prototype.forEach.call(el.querySelectorAll("[data-invedit]"),function(b){ b.onclick=function(){ openInvForm(b.getAttribute("data-invedit"), b.getAttribute("data-invent")); window.scrollTo(0,0); }; });
   }
   function statCell(label, val, tone){ return '<div class="inv-stat'+(tone?" t-"+tone:"")+'"><div class="inv-stat-val">'+val+'</div><div class="inv-stat-lbl">'+label+'</div></div>'; }
   function decrementInventoryForSale(cart){
     var changed=false;
-    (cart||[]).forEach(function(it){ if(inventory[it.name]){ var r=invRec(it.name); inventory[it.name]={qty:Math.max(0, r.qty-(it.qty||1)), reorderAt:r.reorderAt}; changed=true; } });
+    var site=(typeof tillSite==="function" && tillSite())?tillSite():invShared();
+    (cart||[]).forEach(function(it){ if(inventory[it.name]){ var r=invRec(it.name); r.loc[site]=Math.max(0,(r.loc[site]||0)-(it.qty||1)); invPut(it.name, r); changed=true; } });
     if(changed) saveInventory();
   }
   function renderRegSub(){
@@ -6762,7 +6820,7 @@ window.startClinicApp = function(){
   var posRefNeeded=false;
   function renderPosRef(p){
     var box=$("posRefBox"), done=$("posRefDone"); if(!box) return;
-    posRefNeeded = !!p && !clientRefComplete(p);
+    posRefNeeded = !!p && !String(p.refSource||"").trim();   // once a source is on file, never ask again
     if(!p){ box.style.display="none"; done.style.display="none"; return; }
     if(!posRefNeeded){
       box.style.display="none";
@@ -6775,7 +6833,7 @@ window.startClinicApp = function(){
     $("posRefSource").innerHTML='<option value="">Select a referral source\u2026</option>'+list.map(function(x){ return '<option value="'+esc(x.name)+'">'+esc(x.name)+'</option>'; }).join("");
     $("posRefSource").value = list.some(function(x){return x.name===cur;}) ? cur : "";
     $("posRefDetail").value = p.refDetail||""; $("posRefBy").value = p.refByName||"";
-    $("posRefSource").onchange=function(){ $("posRefDetail").value=""; $("posRefBy").value=""; syncPosRefFields(); box.classList.remove("pos-ref-err"); };
+    $("posRefSource").onchange=function(){ $("posRefDetail").value=""; $("posRefBy").value=""; syncPosRefFields(); box.classList.remove("pos-ref-err"); posRefSaveNow(); };
     syncPosRefFields();
   }
   function syncPosRefFields(){
@@ -6787,17 +6845,20 @@ window.startClinicApp = function(){
     if(t==="list"){
       sel.innerHTML='<option value="">'+esc((c.label||"Select")+"\u2026")+'</option>'+(c.options||[]).map(function(o){ return '<option value="'+esc(o)+'">'+esc(o)+'</option>'; }).join("");
       sel.value=inp.value||""; sel.style.display="block";
-      sel.onchange=function(){ inp.value=this.value; $("posRefBox").classList.remove("pos-ref-err"); };
+      sel.onchange=function(){ inp.value=this.value; $("posRefBox").classList.remove("pos-ref-err"); posRefSaveNow(); };
     } else if(t==="text"){
       inp.placeholder=(c.label||"Name")+" (start typing for past names)";
       $("posRefDetailList").innerHTML=refHistory(src).map(function(v){ return '<option value="'+esc(v)+'"></option>'; }).join("");
-      inp.style.display="block"; inp.oninput=function(){ $("posRefBox").classList.remove("pos-ref-err"); };
+      inp.style.display="block"; inp.oninput=function(){ $("posRefBox").classList.remove("pos-ref-err"); }; inp.onchange=posRefSaveNow;
     } else if(t==="patient"){
       var seen={}; $("posRefByList").innerHTML=patients.filter(function(x){ return x.id!==posClientId && x.name && !seen[x.name] && (seen[x.name]=1); })
         .sort(function(a,b){return a.name.localeCompare(b.name);}).map(function(x){ return '<option value="'+esc(x.name)+'"></option>'; }).join("");
-      by.style.display="block"; by.oninput=function(){ $("posRefBox").classList.remove("pos-ref-err"); };
+      by.style.display="block"; by.oninput=function(){ $("posRefBox").classList.remove("pos-ref-err"); }; by.onchange=posRefSaveNow;
     }
   }
+  // save the referral to the client as soon as it is complete, so it is not asked again even if this sale is not finished
+  function posRefSaveNow(){ var p=findPatient(posClientId); if(!p) return; var v=posRefValues(); if(!refComplete(v.src, v.detail, v.byName)) return;
+    p.refSource=v.src; p.refDetail=v.detail; p.refByName=v.byName; var m=v.byName?patients.filter(function(x){ return x.id!==p.id && x.name && x.name.toLowerCase()===v.byName.toLowerCase(); })[0]:null; p.refBy=m?m.id:""; savePatients(); }
   function posRefValues(){
     var src=$("posRefSource").value, c=refCfg(src), t=c?c.type:"none";
     return { src:src, type:t,
@@ -9058,7 +9119,8 @@ window.startClinicApp = function(){
   function onRefSourceChange(){ $("pRefDetail").value=""; syncRefFields(); }
   function fillLocationSelect(val){
     var el=$("pLocation"); if(!el) return;
-    el.innerHTML='<option value="">—</option>'+locations.map(function(l){ return '<option'+(l===val?' selected':'')+'>'+esc(l)+'</option>'; }).join("");
+    var _ls=[]; (sites||[]).forEach(function(x){ if(x.active!==false && x.name && _ls.indexOf(x.name)<0) _ls.push(x.name); }); locations.forEach(function(l){ if(_ls.indexOf(l)<0) _ls.push(l); }); if(val && _ls.indexOf(val)<0) _ls.push(val);
+    el.innerHTML='<option value="">—</option>'+_ls.map(function(l){ return '<option'+(l===val?' selected':'')+'>'+esc(l)+'</option>'; }).join("");
     el.value=val||"";
   }
   function fillRefByList(excludeId){
