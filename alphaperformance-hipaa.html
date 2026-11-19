@@ -2799,7 +2799,7 @@ window.startClinicApp = function(){
   function invSetFull(name, rec){ var r={loc:rec.loc||invLocMap(rec), reorderAt:rec.reorderAt, startQty:rec.startQty, adj:rec.adj}; invPut(name, r); saveInventory(); }
   // Treatments are managed in Items; keep the client-form list + pricing in sync.
   function ensureTreatmentsInItems(){
-    ensureRegProducts(); if(regProducts.pending) return;
+    ensureRegProducts(); if(regProducts.pending || !(regProducts.mjs||[]).length) return;
     var existing={}; ["mjs","alpha"].forEach(function(e){ (regProducts[e]||[]).forEach(function(p){ existing[(p.name||"").toLowerCase()]=1; }); });
     var added=false;
     treatments.forEach(function(t){
@@ -6287,12 +6287,39 @@ window.startClinicApp = function(){
     var m=load("alphaperf_regprod_mjs", null), a=load("alphaperf_regprod_alpha", null);
     var seeded=false;
     var recOn=false; try{ recOn=!!(window.__recActive && window.__recActive()); }catch(e){}
-    if(recOn && (!m || !a)){ regProducts={ mjs:m||[], alpha:a||[] }; regProducts.pending=true; return; }   // products arrive as records: never seed
+    // 19 Nov 2026: a workspace already in use (anything else in the vault) never gets the starter list, even before sync is live on this device.
+    // Seeding there made a second copy of every item with new ids, which then synced to every device.
+    var established=false; try{ var _vm=window.__vaultMem||{}; established=["alphaperf_patients","alphaperf_txns"].some(function(k){ try{ var v=JSON.parse(_vm[k]||"[]"); return Array.isArray(v) && v.length>0; }catch(e){ return false; } }) || !!window.__vaultSlim || /^\s*true\s*$/.test(String((function(){ try{ return localStorage.getItem("alphahipaa_rec_live")||localStorage.getItem("rec_live")||""; }catch(e){ return ""; } })())); }catch(e){}
+    if((recOn || established) && (!m || !a)){ regProducts={ mjs:m||[], alpha:a||[] }; regProducts.pending=true; return; }   // products arrive as records: never seed
     if(!m){ m=seedMjsProducts(); seeded=true; }
     if(!a){ a=seedAlphaProducts(); seeded=true; }
     regProducts={ mjs:m, alpha:a };
     if(seeded) saveRegProducts();
   }
+  // Collapse items with the same name in the same company (19 Nov 2026). Keeps the oldest one and fills any blank fields from the copies.
+  function pidTime(id){ var s=String(id||""); if(!/^p[0-9a-z]{9,}$/.test(s)) return Infinity; var t=parseInt(s.slice(1, s.length-3),36); return isFinite(t)?t:Infinity; }
+  function dedupeRegProducts(){
+    if(!regProducts || regProducts.pending) return 0;
+    var removed=0, goneIds={mjs:[], alpha:[]};
+    ["mjs","alpha"].forEach(function(e){
+      var list=regProducts[e]||[], groups={}, order=[];
+      list.forEach(function(p,i){ var k=(p.name||"").trim().toLowerCase(); if(!k) return; if(!groups[k]){ groups[k]=[]; order.push(k); } groups[k].push({p:p, i:i}); });
+      var drop={};
+      order.forEach(function(k){ var g=groups[k]; if(g.length<2) return;
+        g.sort(function(a,b){ return (pidTime(a.p.id)-pidTime(b.p.id)) || (a.i-b.i); });
+        var keep=g[0].p;
+        g.slice(1).forEach(function(x){ for(var f in x.p){ if(f!=="id" && (keep[f]==null || keep[f]==="") && x.p[f]!=null && x.p[f]!=="") keep[f]=x.p[f]; } drop[x.i]=1; goneIds[e].push(x.p.id); removed++; }); });
+      if(removed) regProducts[e]=list.filter(function(p,i){ return !drop[i]; });
+    });
+    if(removed){
+      try{ if(window.__recAllowGone){ window.__recAllowGone("alphaperf_regprod_mjs", goneIds.mjs); window.__recAllowGone("alphaperf_regprod_alpha", goneIds.alpha); } }catch(e){}
+      saveRegProducts();
+      try{ if(window.__hipAudit) window.__hipAudit("items_deduplicated", removed+" duplicate item"+(removed===1?"":"s")+" removed (same name, same company)"); }catch(e){}
+      try{ if(typeof fillPosSelects==="function") fillPosSelects(); }catch(e){}
+    }
+    return removed;
+  }
+  window.__dedupeItems=dedupeRegProducts;
   function saveRegProducts(){ store.set("alphaperf_regprod_mjs", JSON.stringify(regProducts.mjs)); store.set("alphaperf_regprod_alpha", JSON.stringify(regProducts.alpha)); if(typeof schedulePush==="function") schedulePush(); }
   function curProducts(){ ensureRegProducts(); return regProducts[regEntity]||[]; }
   function renderRegister(){ wirePOS(); fillPosSelects(); renderCart(); renderRegSub(); renderTillBar(); openTillPicker(false); }
@@ -7213,7 +7240,9 @@ window.startClinicApp = function(){
           var key=d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();
           var hasReal=existing.some(function(t){ var td=parseISO(t.date); return td && td>=d && td<periodEnd; });
           if(!p.autoBilledKeys[key] && !hasReal){
-            var id=txId();
+            // same id on every device, so two devices billing the same period make one record, not two (17 Nov 2026)
+            var id="mb-"+p.id+"-"+key;
+            if(txns.some(function(t){ return t.id===id; }) || newTx.some(function(t){ return t.id===id; })){ p.autoBilledKeys[key]=id; patientsChanged=true; d=new Date(d.getFullYear(), d.getMonth()+cyc, start.getDate()); d.setHours(0,0,0,0); continue; }
             newTx.push({ id:id, date:d.toISOString().slice(0,10), type:"sale", clientId:p.id, clientName:p.name,
               items:[{name:"Membership dues \u2014 "+p.tier, retail:price, cost:0, qty:1, cat:"Membership", entity:"alpha"}],
               subtotal:price, discountName:"", discountPct:0, discountAmt:0, total:price, cost:0, profit:price,
@@ -7228,6 +7257,26 @@ window.startClinicApp = function(){
     if(patientsChanged) savePatients();
     return added;
   }
+  // Remove automatic membership charges that were made twice for the same member and date (one per device).
+  // Only automatic charges are touched; a charge rung at the register is never removed.
+  function dedupeAutoDues(){
+    var seen={}, drop={}, n=0;
+    txns.forEach(function(t){ if(t.type!=="sale" || t.source!=="auto" || !t.recur) return; var k=(t.memberId||t.clientId)+"|"+t.date; (seen[k]=seen[k]||[]).push(t); });
+    Object.keys(seen).forEach(function(k){ var g=seen[k]; if(g.length<2) return;
+      var p=findPatient(g[0].memberId||g[0].clientId), keep=null, keys=p&&p.autoBilledKeys?p.autoBilledKeys:{};
+      g.forEach(function(t){ if(!keep && /^mb-/.test(t.id)) keep=t; });
+      g.forEach(function(t){ if(!keep){ for(var kk in keys){ if(keys[kk]===t.id){ keep=t; break; } } } });
+      if(!keep) keep=g.slice().sort(function(a,b){ return String(a.id).localeCompare(String(b.id)); })[0];
+      g.forEach(function(t){ if(t!==keep && Math.abs((+t.total||0)-(+keep.total||0))<0.005){ drop[t.id]=1; n++; } }); });
+    if(!n) return 0;
+    var gone=txns.filter(function(t){ return drop[t.id]; });
+    txns=txns.filter(function(t){ return !drop[t.id]; }); saveTxns();
+    if(window.__hipAudit) window.__hipAudit("dues_duplicates_removed", n+" duplicate automatic membership charge"+(n===1?"":"s")+": "+gone.map(function(t){ return (t.clientName||"")+" "+t.date+" $"+money(t.total); }).join("; "));
+    return n;
+  }
+  window.__dedupeAutoDues=dedupeAutoDues;
+  window.__autoDuesDupes=function(){ var seen={}; txns.forEach(function(t){ if(t.type!=="sale" || t.source!=="auto" || !t.recur) return; var k=(t.memberId||t.clientId)+"|"+t.date; (seen[k]=seen[k]||[]).push(t); });
+    return Object.keys(seen).filter(function(k){ return seen[k].length>1; }).map(function(k){ var g=seen[k]; return {client:g[0].clientName, date:g[0].date, count:g.length, total:g[0].total, ids:g.map(function(t){ return t.id; })}; }); };
   function backfillClientLinks(){
     if(settings.clientLinksBackfilled) return;
     var changed=false, byClient={};
@@ -10165,7 +10214,7 @@ window.startClinicApp = function(){
       else if(k==="alphaperf_promouses") promoUses=load(k,[]);
       else if(k==="alphaperf_promoattempts") promoAttempts=load(k,[]);
       else if(k==="alphaperf_inventory"){ inventory=load(k,{}); if(!inventory||typeof inventory!=="object") inventory={}; }
-      else if(k==="alphaperf_regprod_mjs"||k==="alphaperf_regprod_alpha"){ if(regProducts && regProducts.pending){ delete regProducts.pending; } if(regProducts){ regProducts.mjs=load("alphaperf_regprod_mjs",regProducts.mjs); regProducts.alpha=load("alphaperf_regprod_alpha",regProducts.alpha); } }
+      else if(k==="alphaperf_regprod_mjs"||k==="alphaperf_regprod_alpha"){ if(regProducts && regProducts.pending){ delete regProducts.pending; } if(regProducts){ regProducts.mjs=load("alphaperf_regprod_mjs",regProducts.mjs); regProducts.alpha=load("alphaperf_regprod_alpha",regProducts.alpha); setTimeout(function(){ try{ dedupeRegProducts(); }catch(e){} },0); } }
       else if(k==="alphaperf_journals_mjs"||k==="alphaperf_journals_alpha"){ if(!isCombined() && k==="alphaperf_journals_"+acctEntity) journals=load(k,[]); }
       else if(k==="alphaperf_members") members=load(k,[]);
       else if(k==="alphaperf_tiers") tiers=load(k,DEFAULT_TIERS);
@@ -10314,6 +10363,7 @@ window.startClinicApp = function(){
   applyBrand();
   applyThorneSupps();
   try{ ensureTreatmentsInItems(); }catch(e){}
+  try{ dedupeRegProducts(); }catch(e){}
   try{ backfillClientLinks(); }catch(e){}
   try{ runMembershipBilling(); }catch(e){}
   switchView("patients");
@@ -10767,6 +10817,7 @@ window.startClinicApp = function(){
     var c=REC_COLS[key], sh=recShadow[key]||(recShadow[key]={}), ents=recEntries(key,val), q=recQueue(), changed=0, gone=[];
     Object.keys(ents).forEach(function(id){ var s=JSON.stringify(ents[id]); if(sh[id]!==s){ sh[id]=s; q[c.k+":"+id]=qstamp(); changed++; } });
     Object.keys(sh).forEach(function(id){ if(!(id in ents)) gone.push(id); });
+    var _ok=recAllowed[key]; if(_ok){ var _sure=gone.filter(function(id){ return _ok[id]; }); gone=gone.filter(function(id){ return !_ok[id]; }); _sure.forEach(function(id){ delete sh[id]; delete _ok[id]; q[c.k+":"+id]=qstamp(); changed++; }); }
     var total=Object.keys(sh).length;
     if(gone.length>20 && gone.length>total*0.2){
       // mass-deletion guard: never delete a large share of a collection on every device without a person confirming
@@ -10775,7 +10826,8 @@ window.startClinicApp = function(){
     } else gone.forEach(function(id){ delete sh[id]; q[c.k+":"+id]=qstamp(); changed++; });
     if(changed){ recQueueSet(q); recPushSoon(); refreshSyncUI(); }
   }
-  var recMassPending=[], recMassOpen=false;
+  var recMassPending=[], recMassOpen=false, recAllowed={};
+  window.__recAllowGone=function(key, ids){ if(!ids || !ids.length) return; var m=recAllowed[key]||(recAllowed[key]={}); ids.forEach(function(id){ m[String(id)]=1; }); };
   function recMassNext(){ recMassOpen=false; var n=recMassPending.shift(); if(n) setTimeout(function(){ recConfirmMassDelete(n[0], n[1]); }, 60); }
   function recConfirmMassDelete(key, gone){
     if(recMassOpen){ recMassPending.push([key, gone]); return; }   // one question at a time: a second one must not replace the first
