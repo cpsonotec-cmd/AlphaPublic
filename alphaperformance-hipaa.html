@@ -3897,7 +3897,9 @@ window.startClinicApp = function(){
     return all[0]||null;
   }
   function cartHasConsult(){ return posCart.some(function(l){ return /consult/i.test(l.name||""); }); }
-  function cartHasTreatment(){ return posCart.some(function(l){ return !l.gcSell && (l.cat==="Treatment" || treatments.indexOf(l.name)>=0); }); }
+  // Medication counts as a treatment everywhere (19 Nov 2026: peptides are filed as Medication)
+  function isTreatCat(c){ return c==="Treatment" || c==="Medication"; }
+  function cartHasTreatment(){ return posCart.some(function(l){ return !l.gcSell && (isTreatCat(l.cat) || treatments.indexOf(l.name)>=0); }); }
   var posConsultWaive=null;
   function addConsultToCart(){
     var c=consultProduct();
@@ -6343,7 +6345,7 @@ window.startClinicApp = function(){
     invEditName = name || null;
     invEditEntity = entity || (invEntity==="all" ? "alpha" : invEntity);
     var p = name ? prodInEntity(name, invEditEntity) : null, r = name ? invRec(name) : {qty:0,reorderAt:5,startQty:0,adj:[]};
-    var isSvc = p ? (p.type==="service" || (!inventory[name] && (p.cat==="Treatment"||p.cat==="Membership"))) : false;
+    var isSvc = p ? (p.type==="service" || (!inventory[name] && (isTreatCat(p.cat)||p.cat==="Membership"))) : false;
     setInvType(isSvc ? "service" : "inventory");
     $("invFormTitle").textContent = name ? ("Edit "+name) : "New item";
     $("ivCompany").value = invEditEntity;
@@ -6402,7 +6404,7 @@ window.startClinicApp = function(){
     }
     saveRegProducts();
     var wasTreatment = invEditName && treatments.indexOf(invEditName)>=0;
-    if(cat==="Treatment" || wasTreatment){ syncTreatmentFromItem(invEditName, finalName, retail, cost, cat==="Treatment"); }
+    if(isTreatCat(cat) || wasTreatment){ syncTreatmentFromItem(invEditName, finalName, retail, cost, isTreatCat(cat)); }
     if(isSvc){ if(inventory[finalName]) delete inventory[finalName]; saveInventory(); }
     else {
       var startQ=Math.max(0,Math.round(parseFloat($("ivStartQty").value)||0));
@@ -6591,7 +6593,7 @@ window.startClinicApp = function(){
     s.onerror=function(){ cb(null); };
     document.head.appendChild(s);
   }  var STOCK_CATS={Supplement:1, Supply:1, Medication:1, Equipment:1};
-  function isServiceItem(p){ return p.type==="service" || (!inventory[p.name] && (p.cat==="Treatment"||p.cat==="Membership")); }
+  function isServiceItem(p){ return p.type==="service" || (!inventory[p.name] && (isTreatCat(p.cat)||p.cat==="Membership")); }
   function invIsTracked(p){ return !!inventory[p.name] || (!!STOCK_CATS[p.cat] && !isServiceItem(p)); }
   function invLocBar(){ var el=$("invLocBar"); if(!el) return; var act=sites.filter(function(x){ return x.active!==false; });
     if(invLoc!=="all" && !siteById(invLoc)) invLoc="all";
@@ -6634,7 +6636,7 @@ window.startClinicApp = function(){
     if(!rows.length){ $("invList").innerHTML='<div class="rep-empty">No products'+(q?" match your search":"")+'.</div>'; return; }
     $("invList").innerHTML=rows.map(function(x){
       var p=x.p, r=invRec(p.name), qn=Q(p.name);
-      var isSvc = p.type==="service" || (!inventory[p.name] && (p.cat==="Treatment"||p.cat==="Membership"));
+      var isSvc = p.type==="service" || (!inventory[p.name] && (isTreatCat(p.cat)||p.cat==="Membership"));
       var state = qn<=0 ? "out" : (qn<=r.reorderAt ? "low" : "ok");
       var locLine = isSvc ? '' : '<div class="inv-locs">'+sites.filter(function(st){ return st.active!==false || r.loc[st.id]; }).map(function(st){ return '<button type="button" class="inv-lc'+(L===st.id?' on':'')+((r.loc[st.id]||0)<=0?' zero':'')+'" data-invloc2="'+esc(st.id)+'">'+esc(st.name)+' <b>'+(r.loc[st.id]||0)+'</b></button>'; }).join("")+'<span class="inv-lc-tot">Total <b>'+r.qty+'</b></span><button type="button" class="inv-lc-mv" data-invmove="'+esc(p.name)+'">Move</button></div>';
       var badge = isSvc ? '<span class="inv-badge b-svc">Service</span>' : (state==="out" ? '<span class="inv-badge b-out">Out</span>' : state==="low" ? '<span class="inv-badge b-low">Low</span>' : '<span class="inv-badge b-ok">In stock</span>');
@@ -6775,7 +6777,7 @@ window.startClinicApp = function(){
     var rows=allPosProducts().filter(function(x){ return !q || x.p.name.toLowerCase().indexOf(q)>=0 || (x.p.cat||"").toLowerCase().indexOf(q)>=0; });
     var groups={}, order=[];
     rows.forEach(function(x){ var g=x.p.cat|| (/^Membership/.test(x.p.name)?"Membership":"Products"); if(!groups[g]){groups[g]=[];order.push(g);} groups[g].push(x); });
-    var prefer=["Supplement","Treatment","Membership","Products"];
+    var prefer=["Medication","Treatment","Supplement","Membership","Products"];
     order.sort(function(a,b){ var ia=prefer.indexOf(a), ib=prefer.indexOf(b); return (ia<0?99:ia)-(ib<0?99:ib) || a.localeCompare(b); });
     var abbr={mjs:"MJS", alpha:"Alpha"};
     // Packages: their own group (they often charge both companies). Typing "package" lists them all.
@@ -6792,7 +6794,7 @@ window.startClinicApp = function(){
       }).join("") : "";
     }catch(e){ pkgHtml=""; }
     var html=pkgHtml+order.map(function(g){
-      var label=g==="Supplement"?"Supplements":g==="Treatment"?"Treatments":g;
+      var label=g==="Supplement"?"Supplements":g==="Treatment"?"Treatments":g==="Medication"?"Medications":g;
       var items=groups[g].slice().sort(function(a,b){return (a.p.name||"").localeCompare(b.p.name||"");});
       return '<div class="pd-group">'+esc(label)+'</div>'+items.map(function(x){
         return '<div class="cd-item pd-item" data-pick="'+x.entity+'|'+x.p.id+'"><span class="pd-co pd-co-'+x.entity+'">'+abbr[x.entity]+'</span><span class="pd-name">'+esc(x.p.name)+'</span><span class="pd-price">$'+money(x.p.price)+'</span></div>';
@@ -7318,7 +7320,7 @@ window.startClinicApp = function(){
       if(t.type!=="sale" || !t.clientId) return;
       var p=byClient[t.clientId]; if(!p) return;
       (t.items||[]).forEach(function(l){
-        var isTreat = l.cat==="Treatment" || treatments.indexOf(l.name)>=0;
+        var isTreat = isTreatCat(l.cat) || treatments.indexOf(l.name)>=0;
         if(isTreat){ p.treatments=p.treatments||[]; if(p.treatments.indexOf(l.name)<0){ p.treatments.push(l.name); changed=true; } }
         var isMemb = l.cat==="Membership" || /membership|dues/i.test(l.name);
         if(isMemb && !p.isMember){ p.isMember=true; p.tier=p.tier||tierFromItemName(l.name); p.cycle=p.cycle||"monthly"; p.startDate=p.startDate||t.date; p.status=p.status||"active"; if(typeof p.visits!=="number") p.visits=0; if(!p.joinedAt) p.joinedAt=t.date; if(p.autoBill==null) p.autoBill=true; changed=true; }
@@ -7555,7 +7557,7 @@ window.startClinicApp = function(){
       var itemNames=posCart.map(function(l){ return l.qty>1 ? (l.name+" \u00d7"+l.qty) : l.name; });
       var vType=($("posVisitType")&&$("posVisitType").value)||"Visit";
       var vNote=($("posVisitNote")&&$("posVisitNote").value||"").trim();
-      var vTreats=posCart.filter(function(l){ return l.cat==="Treatment" || treatments.indexOf(l.name)>=0; }).map(function(l){ return l.name; });
+      var vTreats=posCart.filter(function(l){ return isTreatCat(l.cat) || treatments.indexOf(l.name)>=0; }).map(function(l){ return l.name; });
       var vNoteFull=(vNote?vNote+" \u00b7 ":"")+itemNames.join(", ")+" \u00b7 $"+money(total);
       if(posConsultWaive && !consultPaid(p) && !posCart.some(function(l){ return /consult/i.test(l.name||""); })){ p.consultWaived=posConsultWaive; if(window.__hipAudit) window.__hipAudit("consult_waived", p.id+" \u00b7 "+posConsultWaive.name+" \u00b7 "+posConsultWaive.reason); }
       p.visitLog = p.visitLog || [];
@@ -7569,7 +7571,7 @@ window.startClinicApp = function(){
       // Link what was sold to the client's record
       var enrolled=false, txAdded=[];
       posCart.forEach(function(l){
-        var isTreat = l.cat==="Treatment" || treatments.indexOf(l.name)>=0;
+        var isTreat = isTreatCat(l.cat) || treatments.indexOf(l.name)>=0;
         if(isTreat){ p.treatments=p.treatments||[]; if(p.treatments.indexOf(l.name)<0){ p.treatments.push(l.name); txAdded.push(l.name); } }
         var isMemb = l.cat==="Membership" || /membership|dues/i.test(l.name);
         if(isMemb && !p.isMember){
