@@ -4187,20 +4187,25 @@ window.startClinicApp = function(){
       '<div class="gc-chips" style="margin-bottom:10px" id="bpMode">'+[["recv","Bottles received"],["count","Count on hand"],["move","Move"],["waste","Wasted / expired"]].map(function(x,i){ return '<button type="button" data-bpm="'+x[0]+'" class="'+(i===0?'on':'')+'">'+x[1]+'</button>'; }).join("")+'</div>'+
       '<div class="gc-row2"><div class="pos-field"><label id="bpLocL">Location</label>'+so("bpLoc",l0)+'</div><div class="pos-field" id="bpToW" style="display:none"><label>To</label>'+so("bpTo",(act.filter(function(s){ return s.id!==l0; })[0]||{}).id)+'</div></div>'+
       '<div class="gc-row2"><div class="pos-field"><label id="bpQL">Bottles</label><input type="number" id="bpQ" min="0" step="any" inputmode="decimal"></div><div class="pos-field"><label>Your initials</label><input type="text" id="bpIni" maxlength="4" style="text-transform:uppercase"></div></div>'+
+      '<div class="gc-row2" id="bpSizeW"><div class="pos-field"><label>mg per bottle</label><input type="number" id="bpSize" min="0" step="any" inputmode="decimal" value="'+(+b.bottle||100)+'"></div><div class="pos-field" style="justify-content:flex-end"><label class="gc-xfer-check" style="margin:22px 0 0"><input type="checkbox" id="bpSizeDef"> Make this the usual bottle size</label></div></div>'+
       '<div class="gc-hint" id="bpHint"></div><div class="sub-err" id="bpErr"></div>',
       '<button class="btn-ghost" id="bpCancel" type="button">Cancel</button><button class="btn-primary" id="bpGo" type="button">Save</button>');
     var mode="recv";
+    function bsize(){ var v=+$("bpSize").value; return v>0?v:(+b.bottle||0); }
     function hint(){ var r=invRec(bulkKey(b)), l=$("bpLoc").value, have=r.loc[l]||0, q=+$("bpQ").value||0;
       $("bpToW").style.display=mode==="move"?"":"none"; $("bpLocL").textContent=mode==="move"?"From":"Location";
-      $("bpQL").textContent=mode==="recv"?"Bottles ("+b.bottle+" mg each)":mode==="count"?"mg on hand now (count every open bottle)":"mg";
-      $("bpHint").textContent=siteName(l)+" has "+bulkFmt(have)+(mode==="recv"&&q?" → "+bulkFmt(have+q*(+b.bottle||0)):mode==="count"&&$("bpQ").value!==""?" → "+bulkFmt(q)+" ("+(q-have>=0?"+":"")+bulkFmt(q-have)+")":(mode==="waste"||mode==="move")&&q?" → "+bulkFmt(have-q):""); }
+      $("bpSizeW").style.display=mode==="recv"?"":"none";
+      $("bpQL").textContent=mode==="recv"?"Bottles":mode==="count"?"mg on hand now (count every open bottle)":"mg";
+      $("bpHint").textContent=siteName(l)+" has "+bulkFmt(have)+(mode==="recv"&&q?" \u2192 "+bulkFmt(have+q*bsize())+" ("+q+" \u00d7 "+bsize()+" mg)":mode==="count"&&$("bpQ").value!==""?" → "+bulkFmt(q)+" ("+(q-have>=0?"+":"")+bulkFmt(q-have)+")":(mode==="waste"||mode==="move")&&q?" → "+bulkFmt(have-q):""); }
     Array.prototype.forEach.call($("bpMode").querySelectorAll("[data-bpm]"),function(x){ x.onclick=function(){ mode=x.getAttribute("data-bpm"); Array.prototype.forEach.call($("bpMode").querySelectorAll("button"),function(y){ y.classList.toggle("on", y===x); }); hint(); }; });
-    $("bpQ").oninput=hint; $("bpLoc").onchange=hint; hint();
+    $("bpQ").oninput=hint; $("bpLoc").onchange=hint; $("bpSize").oninput=hint; hint();
     $("bpCancel").onclick=gcModalClose;
     $("bpGo").onclick=function(){ var l=$("bpLoc").value, q=+$("bpQ").value, ini=($("bpIni").value||"").trim().toUpperCase(), r=invRec(bulkKey(b)), have=r.loc[l]||0, delta=0, why="";
       if(!($("bpQ").value!=="" && q>=0) || (mode!=="count" && !(q>0))){ $("bpErr").textContent="Enter an amount."; return; }
       if(!/^[A-Z]{2,4}$/.test(ini)){ $("bpErr").textContent="Enter your initials."; return; }
-      if(mode==="recv"){ delta=q*(+b.bottle||0); why="received "+q+" bottle"+(q===1?"":"s"); }
+      if(mode==="recv"){ var bs=+$("bpSize").value; if(!(bs>0)){ $("bpErr").textContent="Enter the mg per bottle."; return; }
+        delta=q*bs; why="received "+q+" bottle"+(q===1?"":"s")+" of "+bs+" mg";
+        if($("bpSizeDef").checked && bs!==+b.bottle){ b.bottle=bs; saveBulkPools(); } }
       else if(mode==="count"){ delta=q-have; why="counted "+bulkFmt(q); }
       else if(mode==="waste"){ if(q>have){ $("bpErr").textContent=siteName(l)+" only has "+bulkFmt(have)+"."; return; } delta=-q; why="wasted/expired"; }
       else { var to=$("bpTo").value; if(to===l){ $("bpErr").textContent="Pick two different locations."; return; } if(q>have){ $("bpErr").textContent=siteName(l)+" only has "+bulkFmt(have)+"."; return; }
