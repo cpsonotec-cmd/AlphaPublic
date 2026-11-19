@@ -780,6 +780,7 @@
   .cr-row{background:#ECFDF5;border-radius:9px;padding:7px 10px;color:#065F46}
   .hs-table td:first-child,.hs-table th:first-child{text-align:left}.hs-table tfoot td{font-weight:800;border-top:2px solid var(--line)}.hs-un td{color:var(--muted);font-style:italic}.hs-dim{color:var(--muted);font-size:11px;font-weight:500}.hs-flag{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:99px;background:#FEF3C7;color:#92400E;font-size:11px;font-weight:700;font-style:normal}.hs-notes{margin-top:10px;font-size:12.5px;color:var(--muted);display:flex;flex-direction:column;gap:5px}
   .inv-locbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 12px}.inv-locl{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-right:4px}.inv-locs{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;align-items:center}.inv-lc{border:1px solid var(--line);background:#fff;border-radius:99px;padding:2px 9px;font-size:12px;cursor:pointer;color:var(--ink,#0F172A)}.inv-lc.on{border-color:#2563EB;background:#EFF6FF}.inv-lc.zero{color:var(--muted)}.inv-lc-tot{font-size:12px;color:var(--muted);margin-left:2px}.inv-lc-mv{border:0;background:none;color:#2563EB;font-size:12px;font-weight:700;cursor:pointer;padding:2px 4px}.inv-totbox{min-width:64px;text-align:center;font-size:20px;font-weight:800;line-height:1}.inv-totbox span{display:block;font-size:10.5px;font-weight:600;color:var(--muted);text-transform:uppercase;margin-top:2px}
+  .pv-grp{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px;width:100%}.pv-grp .pos-visit-tlabel{width:100%}.pv-add{cursor:pointer;border:1.5px solid var(--line);background:#fff;font:inherit;font-weight:700;font-size:13px;border-radius:99px;padding:5px 11px;color:var(--ink,#0F172A)}.pv-add:hover{border-color:#059669;background:#ECFDF5}.pv-chip.pv-add.on{border-color:#059669;background:#D1FAE5;color:#065F46}.pv-repeat{cursor:pointer;border:1.5px dashed #059669;background:#fff;color:#047857;font:inherit;font-weight:700;font-size:13px;border-radius:9px;padding:6px 12px}
   .cash-locbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px;font-size:14px;font-weight:700}
   .cash-locbar select{margin-left:6px;padding:9px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font-size:14px;font-weight:700}
   .cash-loc{margin-bottom:12px}
@@ -6905,13 +6906,44 @@ window.startClinicApp = function(){
     posVisitTreats={}; (p.treatments||[]).forEach(function(t){ posVisitTreats[t]=true; });
     paintPosVisitTreats(p);
   }
+  // Past treatments, supplements and other items the client has bought: tap to add to this sale (19 Nov 2026)
+  function pastBuyProd(name, ent){ var k=(name||"").trim().toLowerCase(), hit=null;
+    [ent, ent==="mjs"?"alpha":"mjs"].forEach(function(e){ if(hit || !e) return; var p=(regProducts[e]||[]).filter(function(x){ return (x.name||"").trim().toLowerCase()===k; })[0]; if(p) hit={p:p, entity:e}; });
+    if(!hit) ["mjs","alpha"].forEach(function(e){ if(hit) return; var p=(regProducts[e]||[]).filter(function(x){ return (x.name||"").trim().toLowerCase()===k; })[0]; if(p) hit={p:p, entity:e}; });
+    return hit; }
+  function pastBuys(p){
+    ensureRegProducts(); var by={}, lastSale=null;
+    txns.forEach(function(t){ if(t.type!=="sale" || t.clientId!==p.id || t.source==="auto") return;
+      var useful=false;
+      (t.items||[]).forEach(function(l){ var nm=(l.name||"").trim(); if(!nm || l.gcSell || l.cat==="Membership" || l.cat==="Gift Certificate" || /membership|dues|gift certificate/i.test(nm) || /consult/i.test(nm)) return;
+        var k=nm.toLowerCase(), b=by[k]||(by[k]={name:nm, ent:l.entity||t.entity, n:0, last:"", cat:l.cat||""}); b.n+=(+l.qty||1); if((t.date||"")>=b.last){ b.last=t.date||""; b.name=nm; } useful=true; });
+      if(useful && (!lastSale || (t.date||"")>(lastSale.date||""))) lastSale=t; });
+    (p.treatments||[]).forEach(function(tn){ var k=(tn||"").trim().toLowerCase(); if(k && !by[k]) by[k]={name:tn, ent:"mjs", n:0, last:"", cat:"Treatment"}; });
+    var out=[]; Object.keys(by).forEach(function(k){ var b=by[k], h=pastBuyProd(b.name, b.ent); if(!h) return;
+      var cat=h.p.cat||b.cat, treat=/treatment|medication|peptide/i.test(cat) || treatments.indexOf(h.p.name)>=0 || (p.treatments||[]).indexOf(b.name)>=0;
+      out.push({name:h.p.name, entity:h.entity, id:h.p.id, price:+h.p.price||0, n:b.n, last:b.last, treat:treat && !/supplement/i.test(cat)}); });
+    out.sort(function(a,b){ return (b.last||"").localeCompare(a.last||"") || b.n-a.n || a.name.localeCompare(b.name); });
+    var lastItems=[]; if(lastSale) (lastSale.items||[]).forEach(function(l){ var h=pastBuyProd(l.name, l.entity||lastSale.entity); if(h && !l.gcSell && !/membership|dues|consult/i.test(l.name||"")) lastItems.push({name:h.p.name, entity:h.entity, id:h.p.id, qty:+l.qty||1}); });
+    return {items:out, lastSale:lastSale, lastItems:lastItems};
+  }
+  function pvMarkCart(){ var box=$("posVisitTreats"); if(!box) return; var inCart={}; posCart.forEach(function(l){ var k=(l.name||"").toLowerCase(); inCart[k]=(inCart[k]||0)+(+l.qty||1); });
+    Array.prototype.forEach.call(box.querySelectorAll("[data-pvname]"),function(b){ var nm=b.getAttribute("data-pvname"), c=inCart[nm.toLowerCase()]||0; b.classList.toggle("on", c>0); b.textContent=(c?"\u2713 ":"+ ")+nm+(c>1?" \u00d7"+c:""); }); }
   function paintPosVisitTreats(p){
     var box=$("posVisitTreats"); if(!box) return;
-    var ts=(p&&p.treatments)||[];
-    if(!ts.length){ box.innerHTML='<span class="pos-visit-none">No treatments on file yet — this visit\u2019s treatments come from what you ring up below.</span>'; return; }
-    box.innerHTML='<span class="pos-visit-tlabel">Past treatments (for reference):</span>'+ts.map(function(t){
-      return '<span class="pv-chip pv-chip-ref">'+esc(t)+'</span>';
-    }).join("")+'<span class="pos-visit-hint2">This visit\u2019s treatments are taken from the items rung up at checkout.</span>';
+    var pb=p?pastBuys(p):{items:[],lastItems:[]};
+    if(!pb.items.length){ box.innerHTML='<span class="pos-visit-none">No past treatments or purchases yet — this visit’s treatments come from what you ring up below.</span>'; return; }
+    var inCart={}; posCart.forEach(function(l){ var k=(l.name||"").toLowerCase(); inCart[k]=(inCart[k]||0)+(+l.qty||1); });
+    function chip(x){ var c=inCart[x.name.toLowerCase()]||0;
+      return '<button type="button" class="pv-chip pv-add'+(c?' on':'')+'" data-pvname="'+esc(x.name)+'" data-pvadd="'+esc(x.entity+"|"+x.id)+'" title="'+esc((x.last?"Last bought "+fmtDate(parseISO(x.last))+" · ":"")+(x.n?"bought "+x.n+"× · ":"")+"$"+money(x.price)+" · tap to add")+'">'+(c?'✓ ':'+ ')+esc(x.name)+(c>1?' ×'+c:'')+'</button>'; }
+    var tr=pb.items.filter(function(x){ return x.treat; }), ot=pb.items.filter(function(x){ return !x.treat; });
+    box.innerHTML=(tr.length?'<div class="pv-grp"><span class="pos-visit-tlabel">Past treatments — tap to add:</span>'+tr.map(chip).join("")+'</div>':'')+
+      (ot.length?'<div class="pv-grp"><span class="pos-visit-tlabel">Past supplements &amp; other — tap to add:</span>'+ot.map(chip).join("")+'</div>':'')+
+      (pb.lastItems.length>1?'<div class="pv-grp"><button type="button" class="pv-repeat" id="pvRepeat">Repeat last visit ('+esc(fmtDate(parseISO(pb.lastSale.date)))+': '+pb.lastItems.length+' items)</button></div>':'')+
+      '<span class="pos-visit-hint2">This visit’s treatments are taken from the items rung up at checkout. Prices are today’s prices.</span>';
+    function addOne(ent, id, qty){ var pr=(regProducts[ent]||[]).filter(function(x){ return x.id===id; })[0]; if(!pr) return false;
+      posCart.push({ name:pr.name, retail:+pr.price||0, cost:+pr.cost||0, qty:qty||1, cat:pr.cat||"", entity:ent }); return pr; }
+    Array.prototype.forEach.call(box.querySelectorAll("[data-pvadd]"),function(b){ b.onclick=function(){ var v=b.getAttribute("data-pvadd").split("|"), pr=addOne(v[0], v[1]); if(!pr) return; renderCart(); toast(pr.name+" added"); }; });
+    if($("pvRepeat")) $("pvRepeat").onclick=function(){ var n=0; pb.lastItems.forEach(function(x){ if(addOne(x.entity, x.id, x.qty)) n++; }); renderCart(); toast(n+" item"+(n===1?"":"s")+" from the last visit added"); };
   }
   function renderClientDrop(q){
     q=(q||"").trim().toLowerCase();
@@ -7199,6 +7231,7 @@ window.startClinicApp = function(){
       '<div class="pos-tot-row"><span>Cost / profit</span><span>$'+money(cost)+' / $'+money(total-cost)+'</span></div>'+
       '<div class="pos-tot-row grand"><span>Total</span><span>$'+money(total)+'</span></div>'+gcTotRows();
     renderPosGc();
+    try{ pvMarkCart(); }catch(e){}
     renderPosPromo();
     renderPosPkg();
     try{ renderNoDisc(); }catch(e){}
