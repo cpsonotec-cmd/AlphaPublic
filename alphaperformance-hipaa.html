@@ -2803,8 +2803,11 @@ window.startClinicApp = function(){
     ensureRegProducts(); if(regProducts.pending || !(regProducts.mjs||[]).length) return;
     var existing={}; ["mjs","alpha"].forEach(function(e){ (regProducts[e]||[]).forEach(function(p){ existing[(p.name||"").toLowerCase()]=1; }); });
     var added=false;
+    var names=Object.keys(existing);
     treatments.forEach(function(t){
       if(existing[t.toLowerCase()]) return;
+      // a treatment sold by dose (e.g. "Tirzepatide 5mg") does not need a plain "Tirzepatide" item
+      var pre=t.toLowerCase()+" "; if(names.some(function(n){ return n.indexOf(pre)===0; })) return;
       var pr=(treatmentPricing[t]&&(treatmentPricing[t].retail||treatmentPricing[t].cost))?treatmentPricing[t]:(TREATMENT_PRICING[t]||{});
       var retail=0, cost=0;
       if(pr.doses){ var dk=Object.keys(pr.doses)[0]; if(dk){ retail=pr.doses[dk].retail||0; cost=pr.doses[dk].cost||0; } }
