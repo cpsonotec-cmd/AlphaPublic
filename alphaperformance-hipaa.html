@@ -4023,7 +4023,7 @@ window.startClinicApp = function(){
       '<div class="cash-cards">'+card("mjs","MJS Medical Wellness")+card("alpha","Alpha Male Health Restoration")+
         '<div class="cash-card cash-total"><div class="cash-ent">Both companies'+(cashSite!=="all"?' \u00b7 '+esc(siteName(cashSite)):'')+'</div><div class="cash-lbl">Should be in the safe</div><div class="cash-big">$'+money(from?safe.mjs+safe.alpha:0)+'</div>'+
         '<div class="cash-sub">'+(lastCount?'Last counted '+esc(fmtDate(parseISO(lastCount.date))):(from?'':'Tracking starts at the first count'))+(function(){ var se=envSealed(cashSite); return se.length?' \u00b7 $'+money(envSum(se))+' of it sealed in '+se.length+' envelope'+(se.length===1?'':'s'):''; })()+'</div></div></div>'+
-      (from?'<div class="cash-actions"><button type="button" class="btn-primary" id="cashDepBtn">Record a bank deposit</button><button type="button" class="btn-ghost" id="cashEnvBtn">New deposit envelope</button><button type="button" class="btn-ghost" id="cashCountBtn">Count the safe</button><button type="button" class="btn-ghost" id="cashCounterBtn">Cash counter</button><button type="button" class="btn-ghost" id="cashOutBtn">Cash paid out</button><button type="button" class="btn-ghost" id="cashAdjBtn">Adjust the safe</button><button type="button" class="btn-ghost" id="cashStart2Btn">Starting count for a location</button></div>':'')+
+      (from?'<div class="cash-actions"><button type="button" class="btn-primary" id="cashDepBtn">Record a bank deposit</button><button type="button" class="btn-ghost" id="cashEnvBtn">New deposit envelope</button><button type="button" class="btn-ghost" id="cashCountBtn">Count the safe</button><button type="button" class="btn-ghost" id="cashCounterBtn">Cash counter</button><button type="button" class="btn-ghost" id="cashOutBtn">Cash paid out</button><button type="button" class="btn-ghost" id="cashAdjBtn">Adjust the safe</button><button type="button" class="btn-ghost" id="cashResetBtn">Reset the safe</button><button type="button" class="btn-ghost" id="cashStart2Btn">Starting count for a location</button></div>':'')+
       '<div class="rep-card"><div class="inv-tools"><div class="rep-h" style="flex:1;margin:0">Cash collected · '+esc(lbl)+'</div><button class="btn-ghost sub-mini" id="cashCsv" type="button">Download CSV</button></div>'+
         '<div class="cash-sumrow"><div><span>MJS</span><b>$'+money(tot.mjs)+'</b></div><div><span>Alpha</span><b>$'+money(tot.alpha)+'</b></div><div><span>Total cash</span><b>$'+money(tot.mjs+tot.alpha)+'</b></div><div><span>Cash sales</span><b>'+tot.n+'</b></div></div>'+
         (cashSite==="all"?'<div class="pkg-tablewrap"><table class="pkg-table cash-loc"><thead><tr><th>Location</th><th class="num">MJS cash</th><th class="num">Alpha cash</th><th class="num">Total collected</th><th class="num">Sales</th>'+(from?'<th class="num">In safe now</th>':'')+'</tr></thead><tbody>'+
@@ -4039,7 +4039,7 @@ window.startClinicApp = function(){
         (ops.length?ops.slice(0,60).map(function(o){
           if(o.t) return '<div class="gc-hist"><span>'+esc(fmtDate(parseISO(o.t.date)))+' \u00b7 Paid out \u00b7 '+(o.e==="alpha"?"Alpha":"MJS")+' \u00b7 '+esc(siteName(o.t.location||sh))+' \u00b7 '+esc(o.t.name||o.t.category||"")+'</span><b>−$'+money(o.t.amount)+'</b></div>';
           var j=o.j, a=(j.lines||[]).reduce(function(s,l){ return s+(l.acct===CASH_SAFE?(+l.dr||0)-(+l.cr||0):0); },0);
-          var what={deposit:"Deposited to bank", opening:"Starting count", count:(Math.abs(a)<0.005?"Count matches":"Count "+(a>0?"over":"short")), payout:"Paid out", adjust:"Adjustment"+(j.memo?" ("+j.memo.replace(/^Safe adjustment: /,"")+")":"")}[j.cashOp]||j.cashOp;
+          var what={deposit:"Deposited to bank", opening:"Starting count", count:(Math.abs(a)<0.005?"Count matches":"Count "+(a>0?"over":"short")), payout:"Paid out", reset:"Safe reset (before today\u2019s sales)", adjust:"Adjustment"+(j.memo?" ("+j.memo.replace(/^Safe adjustment: /,"")+")":"")}[j.cashOp]||j.cashOp;
           return '<div class="gc-hist cash-act" data-cje="'+esc(o.e+"|"+j.id)+'" title="Tap to edit"><span>'+esc(fmtDate(parseISO(j.date)))+' \u00b7 '+what+' \u00b7 '+(o.e==="alpha"?"Alpha":"MJS")+' \u00b7 '+esc(siteName(j.location||sh))+(j.envLabel?' · envelope '+esc(j.envLabel):'')+(j.ref?' · slip '+esc(j.ref):'')+(j.by?' · '+esc(j.by):'')+((j.edits||[]).length?' · <i>edited</i>':'')+'</span><b>'+(a>=0?'+':'−')+'$'+money(Math.abs(a))+' <span class="cash-edit">✎</span></b></div>'; }).join(""):'<div class="gc-hint">Nothing yet.</div>')+'</div>';
     if($("cashStartBtn")) $("cashStartBtn").onclick=function(){ openCashCount(true); };
     if($("cashStart2Btn")) $("cashStart2Btn").onclick=function(){ openCashCount(true); };
@@ -4047,6 +4047,7 @@ window.startClinicApp = function(){
     if($("cashCountBtn")) $("cashCountBtn").onclick=function(){ openCashCount(false); };
     if($("cashOutBtn")) $("cashOutBtn").onclick=openCashOut;
     if($("cashAdjBtn")) $("cashAdjBtn").onclick=openCashAdjust;
+    if($("cashResetBtn")) $("cashResetBtn").onclick=openCashReset;
     if($("cashOneSafe")) $("cashOneSafe").onchange=function(){ settings.cashOneSafe=this.checked; saveSettings(); if(window.__hipAudit) window.__hipAudit("cash_one_safe", this.checked?"on":"off"); renderCashPage(); };
     Array.prototype.forEach.call(el.querySelectorAll("[data-cje]"),function(r){ r.onclick=function(){ var v=r.getAttribute("data-cje").split("|"); openCashEdit(v[0], v[1]); }; });
     if($("cashEnvBtn")) $("cashEnvBtn").onclick=openNewEnvelope;
@@ -4071,7 +4072,7 @@ window.startClinicApp = function(){
   function cashSafeAmt(j){ return Math.round((j.lines||[]).reduce(function(s,l){ return s+(l.acct===CASH_SAFE?(+l.dr||0)-(+l.cr||0):0); },0)*100)/100; }
   function openCashEdit(ent, id){
     var h=cashJE(ent, id); if(!h) return; var j=h.j, a=cashSafeAmt(j), two=(j.lines||[]).length===2, admin=window.__isAdmin && window.__isAdmin();
-    var what={deposit:"Bank deposit", opening:"Starting count", count:"Safe count", payout:"Cash paid out", adjust:"Safe adjustment"}[j.cashOp]||"Safe entry";
+    var what={deposit:"Bank deposit", opening:"Starting count", count:"Safe count", payout:"Cash paid out", adjust:"Safe adjustment", reset:"Safe reset"}[j.cashOp]||"Safe entry";
     var dir=a>=0?"in":"out", isCount=j.cashOp==="count"||j.cashOp==="opening";
     gcModalShow("Edit · "+what,
       '<div class="gc-hint" style="margin-bottom:8px">'+esc(ent==="alpha"?"Alpha":"MJS")+' · '+esc(siteName(j.location||""))+(j.memo?' · '+esc(j.memo):'')+'</div>'+
@@ -4103,6 +4104,39 @@ window.startClinicApp = function(){
       var h2=cashJE(ent, id); if(!h2) return; h2.js.splice(h2.i,1); cashJESave(ent, h2);
       if(window.__hipAudit) window.__hipAudit("cash_entry_deleted", (ent==="alpha"?"Alpha":"MJS")+" "+what+" $"+money(Math.abs(a))+" "+j.date+" · "+c.why+" ("+c.ini+")");
       gcModalClose(); renderCashPage(); toast("Entry deleted"); };
+  }
+  // ---------- Reset the safe to a fresh count from before today's sales (21 Nov 2026) ----------
+  // today's cash in/out of the safe from sales, deposits and pay-outs (counts, adjustments and resets made today are left out: the reset replaces them)
+  function cashTodayMove(ent, loc){ var d=todayISO(), sh=(typeof sharedSite==="function")?sharedSite().id:"setauket", one=cashOneSafe(), ok=function(l){ return one || !loc || loc==="all" || (l||sh)===loc; }, out=0, from=cashFrom();
+    if(from && d>=from) txns.forEach(function(t){ if(t.date!==d || !ok(t.location)) return; var e=t.entity==="alpha"?"alpha":"mjs"; if(e!==ent) return;
+      if(t.type==="sale") out+=cashOf(t); else if(t.type==="expense" && t.paidFrom==="safe") out-=(+t.amount||0); });
+    (load("alphaperf_journals_"+ent,[])||[]).forEach(function(j){ if(j.date!==d || !ok(j.location) || !(j.cashOp==="deposit"||j.cashOp==="payout")) return; out+=cashSafeAmt(j); });
+    return Math.round(out*100)/100+0; }
+  function openCashReset(){
+    var loc0=cashOneSafe()?cashSafeSite():(cashSite!=="all"?cashSite:((typeof tillSite==="function")?tillSite():"setauket"));
+    function info(l){ var o={}; ["mjs","alpha"].forEach(function(e){ var now=cashLedgerBal(e,CASH_SAFE,l), today=cashTodayMove(e,l); o[e]={now:now, today:today, before:Math.round((now-today)*100)/100}; }); return o; }
+    var I=info(loc0);
+    gcModalShow("Reset the safe",
+      '<div class="gc-hint" style="margin-bottom:10px">Enter what was in the safe <b>this morning, before today’s sales</b>. The books are set to that, and today’s cash sales, deposits and pay-outs are added on top. The difference from what the books had goes to Cash Over/Short.</div>'+
+      cashLocField("crsLoc")+
+      '<div class="gc-row2"><div class="pos-field"><label>MJS cash this morning</label><input type="number" step="0.01" min="0" id="crsMjs" inputmode="decimal"></div><div class="pos-field"><label>Alpha cash this morning</label><input type="number" step="0.01" min="0" id="crsAlpha" inputmode="decimal"></div></div>'+
+      '<div class="gc-hint" id="crsInfo"></div>'+
+      '<div class="gc-row2"><div class="pos-field"><label>Reason</label><input type="text" id="crsWhy" placeholder="e.g. starting fresh, books were off"></div><div class="pos-field"><label>Your initials</label><input type="text" id="crsIni" maxlength="4" style="text-transform:uppercase"></div></div><div class="sub-err" id="crsErr"></div>',
+      '<button class="btn-ghost" id="crsCancel" type="button">Cancel</button><button class="btn-primary" id="crsGo" type="button">Reset</button>');
+    function show(){ var m=+$("crsMjs").value||0, a=+$("crsAlpha").value||0, has=$("crsMjs").value!==""||$("crsAlpha").value!=="";
+      $("crsInfo").innerHTML='Books now: MJS $'+money(I.mjs.now)+', Alpha $'+money(I.alpha.now)+' (today so far: MJS '+(I.mjs.today>=0?'+':'−')+'$'+money(Math.abs(I.mjs.today))+', Alpha '+(I.alpha.today>=0?'+':'−')+'$'+money(Math.abs(I.alpha.today))+').'+
+        (has?'<br>After the reset the safe will be <b>MJS $'+money(m+I.mjs.today)+', Alpha $'+money(a+I.alpha.today)+'</b> (this morning + today).':''); }
+    $("crsMjs").oninput=show; $("crsAlpha").oninput=show; $("crsLoc").onchange=function(){ I=info(this.value); show(); }; show();
+    $("crsCancel").onclick=gcModalClose;
+    $("crsGo").onclick=function(){ var why=($("crsWhy").value||"").trim(), ini=($("crsIni").value||"").trim().toUpperCase(), loc=$("crsLoc").value;
+      if($("crsMjs").value==="" && $("crsAlpha").value===""){ $("crsErr").textContent="Enter what was in the safe this morning (0 if empty)."; return; }
+      if(why.length<3){ $("crsErr").textContent="Enter the reason."; return; } if(!/^[A-Z]{2,4}$/.test(ini)){ $("crsErr").textContent="Enter your initials."; return; }
+      var at=new Date().toISOString(), d=todayISO(), n=0;
+      [["mjs",$("crsMjs").value],["alpha",$("crsAlpha").value]].forEach(function(x){ if(x[1]==="") return; var target=Math.round((+x[1]||0)*100)/100, v=Math.round((target-I[x[0]].before)*100)/100; if(Math.abs(v)<0.005) return;
+        var lines=v>0?[{acct:CASH_SAFE,dr:v,cr:0},{acct:CASH_OVERSHORT,dr:0,cr:v}]:[{acct:CASH_OVERSHORT,dr:-v,cr:0},{acct:CASH_SAFE,dr:0,cr:-v}];
+        cashPostJE(x[0], {id:cashId(), date:d, at:at, by:cashWho(), ini:ini, counted:target, expected:I[x[0]].before, cashOp:"reset", location:loc, memo:"Safe reset to $"+money(target)+" before today’s sales: "+why+" ("+ini+")", lines:lines}); n++; });
+      if(window.__hipAudit) window.__hipAudit("cash_reset", siteName(loc)+": MJS $"+money(+$("crsMjs").value||0)+", Alpha $"+money(+$("crsAlpha").value||0)+" before today's sales · "+why+" ("+ini+")");
+      gcModalClose(); renderCashPage(); toast(n?"Safe reset":"Already matched, nothing to change"); };
   }
   function openCashAdjust(){
     gcModalShow("Adjust the safe",
