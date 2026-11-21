@@ -782,6 +782,7 @@
   .inv-locbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 12px}.inv-locl{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-right:4px}.inv-locs{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;align-items:center}.inv-lc{border:1px solid var(--line);background:#fff;border-radius:99px;padding:2px 9px;font-size:12px;cursor:pointer;color:var(--ink,#0F172A)}.inv-lc.on{border-color:#2563EB;background:#EFF6FF}.inv-lc.zero{color:var(--muted)}.inv-lc-tot{font-size:12px;color:var(--muted);margin-left:2px}.inv-lc-mv{border:0;background:none;color:#2563EB;font-size:12px;font-weight:700;cursor:pointer;padding:2px 4px}.inv-totbox{min-width:64px;text-align:center;font-size:20px;font-weight:800;line-height:1}.inv-totbox span{display:block;font-size:10.5px;font-weight:600;color:var(--muted);text-transform:uppercase;margin-top:2px}
   .pv-grp{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px;width:100%}.pv-grp .pos-visit-tlabel{width:100%}.pv-add{cursor:pointer;border:1.5px solid var(--line);background:#fff;font:inherit;font-weight:700;font-size:13px;border-radius:99px;padding:5px 11px;color:var(--ink,#0F172A)}.pv-add:hover{border-color:#059669;background:#ECFDF5}.pv-chip.pv-add.on{border-color:#059669;background:#D1FAE5;color:#065F46}.pv-repeat{cursor:pointer;border:1.5px dashed #059669;background:#fff;color:#047857;font:inherit;font-weight:700;font-size:13px;border-radius:9px;padding:6px 12px}
   .inv-tag.t-med{background:#EDE9FE;color:#5B21B6}.inv-tag.t-svc{background:#E0F2FE;color:#075985}
+  .inv-tag.t-disc{background:#FEE2E2;color:#991B1B}.iv-disc{background:#FEF2F2}
   .bp-wrap{border:2px solid #C4B5FD;background:#FAF5FF;border-radius:14px;padding:4px 14px;margin-bottom:12px}.bp-foot{padding:8px 0;border-top:1px solid var(--line)}.bp-row{display:flex;gap:14px;align-items:flex-start;justify-content:space-between;border-top:1px solid var(--line);padding:12px 0}.bp-row:first-of-type{border-top:0}.bp-name{font-weight:800;font-size:15px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}.bp-big{font-size:22px;font-weight:800;margin-top:4px}.bp-big span{font-size:12.5px;font-weight:600;color:var(--muted)}.bp-acts{display:flex;flex-direction:column;gap:6px;flex-shrink:0}
   .cash-locbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px;font-size:14px;font-weight:700}
   .cash-locbar select{margin-left:6px;padding:9px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font-size:14px;font-weight:700}
@@ -1891,6 +1892,7 @@
         <input type="text" id="invSearch" placeholder="Search products" autocomplete="off">
         <label class="inv-lowtoggle"><input type="checkbox" id="invTrackedOnly" checked> Stocked items only</label>
         <label class="inv-lowtoggle"><input type="checkbox" id="invLowOnly"> Low / out only</label>
+        <label class="inv-lowtoggle"><input type="checkbox" id="invShowDisc"> Show discontinued <span id="invDiscN"></span></label>
         <button class="btn-primary inv-add" id="invAddBtn">+ Add item</button>
         <button class="btn-ghost inv-add" id="invUploadBtn" title="Import from an invoice or price list">Upload invoice</button>
         <button class="btn-ghost inv-add" id="invMoveBtn" title="Move stock from one location to another">Move stock</button>
@@ -1911,6 +1913,7 @@
             <label class="ivf">SKU / Item #<input id="ivSku" autocomplete="off" placeholder="Optional"></label>
             <label class="ivf">Unit cost<input id="ivCost" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></label>
             <label class="ivf">Retail price <span class="ivf-note">= Register price</span><input id="ivRetail" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></label>
+            <label class="ivf ivf-full iv-nodisc iv-disc"><input id="ivDisc" type="checkbox"> <span><b>Discontinued / obsolete</b><br><span class="ivf-note">Hidden from Items (unless "Show discontinued" is ticked), the register and suggested ordering. Past sales are kept.</span></span></label>
             <label class="ivf ivf-full iv-nodisc"><input id="ivNoDisc" type="checkbox"> <span><b>No discounts on this item</b><br><span class="ivf-note">Promotions, member and order discounts skip it. A manager can override at the register with initials and a reason.</span></span></label>
           </div>
           <div id="ivInvFields">
@@ -4473,7 +4476,7 @@ window.startClinicApp = function(){
   var ordState={months:3, ent:"all", site:"all", q:"", all:false};
   var ORD_SKIP_CAT=/^(membership|gift certificate|service)$/i;
   function ordMonths(n){ var d=new Date(), out=[]; for(var i=n;i>=1;i--){ var x=new Date(d.getFullYear(), d.getMonth()-i, 1); out.push({key:x.getFullYear()+"-"+pad(x.getMonth()+1), label:x.toLocaleString("en-US",{month:"short"})+(x.getMonth()===0||i===n?" "+x.getFullYear():"")}); } return out; }
-  function ordCatalog(){ ensureRegProducts(); var m={}; ["mjs","alpha"].forEach(function(e){ (regProducts[e]||[]).forEach(function(p){ if(p && p.name && !m[p.name]) m[p.name]={cat:p.cat||"", entity:e, type:p.type||""}; }); }); return m; }
+  function ordCatalog(){ ensureRegProducts(); var m={}; ["mjs","alpha"].forEach(function(e){ (regProducts[e]||[]).forEach(function(p){ if(p && p.name && !m[p.name]) m[p.name]={cat:p.cat||"", entity:e, type:p.type||"", disc:!!p.discontinued}; }); }); return m; }
   function ordCompute(){
     var months=ordMonths(ordState.months), keys={}, cat=ordCatalog(), rows={};
     months.forEach(function(m,i){ keys[m.key]=i; });
@@ -4484,6 +4487,7 @@ window.startClinicApp = function(){
       var who = t.clientId ? "c:"+t.clientId : "w:"+(t.saleGroup||t.id);
       (t.items||[]).forEach(function(l){
         if(!l || !l.name || l.gcSell) return; var nm=String(l.name).trim(), c=cat[nm]||{}, category=l.cat||c.cat||"";
+        if(c.disc) return;   // discontinued: never suggest reordering
         if(!ordState.all && (ORD_SKIP_CAT.test(category) || c.type==="service" || /gift cert/i.test(nm))) return;
         var r=rows[nm]||(rows[nm]={name:nm, entity:l.entity||c.entity||t.entity||"mjs", cat:category, pats:months.map(function(){ return {}; }), units:months.map(function(){ return 0; }), inCatalog:!!cat[nm]});
         r.pats[mi][who]=1; r.units[mi]+=Math.max(0,+l.qty||1);
@@ -6469,6 +6473,7 @@ window.startClinicApp = function(){
     $("ivCost").value = p?(p.cost||0):"";
     $("ivRetail").value = p?(p.price||0):"";
     $("ivNoDisc").checked = !!(p && p.noDiscount);
+    $("ivDisc").checked = !!(p && p.discontinued);
     $("ivStartQty").value = name?r.startQty:"";
     var _l0=invLoc!=="all"?invLoc:((typeof tillSite==="function" && tillSite())?tillSite():invShared());
     $("ivLoc").innerHTML=sites.filter(function(x){ return x.active!==false || r.loc[x.id]; }).map(function(x){ return '<option value="'+esc(x.id)+'"'+(x.id===_l0?' selected':'')+'>'+esc(x.name)+'</option>'; }).join("");
@@ -6501,7 +6506,7 @@ window.startClinicApp = function(){
     if(!regProducts[target]) regProducts[target]=[];
     var dup=(regProducts[target]||[]).filter(function(x){ return x.name.toLowerCase()===name.toLowerCase() && x.name!==invEditName; })[0];
     if(dup){ $("ivName").focus(); toast("An item with that name already exists in "+entityName(target)); return; }
-    var fields={ price:retail, cost:cost, cat:cat, vendor:vendor, sku:sku, invNotes:notes, type:(isSvc?"service":"inventory"), noDiscount:!!($("ivNoDisc")&&$("ivNoDisc").checked) };
+    var fields={ price:retail, cost:cost, cat:cat, vendor:vendor, sku:sku, invNotes:notes, type:(isSvc?"service":"inventory"), noDiscount:!!($("ivNoDisc")&&$("ivNoDisc").checked), discontinued:!!($("ivDisc")&&$("ivDisc").checked) };
     var finalName=name;
     if(invEditName){
       var oldEntity=invEditEntity, p=prodInEntity(invEditName, oldEntity);
@@ -6550,6 +6555,7 @@ window.startClinicApp = function(){
       $("invSearch").oninput=paintInventory;
       $("invLowOnly").onchange=paintInventory;
       $("invTrackedOnly").onchange=paintInventory;
+      $("invShowDisc").onchange=paintInventory;
       $("invAddBtn").onclick=function(){ openInvForm(null,null); };
       $("invMoveBtn").onclick=function(){ openInvMove(null); };
       $("invUploadBtn").onclick=openInvImport;
@@ -6738,6 +6744,8 @@ window.startClinicApp = function(){
   function paintInventory(){
     invLocBar(); try{ renderBulkCard(); }catch(e){ console.error("[bulk]", e); }
     var base=invRows(), L=invLoc, Q=function(n){ return invAt(n, L); };
+    var _nDisc=base.filter(function(x){ return x.p.discontinued; }).length; if($("invDiscN")) $("invDiscN").textContent=_nDisc?"("+_nDisc+")":"";
+    if(!$("invShowDisc").checked) base=base.filter(function(x){ return !x.p.discontinued; });
     if($("invTrackedOnly").checked) base=base.filter(function(x){ return invIsTracked(x.p) || isServiceItem(x.p); });
     var q=($("invSearch").value||"").trim().toLowerCase();
     var lowOnly=$("invLowOnly").checked;
@@ -6772,7 +6780,7 @@ window.startClinicApp = function(){
           '<button type="button" class="inv-edit" data-invedit="'+esc(p.name)+'" data-invent="'+x.entity+'" aria-label="Edit item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4z"/></svg></button>'+
         '</div>');
       return '<div class="inv-row '+(isSvc?"is-svc":uncounted?"":state)+'">'+
-        '<div class="inv-name">'+coTag+esc(p.name)+(isSvc?'':tag)+'<div class="inv-sub">$'+money(p.price)+' retail \u00b7 $'+money(p.cost)+' cost'+(metaLine?' \u00b7 '+metaLine:'')+'</div>'+locLine+'</div>'+
+        '<div class="inv-name">'+coTag+esc(p.name)+(p.discontinued?'<span class="inv-tag t-disc">Discontinued</span>':'')+(isSvc?'':tag)+'<div class="inv-sub">$'+money(p.price)+' retail \u00b7 $'+money(p.cost)+' cost'+(metaLine?' \u00b7 '+metaLine:'')+'</div>'+locLine+'</div>'+
         ctrls+
       '</div>';
         '</div>'+
@@ -6881,7 +6889,7 @@ window.startClinicApp = function(){
   function allPosProducts(){
     ensureRegProducts();
     var NONSELL={Supply:1,Equipment:1,Other:1}, out=[];
-    ["mjs","alpha"].forEach(function(e){ (regProducts[e]||[]).forEach(function(p){ if(p.type==="service" || !NONSELL[p.cat]) out.push({p:p, entity:e}); }); });
+    ["mjs","alpha"].forEach(function(e){ (regProducts[e]||[]).forEach(function(p){ if(p.discontinued) return; if(p.type==="service" || !NONSELL[p.cat]) out.push({p:p, entity:e}); }); });
     return out;
   }
   function fillPosSelects(){
@@ -7026,7 +7034,8 @@ window.startClinicApp = function(){
     paintPosVisitTreats(p);
   }
   // Past treatments, supplements and other items the client has bought: tap to add to this sale (19 Nov 2026)
-  function pastBuyProd(name, ent){ var k=(name||"").trim().toLowerCase(), hit=null;
+  function pastBuyProd(name, ent){ var h0=pastBuyProd0(name, ent); return (h0 && h0.p.discontinued)?null:h0; }
+  function pastBuyProd0(name, ent){ var k=(name||"").trim().toLowerCase(), hit=null;
     [ent, ent==="mjs"?"alpha":"mjs"].forEach(function(e){ if(hit || !e) return; var p=(regProducts[e]||[]).filter(function(x){ return (x.name||"").trim().toLowerCase()===k; })[0]; if(p) hit={p:p, entity:e}; });
     if(!hit) ["mjs","alpha"].forEach(function(e){ if(hit) return; var p=(regProducts[e]||[]).filter(function(x){ return (x.name||"").trim().toLowerCase()===k; })[0]; if(p) hit={p:p, entity:e}; });
     return hit; }
