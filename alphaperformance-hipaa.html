@@ -785,6 +785,7 @@
   .inv-tag.t-disc{background:#FEE2E2;color:#991B1B}.iv-disc{background:#FEF2F2}
   .inv-needle{font-size:12px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}.inv-needle input{width:56px;padding:3px 6px;margin-left:4px}.inv-needle-miss{color:#B45309;font-weight:700}
   .inv-ntsel{padding:3px 6px;border:1px solid var(--line);border-radius:7px;font-size:12px;max-width:190px}.iv-kitrow{display:flex;align-items:center;gap:8px;margin:5px 0;font-weight:500}.iv-kitrow input{width:64px}.nt-row{display:grid;grid-template-columns:1fr auto auto auto;gap:6px;align-items:center;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--line)}.nt-row input[data-nt="name"]{grid-column:1/-1;font-weight:700}.nt-row input{width:100%;box-sizing:border-box;padding:6px 8px}.nt-row label{display:flex;align-items:center;gap:4px;font-size:12px;white-space:nowrap}.nt-row label input{width:70px}.nt-each{font-size:12px;color:var(--muted);min-width:80px}
+  .bk-tot td{font-weight:800;border-top:2px solid var(--line)}.bk-mg td{color:#5B21B6}.bk-plain td{color:var(--muted);font-style:italic}
   .bp-wrap{border:2px solid #C4B5FD;background:#FAF5FF;border-radius:14px;padding:4px 14px;margin-bottom:12px}.bp-foot{padding:8px 0;border-top:1px solid var(--line)}.bp-row{display:flex;gap:14px;align-items:flex-start;justify-content:space-between;border-top:1px solid var(--line);padding:12px 0}.bp-row:first-of-type{border-top:0}.bp-name{font-weight:800;font-size:15px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}.bp-big{font-size:22px;font-weight:800;margin-top:4px}.bp-big span{font-size:12.5px;font-weight:600;color:var(--muted)}.bp-acts{display:flex;flex-direction:column;gap:6px;flex-shrink:0}
   .cash-locbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px;font-size:14px;font-weight:700}
   .cash-locbar select{margin-left:6px;padding:9px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font-size:14px;font-weight:700}
@@ -4510,6 +4511,34 @@ window.startClinicApp = function(){
     list.sort(function(a,b){ return b.avg-a.avg || a.name.localeCompare(b.name); });
     return {months:months, rows:list};
   }
+  // Bulk medications (Tirzepatide etc.): doses sold and mg used each month, for ordering bottles (21 Nov 2026)
+  function ordBulkHtml(m){
+    try{ ensureBulkPools(); }catch(e){}
+    if(!bulkPools.length || ordState.ent==="alpha") return "";
+    var keys={}; m.forEach(function(x,i){ keys[x.key]=i; });
+    return bulkPools.map(function(b){
+      var doses={}, plain=m.map(function(){ return 0; }), mgTot=m.map(function(){ return 0; }), cnt=m.map(function(){ return 0; }), mult=+b.mult||1;
+      var plainRe=new RegExp("^"+bulkEsc(b.name)+"\\s*$","i");
+      txns.forEach(function(t){ if(!t || t.type!=="sale" || !t.date) return; var mi=keys[t.date.slice(0,7)]; if(mi==null) return;
+        if(ordState.site!=="all" && (t.location||"")!==ordState.site) return;
+        (t.items||[]).forEach(function(l){ var q=Math.max(0,+l.qty||1), f=bulkFor(l.name);
+          if(f && f.pool.id===b.id){ var d=doses[f.dose]||(doses[f.dose]={dose:f.dose, mg:f.mg, n:m.map(function(){ return 0; })}); d.n[mi]+=q; cnt[mi]+=q; mgTot[mi]+=f.mg*q; }
+          else if(plainRe.test(String(l.name||"").trim())) plain[mi]+=q; }); });
+      var list=Object.keys(doses).map(function(k){ return doses[k]; }).sort(function(a,c){ return a.dose-c.dose; });
+      var avg=function(a){ return a.reduce(function(x,y){ return x+y; },0)/m.length; }, r1=function(v){ return Math.round(v*10)/10; };
+      var avgMg=avg(mgTot), r=invRec(bulkKey(b)), here=ordState.site==="all"?r.qty:(r.loc[ordState.site]||0), bot=+b.bottle||0;
+      var need=Math.max(0, avgMg-here), bottles=bot?Math.ceil(need/bot-1e-9):0, weeks=avgMg>0?here/(avgMg/30.4)/7:null;
+      var head='<tr><th>Dose</th><th class="num">mg per sale</th>'+m.map(function(x){ return '<th class="num">'+esc(x.label)+'</th>'; }).join("")+'<th class="num ord-hl">Avg / month</th></tr>';
+      var body=list.map(function(d){ return '<tr><td><b>'+esc(b.name)+' '+d.dose+'mg</b></td><td class="num">'+r1(d.mg)+'</td>'+d.n.map(function(c){ return '<td class="num">'+c+'</td>'; }).join("")+'<td class="num ord-hl">'+r1(avg(d.n))+'</td></tr>'; }).join("")+
+        (plain.some(function(x){ return x; })?'<tr class="bk-plain"><td>'+esc(b.name)+' (no dose on the sale)</td><td class="num">?</td>'+plain.map(function(c){ return '<td class="num">'+c+'</td>'; }).join("")+'<td class="num ord-hl">'+r1(avg(plain))+'</td></tr>':'');
+      var foot='<tr class="bk-tot"><td>Total '+esc(b.name)+' sold</td><td></td>'+cnt.map(function(c){ return '<td class="num">'+c+'</td>'; }).join("")+'<td class="num ord-hl">'+r1(avg(cnt))+'</td></tr>'+
+        '<tr class="bk-tot bk-mg"><td>Total mg used</td><td></td>'+mgTot.map(function(c){ return '<td class="num">'+r1(c)+'</td>'; }).join("")+'<td class="num ord-hl"><b>'+r1(avgMg)+'</b></td></tr>';
+      return '<div class="rep-card"><div class="rep-h">'+esc(b.name)+' used per month (mg)</div>'+
+        '<div class="gc-hint" style="margin:0 0 10px">Each sale uses the dose × '+mult+' (a '+(list[0]?list[0].dose:2.5)+'mg sale = '+r1((list[0]?list[0].dose:2.5)*mult)+' mg). '+(ordState.site==="all"?'All locations.':esc(siteName(ordState.site))+' only.')+'</div>'+
+        '<div class="cash-sumrow"><div><span>Average used</span><b>'+r1(avgMg)+' mg / month</b></div><div><span>About</span><b>'+(bot?r1(avgMg/bot)+' bottles / month':'–')+'</b></div><div><span>On hand now</span><b>'+r1(here)+' mg'+(weeks!=null?' · '+Math.max(0,Math.round(weeks))+' wks':'')+'</b></div><div><span>Order for next month</span><b>'+(bot?bottles+' bottle'+(bottles===1?'':'s')+' of '+bot+' mg':r1(need)+' mg')+'</b></div></div>'+
+        (list.length||plain.some(function(x){ return x; })?'<div class="pkg-tablewrap"><table class="pkg-table ord-table"><thead>'+head+'</thead><tbody>'+body+'</tbody><tfoot>'+foot+'</tfoot></table></div>':'<div class="pos-cart-empty">No '+esc(b.name)+' sold in this period.</div>')+'</div>';
+    }).join("");
+  }
   function renderOrdering(){
     var el=$("orderPage"); if(!el) return;
     var r=ordCompute(), m=r.months;
@@ -4530,6 +4559,7 @@ window.startClinicApp = function(){
         '<select id="ordEnt"><option value="all">Both companies</option><option value="mjs"'+(ordState.ent==="mjs"?' selected':'')+'>MJS</option><option value="alpha"'+(ordState.ent==="alpha"?' selected':'')+'>Alpha</option></select>'+
         '<select id="ordSite">'+siteOpts+'</select>'+
         '<label class="ord-ck"><input type="checkbox" id="ordAll"'+(ordState.all?' checked':'')+'> Include services and memberships</label></div>'+
+      '</div>'+ordBulkHtml(m)+'<div class="rep-card">'+
       (r.rows.length?'<div class="pkg-tablewrap"><table class="pkg-table ord-table"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>':'<div class="pos-cart-empty">No sales in this period.</div>')+
       '<div class="gc-hint" style="margin-top:10px">"Order after stock" takes away what is on the shelf now, for items with stock tracked in Items. Doses sold under different names (for example Tirzepatide and Tirzepatide 2.5mg) are counted separately.</div></div>';
     $("ordQ").oninput=function(){ ordState.q=this.value; var pos=this.selectionStart; renderOrdering(); var n=$("ordQ"); n.focus(); try{ n.setSelectionRange(pos,pos); }catch(e){} };
