@@ -784,6 +784,7 @@
   .inv-tag.t-med{background:#EDE9FE;color:#5B21B6}.inv-tag.t-svc{background:#E0F2FE;color:#075985}
   .inv-tag.t-disc{background:#FEE2E2;color:#991B1B}.iv-disc{background:#FEF2F2}
   .inv-needle{font-size:12px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}.inv-needle input{width:56px;padding:3px 6px;margin-left:4px}.inv-needle-miss{color:#B45309;font-weight:700}
+  .inv-ntsel{padding:3px 6px;border:1px solid var(--line);border-radius:7px;font-size:12px;max-width:190px}.iv-kitrow{display:flex;align-items:center;gap:8px;margin:5px 0;font-weight:500}.iv-kitrow input{width:64px}.nt-row{display:grid;grid-template-columns:1fr auto auto auto;gap:6px;align-items:center;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--line)}.nt-row input[data-nt="name"]{grid-column:1/-1;font-weight:700}.nt-row input{width:100%;box-sizing:border-box;padding:6px 8px}.nt-row label{display:flex;align-items:center;gap:4px;font-size:12px;white-space:nowrap}.nt-row label input{width:70px}.nt-each{font-size:12px;color:var(--muted);min-width:80px}
   .bp-wrap{border:2px solid #C4B5FD;background:#FAF5FF;border-radius:14px;padding:4px 14px;margin-bottom:12px}.bp-foot{padding:8px 0;border-top:1px solid var(--line)}.bp-row{display:flex;gap:14px;align-items:flex-start;justify-content:space-between;border-top:1px solid var(--line);padding:12px 0}.bp-row:first-of-type{border-top:0}.bp-name{font-weight:800;font-size:15px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}.bp-big{font-size:22px;font-weight:800;margin-top:4px}.bp-big span{font-size:12.5px;font-weight:600;color:var(--muted)}.bp-acts{display:flex;flex-direction:column;gap:6px;flex-shrink:0}
   .cash-locbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px;font-size:14px;font-weight:700}
   .cash-locbar select{margin-left:6px;padding:9px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font-size:14px;font-weight:700}
@@ -1897,6 +1898,7 @@
         <button class="btn-primary inv-add" id="invAddBtn">+ Add item</button>
         <button class="btn-ghost inv-add" id="invUploadBtn" title="Import from an invoice or price list">Upload invoice</button>
         <button class="btn-ghost inv-add" id="invMoveBtn" title="Move stock from one location to another">Move stock</button>
+        <button class="btn-ghost inv-add" id="invNeedleBtn" title="Needle and syringe types and their cost">Needles &amp; syringes</button>
       </div>
       <div class="scrim" id="invFormScrim" style="display:none"></div>
       <div class="inv-modal" id="invForm" style="display:none" role="dialog" aria-hidden="true">
@@ -1913,8 +1915,7 @@
             <label class="ivf">Vendor<input id="ivVendor" autocomplete="off" placeholder="Supplier / brand"></label>
             <label class="ivf">SKU / Item #<input id="ivSku" autocomplete="off" placeholder="Optional"></label>
             <label class="ivf">Unit cost<input id="ivCost" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></label>
-            <label class="ivf iv-needle">Needles per treatment<input id="ivNeedles" type="number" min="0" step="1" inputmode="numeric" placeholder="e.g. 4"></label>
-            <label class="ivf iv-needle">Cost per needle (all medications)<input id="ivNeedleCost" type="number" min="0" step="0.01" inputmode="decimal" placeholder="optional"></label>
+            <div class="ivf ivf-full iv-needle"><span>Needles &amp; syringes per treatment <a href="#" id="ivNtTypes" class="ivf-note">types &amp; cost</a></span><div id="ivKit"></div></div>
             <label class="ivf">Retail price <span class="ivf-note">= Register price</span><input id="ivRetail" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></label>
             <label class="ivf ivf-full iv-nodisc iv-disc"><input id="ivDisc" type="checkbox"> <span><b>Discontinued / obsolete</b><br><span class="ivf-note">Hidden from Items (unless "Show discontinued" is ticked), the register and suggested ordering. Past sales are kept.</span></span></label>
             <label class="ivf ivf-full iv-nodisc"><input id="ivNoDisc" type="checkbox"> <span><b>No discounts on this item</b><br><span class="ivf-note">Promotions, member and order discounts skip it. A manager can override at the register with initials and a reason.</span></span></label>
@@ -6477,8 +6478,8 @@ window.startClinicApp = function(){
     $("ivRetail").value = p?(p.price||0):"";
     $("ivNoDisc").checked = !!(p && p.noDiscount);
     $("ivDisc").checked = !!(p && p.discontinued);
-    $("ivNeedles").value = (p && p.needles!=null) ? p.needles : "";
-    $("ivNeedleCost").value = (+settings.needleCost>0) ? settings.needleCost : "";
+    var _kit=kitOf(p); $("ivKit").innerHTML=needleTypes().map(function(t){ return '<label class="iv-kitrow"><input type="number" min="0" step="1" inputmode="numeric" data-kit="'+esc(t.id)+'" value="'+(_kit[t.id]||"")+'" placeholder="0"> '+esc(t.name)+(t.brand?' <span class="ivf-note">'+esc(t.brand)+'</span>':'')+'</label>'; }).join("")+(p && p.needles!=null && !Object.keys(_kit).length?'<div class="ivf-note">Was set to '+p.needles+' needles with no type: pick the type above.</div>':'');
+    $("ivNtTypes").onclick=function(e){ e.preventDefault(); openNeedleTypes(); };
     function _ndl(){ var med=$("ivCat").value==="Medication"; Array.prototype.forEach.call(document.querySelectorAll(".iv-needle"),function(x){ x.style.display=med?"":"none"; }); }
     $("ivCat").onchange=_ndl; setTimeout(_ndl,0);
     $("ivStartQty").value = name?r.startQty:"";
@@ -6514,8 +6515,8 @@ window.startClinicApp = function(){
     var dup=(regProducts[target]||[]).filter(function(x){ return x.name.toLowerCase()===name.toLowerCase() && x.name!==invEditName; })[0];
     if(dup){ $("ivName").focus(); toast("An item with that name already exists in "+entityName(target)); return; }
     var fields={ price:retail, cost:cost, cat:cat, vendor:vendor, sku:sku, invNotes:notes, type:(isSvc?"service":"inventory"), noDiscount:!!($("ivNoDisc")&&$("ivNoDisc").checked), discontinued:!!($("ivDisc")&&$("ivDisc").checked) };
-    if(cat==="Medication"){ var _nd=$("ivNeedles").value; fields.needles=_nd===""?null:Math.max(0,Math.round(+_nd||0));
-      var _nc=$("ivNeedleCost").value; var _ncv=_nc===""?0:Math.max(0,Math.round((+_nc||0)*100)/100); if(_ncv!==(+settings.needleCost||0)){ settings.needleCost=_ncv; saveSettings(); } }
+    if(cat==="Medication"){ var _k={}, _sum=0, _any=false; Array.prototype.forEach.call(document.querySelectorAll("#ivKit [data-kit]"),function(i){ if(i.value!=="") _any=true; var n=Math.max(0,Math.round(+i.value||0)); if(n){ _k[i.getAttribute("data-kit")]=n; _sum+=n; } });
+      if(_any){ fields.needleKit=_k; fields.needles=_sum; } }
     var finalName=name;
     if(invEditName){
       var oldEntity=invEditEntity, p=prodInEntity(invEditName, oldEntity);
@@ -6567,6 +6568,7 @@ window.startClinicApp = function(){
       $("invShowDisc").onchange=paintInventory;
       $("invAddBtn").onclick=function(){ openInvForm(null,null); };
       $("invMoveBtn").onclick=function(){ openInvMove(null); };
+      $("invNeedleBtn").onclick=openNeedleTypes;
       $("invUploadBtn").onclick=openInvImport;
       $("invImpClose").onclick=closeInvImport;
       $("invImportScrim").onclick=closeInvImport;
@@ -6725,6 +6727,34 @@ window.startClinicApp = function(){
   function isMedItem(p){ return p && p.cat==="Medication"; }
   function isServiceItem(p){ if(isMedItem(p)) return false; return p.type==="service" || (!inventory[p.name] && (isTreatCat(p.cat)||p.cat==="Membership")); }
   function invIsTracked(p){ return !!inventory[p.name] || (!!STOCK_CATS[p.cat] && !isServiceItem(p)); }
+  // ---------- Needles / syringes per treatment (21 Nov 2026) ----------
+  var NEEDLE_DEFAULTS=[
+    {id:"ins03", name:"Insulin syringe 0.3 mL, 31G 5/16\"", brand:"EasyTouch", box:100, boxCost:0},
+    {id:"ins1",  name:"Insulin syringe 1 mL, 31G 5/16\"",   brand:"EasyTouch", box:100, boxCost:0},
+    {id:"luer1", name:"Luer lock syringe 1 mL (no needle)", brand:"BH Supplies", box:100, boxCost:0}];
+  function needleTypes(){ return Array.isArray(settings.needleTypes) && settings.needleTypes.length ? settings.needleTypes : NEEDLE_DEFAULTS; }
+  function needleType(id){ return needleTypes().filter(function(t){ return t.id===id; })[0]||null; }
+  function needleEach(t){ return t && +t.box>0 ? (+t.boxCost||0)/(+t.box) : 0; }
+  function needleShort(t){ return t ? t.name.replace(/^Insulin syringe /,"Insulin ").replace(/, 31G 5\/16"/,"").replace(/^Luer lock syringe /,"Luer lock ") : "?"; }
+  function kitOf(p){ var k={}; if(p && p.needleKit && typeof p.needleKit==="object"){ for(var id in p.needleKit){ var n=Math.max(0,Math.round(+p.needleKit[id]||0)); if(n) k[id]=n; } } return k; }
+  function kitText(p){ var k=kitOf(p), ids=Object.keys(k); if(!ids.length) return (p && p.needles!=null) ? p.needles+" (type not set)" : ""; return ids.map(function(id){ return k[id]+" × "+needleShort(needleType(id)); }).join(" + "); }
+  function kitCost(p){ var k=kitOf(p), c=0, any=false; for(var id in k){ var t=needleType(id); if(t && +t.boxCost>0){ c+=k[id]*needleEach(t); any=true; } } return any?Math.round(c*100)/100:null; }
+  function openNeedleTypes(){
+    var list=needleTypes().map(function(t){ return Object.assign({},t); });
+    function rowsHtml(){ return list.map(function(t,i){ return '<div class="nt-row"><input type="text" data-nt="name" data-i="'+i+'" value="'+esc(t.name)+'" placeholder="e.g. Insulin syringe 0.5 mL, 31G"><input type="text" data-nt="brand" data-i="'+i+'" value="'+esc(t.brand||"")+'" placeholder="Brand">'+
+      '<label>per box <input type="number" min="1" step="1" data-nt="box" data-i="'+i+'" value="'+(+t.box||100)+'"></label><label>box $ <input type="number" min="0" step="0.01" data-nt="boxCost" data-i="'+i+'" value="'+(+t.boxCost||"")+'" placeholder="0.00"></label><span class="nt-each" data-ntea="'+i+'">'+(needleEach(t)?'$'+needleEach(t).toFixed(3)+' each':'')+'</span></div>'; }).join(""); }
+    gcModalShow("Needles & syringes",
+      '<div class="gc-hint" style="margin-bottom:8px">The types you use, with what a box costs. Each medication says how many of each it uses per treatment.</div><div id="ntRows">'+rowsHtml()+'</div>'+
+      '<button class="btn-ghost sub-mini" id="ntAdd" type="button">+ Add a type</button><div class="sub-err" id="ntErr"></div>',
+      '<button class="btn-ghost" id="ntCancel" type="button">Cancel</button><button class="btn-primary" id="ntGo" type="button">Save</button>');
+    function wire(){ Array.prototype.forEach.call($("ntRows").querySelectorAll("[data-nt]"),function(inp){ inp.oninput=function(){ var i=+inp.getAttribute("data-i"), f=inp.getAttribute("data-nt"); list[i][f]=(f==="box"||f==="boxCost")?(+inp.value||0):inp.value; var e=$("ntRows").querySelector('[data-ntea="'+i+'"]'); if(e) e.textContent=needleEach(list[i])?'$'+needleEach(list[i]).toFixed(3)+' each':''; }; }); }
+    wire();
+    $("ntAdd").onclick=function(){ list.push({id:"nt"+Date.now().toString(36), name:"", brand:"", box:100, boxCost:0}); $("ntRows").innerHTML=rowsHtml(); wire(); };
+    $("ntCancel").onclick=gcModalClose;
+    $("ntGo").onclick=function(){ var keep=list.filter(function(t){ return (t.name||"").trim(); }); if(!keep.length){ $("ntErr").textContent="Keep at least one type."; return; }
+      keep.forEach(function(t){ t.name=t.name.trim(); t.brand=(t.brand||"").trim(); t.box=Math.max(1,Math.round(+t.box||100)); t.boxCost=Math.max(0,Math.round((+t.boxCost||0)*100)/100); });
+      settings.needleTypes=keep; saveSettings(); gcModalClose(); if(activeView==="inventory") paintInventory(); toast("Needle types saved"); };
+  }
   function invLocBar(){ var el=$("invLocBar"); if(!el) return; var act=sites.filter(function(x){ return x.active!==false; });
     if(invLoc!=="all" && !siteById(invLoc)) invLoc="all";
     el.innerHTML='<span class="inv-locl">Location</span>'+[{id:"all",name:"All locations (total)"}].concat(act).map(function(x){ return '<button type="button" class="ent-btn'+(invLoc===x.id?' on':'')+'" data-invloc="'+esc(x.id)+'">'+esc(x.name)+'</button>'; }).join("");
@@ -6775,7 +6805,11 @@ window.startClinicApp = function(){
       var tag = p.cat==="Supplement" ? '<span class="inv-tag">Supplement</span>' : isMed ? '<span class="inv-tag t-svc">Service</span><span class="inv-tag t-med">Medication</span>' : (p.cat ? '<span class="inv-tag t-other">'+esc(p.cat)+'</span>' : '');
       var coTag = showCo ? '<span class="inv-co inv-co-'+x.entity+'">'+(x.entity==="alpha"?"Alpha":"MJS")+'</span>' : '';
       var meta=[]; if(p.vendor) meta.push(esc(p.vendor)); if(p.sku) meta.push("#"+esc(p.sku));
-      var needleLine = isMed ? '<div class="inv-needle"><label>Needles per treatment <input type="number" min="0" step="1" inputmode="numeric" class="inv-ro" data-invneedle="'+esc(x.entity+"|"+p.id)+'" value="'+(p.needles!=null?p.needles:"")+'" placeholder="?"></label>'+(p.needles!=null && +settings.needleCost>0?' <span>supplies $'+money(p.needles*settings.needleCost)+' per treatment</span>':'')+(p.needles==null?' <span class="inv-needle-miss">not set</span>':'')+'</div>' : '';
+      var _kt=isMed?kitOf(p):{}, _kids=Object.keys(_kt), _kc=isMed?kitCost(p):null;
+      var needleLine = !isMed ? '' : '<div class="inv-needle">'+(_kids.length>1 ? '<span>Needles: <b>'+esc(kitText(p))+'</b></span>' :
+        '<label>Needles per treatment <input type="number" min="0" step="1" inputmode="numeric" class="inv-ro" data-invneedle="'+esc(x.entity+"|"+p.id)+'" value="'+(_kids.length?_kt[_kids[0]]:(p.needles!=null?p.needles:""))+'" placeholder="?"></label>'+
+        '<select class="inv-ntsel" data-invntype="'+esc(x.entity+"|"+p.id)+'"><option value="">type…</option>'+needleTypes().map(function(t){ return '<option value="'+esc(t.id)+'"'+(_kids[0]===t.id?' selected':'')+'>'+esc(needleShort(t))+'</option>'; }).join("")+'</select>')+
+        (_kc!=null?' <span>supplies $'+money(_kc)+' per treatment</span>':'')+(!_kids.length?' <span class="inv-needle-miss">'+(p.needles!=null?'type not set':'not set')+'</span>':'')+'</div>';
       var metaLine = meta.length ? '<span class="inv-vendor">'+meta.join(" \u00b7 ")+'</span>' : '';
       var ctrls = isSvc ?
         ('<div class="inv-ctrls"><span class="inv-svc-price">$'+money(p.price)+'</span>'+badge+
@@ -6802,8 +6836,12 @@ window.startClinicApp = function(){
     Array.prototype.forEach.call(el.querySelectorAll("[data-invloc2]"),function(b){ b.onclick=function(){ invLoc=b.getAttribute("data-invloc2"); paintInventory(); }; });
     Array.prototype.forEach.call(el.querySelectorAll("[data-invmove]"),function(b){ b.onclick=function(){ openInvMove(b.getAttribute("data-invmove")); }; });
     Array.prototype.forEach.call(el.querySelectorAll("[data-invqty]"),function(inp){ inp.onchange=function(){ var n=inp.getAttribute("data-invqty"); invSet(n, parseInt(inp.value,10)||0, null, L); paintInventory(); }; });
-    Array.prototype.forEach.call(el.querySelectorAll("[data-invneedle]"),function(inp){ inp.onclick=function(e){ e.stopPropagation(); }; inp.onchange=function(){ var v=inp.getAttribute("data-invneedle").split("|"), p=(regProducts[v[0]]||[]).filter(function(x){ return x.id===v[1]; })[0]; if(!p) return;
-      p.needles=inp.value===""?null:Math.max(0,Math.round(+inp.value||0)); saveRegProducts(); paintInventory(); }; });
+    function _kitSave(key){ var v=key.split("|"), p=(regProducts[v[0]]||[]).filter(function(x){ return x.id===v[1]; })[0]; if(!p) return;
+      var n=el.querySelector('[data-invneedle="'+key+'"]'), t=el.querySelector('[data-invntype="'+key+'"]'), cnt=n&&n.value!==""?Math.max(0,Math.round(+n.value||0)):null, typ=t?t.value:"";
+      p.needles=cnt; if(typ && cnt){ var k={}; k[typ]=cnt; p.needleKit=k; } else if(cnt===null || cnt===0){ p.needleKit={}; } else if(!typ){ p.needleKit={}; }
+      saveRegProducts(); paintInventory(); }
+    Array.prototype.forEach.call(el.querySelectorAll("[data-invneedle]"),function(inp){ inp.onclick=function(e){ e.stopPropagation(); }; inp.onchange=function(){ _kitSave(inp.getAttribute("data-invneedle")); }; });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-invntype]"),function(sel){ sel.onclick=function(e){ e.stopPropagation(); }; sel.onchange=function(){ _kitSave(sel.getAttribute("data-invntype")); }; });
     Array.prototype.forEach.call(el.querySelectorAll("[data-invro]"),function(inp){ inp.onchange=function(){ var n=inp.getAttribute("data-invro"); invSet(n, null, parseInt(inp.value,10)||0, L==="all"?null:L); paintInventory(); }; });
     Array.prototype.forEach.call(el.querySelectorAll("[data-invedit]"),function(b){ b.onclick=function(){ openInvForm(b.getAttribute("data-invedit"), b.getAttribute("data-invent")); window.scrollTo(0,0); }; });
   }
