@@ -786,6 +786,7 @@
   .inv-needle{font-size:12px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}.inv-needle input{width:56px;padding:3px 6px;margin-left:4px}.inv-needle-miss{color:#B45309;font-weight:700}
   .inv-ntsel{padding:3px 6px;border:1px solid var(--line);border-radius:7px;font-size:12px;max-width:190px}.iv-kitrow{display:flex;align-items:center;gap:8px;margin:5px 0;font-weight:500}.iv-kitrow input{width:64px}.nt-row{display:grid;grid-template-columns:1fr auto auto auto;gap:6px;align-items:center;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--line)}.nt-row input[data-nt="name"]{grid-column:1/-1;font-weight:700}.nt-row input{width:100%;box-sizing:border-box;padding:6px 8px}.nt-row label{display:flex;align-items:center;gap:4px;font-size:12px;white-space:nowrap}.nt-row label input{width:70px}.nt-each{font-size:12px;color:var(--muted);min-width:80px}
   .bk-tot td{font-weight:800;border-top:2px solid var(--line)}.bk-mg td{color:#5B21B6}.bk-plain td{color:var(--muted);font-style:italic}
+  .cash-act{cursor:pointer;border-radius:8px}.cash-act:hover{background:#F1F5F9}.cash-edit{color:#94A3B8;font-weight:400;margin-left:4px}
   .bp-wrap{border:2px solid #C4B5FD;background:#FAF5FF;border-radius:14px;padding:4px 14px;margin-bottom:12px}.bp-foot{padding:8px 0;border-top:1px solid var(--line)}.bp-row{display:flex;gap:14px;align-items:flex-start;justify-content:space-between;border-top:1px solid var(--line);padding:12px 0}.bp-row:first-of-type{border-top:0}.bp-name{font-weight:800;font-size:15px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}.bp-big{font-size:22px;font-weight:800;margin-top:4px}.bp-big span{font-size:12.5px;font-weight:600;color:var(--muted)}.bp-acts{display:flex;flex-direction:column;gap:6px;flex-shrink:0}
   .cash-locbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px;font-size:14px;font-weight:700}
   .cash-locbar select{margin-left:6px;padding:9px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font-size:14px;font-weight:700}
@@ -4014,7 +4015,7 @@ window.startClinicApp = function(){
       '<div class="cash-cards">'+card("mjs","MJS Medical Wellness")+card("alpha","Alpha Male Health Restoration")+
         '<div class="cash-card cash-total"><div class="cash-ent">Both companies'+(cashSite!=="all"?' \u00b7 '+esc(siteName(cashSite)):'')+'</div><div class="cash-lbl">Should be in the safe</div><div class="cash-big">$'+money(from?safe.mjs+safe.alpha:0)+'</div>'+
         '<div class="cash-sub">'+(lastCount?'Last counted '+esc(fmtDate(parseISO(lastCount.date))):(from?'':'Tracking starts at the first count'))+(function(){ var se=envSealed(cashSite); return se.length?' \u00b7 $'+money(envSum(se))+' of it sealed in '+se.length+' envelope'+(se.length===1?'':'s'):''; })()+'</div></div></div>'+
-      (from?'<div class="cash-actions"><button type="button" class="btn-primary" id="cashDepBtn">Record a bank deposit</button><button type="button" class="btn-ghost" id="cashEnvBtn">New deposit envelope</button><button type="button" class="btn-ghost" id="cashCountBtn">Count the safe</button><button type="button" class="btn-ghost" id="cashCounterBtn">Cash counter</button><button type="button" class="btn-ghost" id="cashOutBtn">Cash paid out</button><button type="button" class="btn-ghost" id="cashStart2Btn">Starting count for a location</button></div>':'')+
+      (from?'<div class="cash-actions"><button type="button" class="btn-primary" id="cashDepBtn">Record a bank deposit</button><button type="button" class="btn-ghost" id="cashEnvBtn">New deposit envelope</button><button type="button" class="btn-ghost" id="cashCountBtn">Count the safe</button><button type="button" class="btn-ghost" id="cashCounterBtn">Cash counter</button><button type="button" class="btn-ghost" id="cashOutBtn">Cash paid out</button><button type="button" class="btn-ghost" id="cashAdjBtn">Adjust the safe</button><button type="button" class="btn-ghost" id="cashStart2Btn">Starting count for a location</button></div>':'')+
       '<div class="rep-card"><div class="inv-tools"><div class="rep-h" style="flex:1;margin:0">Cash collected · '+esc(lbl)+'</div><button class="btn-ghost sub-mini" id="cashCsv" type="button">Download CSV</button></div>'+
         '<div class="cash-sumrow"><div><span>MJS</span><b>$'+money(tot.mjs)+'</b></div><div><span>Alpha</span><b>$'+money(tot.alpha)+'</b></div><div><span>Total cash</span><b>$'+money(tot.mjs+tot.alpha)+'</b></div><div><span>Cash sales</span><b>'+tot.n+'</b></div></div>'+
         (cashSite==="all"?'<div class="pkg-tablewrap"><table class="pkg-table cash-loc"><thead><tr><th>Location</th><th class="num">MJS cash</th><th class="num">Alpha cash</th><th class="num">Total collected</th><th class="num">Sales</th>'+(from?'<th class="num">In safe now</th>':'')+'</tr></thead><tbody>'+
@@ -4026,17 +4027,19 @@ window.startClinicApp = function(){
               (open?d.sales.map(function(s){ var t=s.t; return '<tr class="cash-sale"><td colspan="2">'+esc(t.clientName||"Walk-in")+' <span class="pkg-sub">'+esc((t.items||[]).map(function(i){ return i.name; }).slice(0,3).join(", "))+'</span></td><td><span class="cart-ent cart-ent-'+s.e+'">'+(s.e==="alpha"?"Alpha":"MJS")+'</span> <span class="pkg-sub">'+esc(siteName(t.location||""))+'</span></td><td class="num">$'+money(s.c)+'</td><td></td></tr>'; }).join(""):''); }).join("")+
           '</tbody></table></div>':'<div class="pos-cart-empty">'+(q?'No cash sales match.':'No cash sales in this period.')+'</div>')+'</div>'+
       (from?renderEnvCard():'')+
-      '<div class="rep-card"><div class="rep-h">Safe activity</div>'+
+      '<div class="rep-card"><div class="rep-h">Safe activity <span class="pkg-sub" style="text-transform:none;letter-spacing:0">tap an entry to change or correct it</span></div>'+
         (ops.length?ops.slice(0,60).map(function(o){
           if(o.t) return '<div class="gc-hist"><span>'+esc(fmtDate(parseISO(o.t.date)))+' \u00b7 Paid out \u00b7 '+(o.e==="alpha"?"Alpha":"MJS")+' \u00b7 '+esc(siteName(o.t.location||sh))+' \u00b7 '+esc(o.t.name||o.t.category||"")+'</span><b>−$'+money(o.t.amount)+'</b></div>';
           var j=o.j, a=(j.lines||[]).reduce(function(s,l){ return s+(l.acct===CASH_SAFE?(+l.dr||0)-(+l.cr||0):0); },0);
-          var what={deposit:"Deposited to bank", opening:"Starting count", count:(Math.abs(a)<0.005?"Count matches":"Count "+(a>0?"over":"short")), payout:"Paid out"}[j.cashOp]||j.cashOp;
-          return '<div class="gc-hist"><span>'+esc(fmtDate(parseISO(j.date)))+' \u00b7 '+what+' \u00b7 '+(o.e==="alpha"?"Alpha":"MJS")+' \u00b7 '+esc(siteName(j.location||sh))+(j.envLabel?' · envelope '+esc(j.envLabel):'')+(j.ref?' · slip '+esc(j.ref):'')+(j.by?' · '+esc(j.by):'')+'</span><b>'+(a>=0?'+':'−')+'$'+money(Math.abs(a))+'</b></div>'; }).join(""):'<div class="gc-hint">Nothing yet.</div>')+'</div>';
+          var what={deposit:"Deposited to bank", opening:"Starting count", count:(Math.abs(a)<0.005?"Count matches":"Count "+(a>0?"over":"short")), payout:"Paid out", adjust:"Adjustment"+(j.memo?" ("+j.memo.replace(/^Safe adjustment: /,"")+")":"")}[j.cashOp]||j.cashOp;
+          return '<div class="gc-hist cash-act" data-cje="'+esc(o.e+"|"+j.id)+'" title="Tap to edit"><span>'+esc(fmtDate(parseISO(j.date)))+' \u00b7 '+what+' \u00b7 '+(o.e==="alpha"?"Alpha":"MJS")+' \u00b7 '+esc(siteName(j.location||sh))+(j.envLabel?' · envelope '+esc(j.envLabel):'')+(j.ref?' · slip '+esc(j.ref):'')+(j.by?' · '+esc(j.by):'')+((j.edits||[]).length?' · <i>edited</i>':'')+'</span><b>'+(a>=0?'+':'−')+'$'+money(Math.abs(a))+' <span class="cash-edit">✎</span></b></div>'; }).join(""):'<div class="gc-hint">Nothing yet.</div>')+'</div>';
     if($("cashStartBtn")) $("cashStartBtn").onclick=function(){ openCashCount(true); };
     if($("cashStart2Btn")) $("cashStart2Btn").onclick=function(){ openCashCount(true); };
     if($("cashDepBtn")) $("cashDepBtn").onclick=openCashDeposit;
     if($("cashCountBtn")) $("cashCountBtn").onclick=function(){ openCashCount(false); };
     if($("cashOutBtn")) $("cashOutBtn").onclick=openCashOut;
+    if($("cashAdjBtn")) $("cashAdjBtn").onclick=openCashAdjust;
+    Array.prototype.forEach.call(el.querySelectorAll("[data-cje]"),function(r){ r.onclick=function(){ var v=r.getAttribute("data-cje").split("|"); openCashEdit(v[0], v[1]); }; });
     if($("cashEnvBtn")) $("cashEnvBtn").onclick=openNewEnvelope;
     if($("cashCounterBtn")) $("cashCounterBtn").onclick=openCashCounter;
     wireEnvCard();
@@ -4051,6 +4054,61 @@ window.startClinicApp = function(){
       var b=new Blob([out.join("\n")],{type:"text/csv"}), a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download="cash-collected-"+todayISO()+".csv"; document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },500);
       if(window.__hipAudit) window.__hipAudit("export_cash", list.length+" days");
     };
+  }
+  // ---------- Edit or adjust safe entries (21 Nov 2026) ----------
+  // Every change keeps a history on the entry (who, when, old -> new, why) and goes to the access log.
+  function cashJE(ent, id){ var k="alphaperf_journals_"+ent, js=load(k,[])||[]; for(var i=0;i<js.length;i++) if(js[i].id===id) return {k:k, js:js, i:i, j:js[i]}; return null; }
+  function cashJESave(ent, h){ store.set(h.k, JSON.stringify(h.js)); if(!isCombined() && acctEntity===ent) journals=h.js; if(window.__recordWrite){ try{ window.__recordWrite(h.k); }catch(e){} } if(typeof schedulePush==="function") schedulePush(); }
+  function cashSafeAmt(j){ return Math.round((j.lines||[]).reduce(function(s,l){ return s+(l.acct===CASH_SAFE?(+l.dr||0)-(+l.cr||0):0); },0)*100)/100; }
+  function openCashEdit(ent, id){
+    var h=cashJE(ent, id); if(!h) return; var j=h.j, a=cashSafeAmt(j), two=(j.lines||[]).length===2, admin=window.__isAdmin && window.__isAdmin();
+    var what={deposit:"Bank deposit", opening:"Starting count", count:"Safe count", payout:"Cash paid out", adjust:"Safe adjustment"}[j.cashOp]||"Safe entry";
+    var dir=a>=0?"in":"out", isCount=j.cashOp==="count"||j.cashOp==="opening";
+    gcModalShow("Edit · "+what,
+      '<div class="gc-hint" style="margin-bottom:8px">'+esc(ent==="alpha"?"Alpha":"MJS")+' · '+esc(siteName(j.location||""))+(j.memo?' · '+esc(j.memo):'')+'</div>'+
+      (two?'<div class="gc-row2"><div class="pos-field"><label>'+(j.cashOp==="deposit"||j.cashOp==="payout"?"Amount taken out of the safe":isCount?"Change to the safe from this count (+ over, − short)":"Amount (+ into safe, − out)")+'</label><input type="number" step="0.01" id="ceAmt" value="'+(j.cashOp==="deposit"||j.cashOp==="payout"?Math.abs(a).toFixed(2):a.toFixed(2))+'"></div>'+
+        '<div class="pos-field"><label>Date</label><input type="date" id="ceDate" value="'+esc(j.date)+'" max="'+todayISO()+'"></div></div>':'<div class="gc-bad">This entry has more than two lines, so only the date and note can change here. Use the General Ledger for the amounts.</div><input type="date" id="ceDate" value="'+esc(j.date)+'" style="display:none">')+
+      (j.cashOp==="deposit"?'<div class="pos-field"><label>Deposit slip #</label><input type="text" id="ceSlip" value="'+esc(j.ref||"")+'"></div>':'')+
+      '<div class="gc-row2"><div class="pos-field"><label>Reason for the change</label><input type="text" id="ceWhy" placeholder="e.g. typo, bank counted $5 less"></div><div class="pos-field"><label>Your initials</label><input type="text" id="ceIni" maxlength="4" style="text-transform:uppercase"></div></div>'+
+      ((j.edits||[]).length?'<div class="gc-hist-h">Changes</div>'+j.edits.map(function(x){ return '<div class="gc-hist"><span>'+esc(fmtDate(parseISO((x.at||"").slice(0,10))))+' · '+esc(x.ini||"")+' · '+esc(x.why||"")+'</span><b>'+esc(x.from)+' → '+esc(x.to)+'</b></div>'; }).join(""):'')+
+      '<div class="sub-err" id="ceErr"></div>',
+      (admin?'<button class="btn-danger" id="ceDel" type="button">Delete entry</button>':'')+'<button class="btn-ghost" id="ceCancel" type="button">Cancel</button><button class="btn-primary" id="ceGo" type="button">Save change</button>');
+    $("ceCancel").onclick=gcModalClose;
+    function check(){ var why=($("ceWhy").value||"").trim(), ini=($("ceIni").value||"").trim().toUpperCase();
+      if(why.length<3){ $("ceErr").textContent="Enter the reason for the change."; return null; } if(!/^[A-Z]{2,4}$/.test(ini)){ $("ceErr").textContent="Enter your initials."; return null; } return {why:why, ini:ini}; }
+    $("ceGo").onclick=function(){ var c=check(); if(!c) return; var d=$("ceDate").value; if(!d || d>todayISO()){ $("ceErr").textContent="Enter a valid date."; return; }
+      var h2=cashJE(ent, id); if(!h2) return; var jj=h2.j, from="$"+money(Math.abs(cashSafeAmt(jj)))+" "+jj.date, newA=cashSafeAmt(jj);
+      if(two){ var v=Math.round((+$("ceAmt").value||0)*100)/100; if(jj.cashOp==="deposit"||jj.cashOp==="payout"){ if(!(v>0)){ $("ceErr").textContent="Enter the amount."; return; } newA=-v; } else newA=v;
+        var safeL=jj.lines.filter(function(l){ return l.acct===CASH_SAFE; })[0], other=jj.lines.filter(function(l){ return l!==safeL; })[0];
+        if(!safeL || !other){ $("ceErr").textContent="Can't edit this entry here."; return; }
+        safeL.dr=newA>0?newA:0; safeL.cr=newA<0?-newA:0; other.dr=newA<0?-newA:0; other.cr=newA>0?newA:0;
+        if(isCount && jj.expected!=null) jj.counted=Math.round(((+jj.expected||0)+newA)*100)/100; }
+      jj.date=d; if($("ceSlip")) jj.ref=($("ceSlip").value||"").trim();
+      var to="$"+money(Math.abs(newA))+" "+d; jj.edits=(jj.edits||[]).concat([{at:new Date().toISOString(), by:cashWho(), ini:c.ini, why:c.why, from:from, to:to}]);
+      // keep a deposit envelope in step
+      if(jj.envelope && jj.cashOp==="deposit"){ var v2=cashEnv.filter(function(x){ return x.id===jj.envelope; })[0]; if(v2){ v2[ent]=Math.abs(newA); v2.total=Math.round(((+v2.mjs||0)+(+v2.alpha||0))*100)/100; v2.depositDate=d; saveEnv(); } }
+      cashJESave(ent, h2);
+      if(window.__hipAudit) window.__hipAudit("cash_entry_edited", (ent==="alpha"?"Alpha":"MJS")+" "+what+": "+from+" -> "+to+" · "+c.why+" ("+c.ini+")");
+      gcModalClose(); renderCashPage(); toast("Entry changed"); };
+    if($("ceDel")) $("ceDel").onclick=function(){ var c=check(); if(!c) return; if(!confirm("Delete this "+what.toLowerCase()+" of $"+money(Math.abs(a))+"? The safe balance changes back.")) return;
+      var h2=cashJE(ent, id); if(!h2) return; h2.js.splice(h2.i,1); cashJESave(ent, h2);
+      if(window.__hipAudit) window.__hipAudit("cash_entry_deleted", (ent==="alpha"?"Alpha":"MJS")+" "+what+" $"+money(Math.abs(a))+" "+j.date+" · "+c.why+" ("+c.ini+")");
+      gcModalClose(); renderCashPage(); toast("Entry deleted"); };
+  }
+  function openCashAdjust(){
+    gcModalShow("Adjust the safe",
+      '<div class="gc-hint" style="margin-bottom:8px">Add or take away cash from the safe balance without a full count, for example a correction or cash found. It goes to Cash Over/Short.</div>'+
+      '<div class="gc-row2">'+cashLocField("caLoc")+'<div class="pos-field"><label>Company</label><select id="caEnt"><option value="mjs">MJS</option><option value="alpha">Alpha</option></select></div></div>'+
+      '<div class="gc-row2"><div class="pos-field"><label>Change</label><select id="caDir"><option value="in">Add to the safe (+)</option><option value="out">Take from the safe (−)</option></select></div><div class="pos-field"><label>Amount</label><input type="number" min="0.01" step="0.01" id="caAmt" inputmode="decimal"></div></div>'+
+      '<div class="gc-row2"><div class="pos-field"><label>Date</label><input type="date" id="caDate" value="'+todayISO()+'" max="'+todayISO()+'"></div><div class="pos-field"><label>Your initials</label><input type="text" id="caIni" maxlength="4" style="text-transform:uppercase"></div></div>'+
+      '<div class="pos-field"><label>Reason</label><input type="text" id="caWhy" placeholder="e.g. $20 left out of Friday’s count"></div><div class="sub-err" id="caErr"></div>',
+      '<button class="btn-ghost" id="caCancel" type="button">Cancel</button><button class="btn-primary" id="caGo" type="button">Save adjustment</button>');
+    $("caCancel").onclick=gcModalClose;
+    $("caGo").onclick=function(){ var v=Math.round((+$("caAmt").value||0)*100)/100, ini=($("caIni").value||"").trim().toUpperCase(), why=($("caWhy").value||"").trim(), d=$("caDate").value, e=$("caEnt").value, loc=$("caLoc").value, s=$("caDir").value==="in"?1:-1;
+      if(!(v>0)){ $("caErr").textContent="Enter the amount."; return; } if(why.length<3){ $("caErr").textContent="Enter the reason."; return; } if(!/^[A-Z]{2,4}$/.test(ini)){ $("caErr").textContent="Enter your initials."; return; } if(!d || d>todayISO()){ $("caErr").textContent="Enter a valid date."; return; }
+      var a=s*v; cashPostJE(e, {id:cashId(), date:d, at:new Date().toISOString(), by:cashWho(), ini:ini, cashOp:"adjust", location:loc, memo:"Safe adjustment: "+why+" ("+ini+")", lines:a>0?[{acct:CASH_SAFE,dr:a,cr:0},{acct:CASH_OVERSHORT,dr:0,cr:a}]:[{acct:CASH_OVERSHORT,dr:-a,cr:0},{acct:CASH_SAFE,dr:0,cr:-a}]});
+      if(window.__hipAudit) window.__hipAudit("cash_adjust", (e==="alpha"?"Alpha":"MJS")+" "+siteName(loc)+" "+(a>0?"+":"-")+"$"+money(v)+" · "+why+" ("+ini+")");
+      gcModalClose(); renderCashPage(); toast("Safe adjusted"); };
   }
   function cashLocField(id){ var cur=cashSite!=="all"?cashSite:((typeof tillSite==="function")?tillSite():"setauket");
     return '<div class="pos-field"><label>Location</label><select id="'+id+'">'+sites.filter(function(x){ return x.active!==false || x.id===cur; }).map(function(x){ return '<option value="'+esc(x.id)+'"'+(x.id===cur?' selected':'')+'>'+esc(x.name)+'</option>'; }).join("")+'</select></div>'; }
