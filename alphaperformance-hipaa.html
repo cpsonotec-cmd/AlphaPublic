@@ -782,7 +782,7 @@
   .inv-locbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 12px}.inv-locl{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-right:4px}.inv-locs{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;align-items:center}.inv-lc{border:1px solid var(--line);background:#fff;border-radius:99px;padding:2px 9px;font-size:12px;cursor:pointer;color:var(--ink,#0F172A)}.inv-lc.on{border-color:#2563EB;background:#EFF6FF}.inv-lc.zero{color:var(--muted)}.inv-lc-tot{font-size:12px;color:var(--muted);margin-left:2px}.inv-lc-mv{border:0;background:none;color:#2563EB;font-size:12px;font-weight:700;cursor:pointer;padding:2px 4px}.inv-totbox{min-width:64px;text-align:center;font-size:20px;font-weight:800;line-height:1}.inv-totbox span{display:block;font-size:10.5px;font-weight:600;color:var(--muted);text-transform:uppercase;margin-top:2px}
   .pv-grp{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px;width:100%}.pv-grp .pos-visit-tlabel{width:100%}.pv-add{cursor:pointer;border:1.5px solid var(--line);background:#fff;font:inherit;font-weight:700;font-size:13px;border-radius:99px;padding:5px 11px;color:var(--ink,#0F172A)}.pv-add:hover{border-color:#059669;background:#ECFDF5}.pv-chip.pv-add.on{border-color:#059669;background:#D1FAE5;color:#065F46}.pv-repeat{cursor:pointer;border:1.5px dashed #059669;background:#fff;color:#047857;font:inherit;font-weight:700;font-size:13px;border-radius:9px;padding:6px 12px}
   .inv-tag.t-med{background:#EDE9FE;color:#5B21B6}.inv-tag.t-svc{background:#E0F2FE;color:#075985}
-  .bp-row{display:flex;gap:14px;align-items:flex-start;justify-content:space-between;border-top:1px solid var(--line);padding:12px 0}.bp-row:first-of-type{border-top:0}.bp-name{font-weight:800;font-size:15px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}.bp-big{font-size:22px;font-weight:800;margin-top:4px}.bp-big span{font-size:12.5px;font-weight:600;color:var(--muted)}.bp-acts{display:flex;flex-direction:column;gap:6px;flex-shrink:0}
+  .bp-wrap{border:2px solid #C4B5FD;background:#FAF5FF;border-radius:14px;padding:4px 14px;margin-bottom:12px}.bp-foot{padding:8px 0;border-top:1px solid var(--line)}.bp-row{display:flex;gap:14px;align-items:flex-start;justify-content:space-between;border-top:1px solid var(--line);padding:12px 0}.bp-row:first-of-type{border-top:0}.bp-name{font-weight:800;font-size:15px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}.bp-big{font-size:22px;font-weight:800;margin-top:4px}.bp-big span{font-size:12.5px;font-weight:600;color:var(--muted)}.bp-acts{display:flex;flex-direction:column;gap:6px;flex-shrink:0}
   .cash-locbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px;font-size:14px;font-weight:700}
   .cash-locbar select{margin-left:6px;padding:9px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font-size:14px;font-weight:700}
   .cash-loc{margin-bottom:12px}
@@ -1886,7 +1886,6 @@
     <div class="rep-card">
       <div class="inv-statgrid" id="invStats"></div>
     </div>
-    <div id="invBulk"></div>
     <div class="rep-card">
       <div class="inv-tools">
         <input type="text" id="invSearch" placeholder="Search products" autocomplete="off">
@@ -1936,6 +1935,7 @@
         </div>
       </div>
       <div class="inv-hint">Tap &minus; / + to adjust stock, or open an item to set price, cost, entity, and inventory. Sales in the Register lower stock automatically.</div>
+      <div id="invBulk"></div>
       <div id="invList"></div>
     </div>
   </div>
@@ -4170,19 +4170,21 @@ window.startClinicApp = function(){
     txns.forEach(function(t){ if(t.type!=="sale" || (t.date||"")<s || (site && site!=="all" && t.location!==site)) return; (t.items||[]).forEach(function(l){ var f=bulkFor(l.name); if(f && f.pool.id===b.id) u+=f.mg*(+l.qty||1); }); }); return u; }
   function renderBulkCard(){
     var el=$("invBulk"); if(!el) return; ensureBulkPools();
-    if(!bulkPools.length){ el.innerHTML='<div class="rep-card"><div class="inv-tools"><div class="rep-h" style="flex:1;margin:0">Bulk medications (counted in mg)</div><button class="btn-ghost inv-add" id="bpNew" type="button">+ Bulk medication</button></div></div>'; $("bpNew").onclick=function(){ openBulkEdit(null); }; return; }
+    if(invEntity==="alpha"){ el.innerHTML=""; return; }
+    if(!bulkPools.length){ el.innerHTML='<div class="bp-wrap"><div class="bp-foot"><button class="btn-ghost sub-mini" id="bpNew" type="button">+ Medication counted in mg (e.g. Tirzepatide)</button></div></div>'; $("bpNew").onclick=function(){ openBulkEdit(null); }; return; }
     var L=invLoc, act=sites.filter(function(x){ return x.active!==false; });
-    el.innerHTML='<div class="rep-card"><div class="inv-tools"><div class="rep-h" style="flex:1;margin:0">Bulk medications (counted in mg)</div><button class="btn-ghost inv-add" id="bpNew" type="button">+ Bulk medication</button></div>'+
+    el.innerHTML='<div class="bp-wrap">'+
       bulkPools.map(function(b){ var r=invRec(bulkKey(b)), here=L==="all"?r.qty:(r.loc[L]||0), bot=+b.bottle||0, used=bulkUsed30(b, L), wk=used>0?here/(used/30)/7:null;
         var st=!inventory[bulkKey(b)]?'<span class="inv-badge b-svc">Not counted</span>':here<=0?'<span class="inv-badge b-out">Out</span>':here<=(+b.reorderAt||0)?'<span class="inv-badge b-low">Low</span>':'<span class="inv-badge b-ok">In stock</span>';
         var doses=(regProducts.mjs||[]).concat(regProducts.alpha||[]).map(function(p){ var f=bulkFor(p.name); return f&&f.pool.id===b.id?f:null; }).filter(Boolean).sort(function(a,c){ return a.dose-c.dose; });
-        return '<div class="bp-row"><div class="bp-main"><div class="bp-name">'+esc(b.name)+' <span class="inv-tag t-med">Medication</span> '+st+'</div>'+
+        return '<div class="bp-row"><div class="bp-main"><div class="bp-name"><span class="inv-co inv-co-mjs">MJS</span>'+esc(b.name)+' inventory <span class="inv-tag t-med">Medication</span> <span class="inv-tag">counted in mg</span> '+st+'</div>'+
           '<div class="bp-big">'+bulkFmt(here)+(bot?' <span>≈ '+(Math.round(here/bot*10)/10)+' bottle'+(Math.round(here/bot*10)/10===1?'':'s')+' of '+bot+' mg</span>':'')+(L==="all"?' <span>all locations</span>':' <span>at '+esc(siteName(L))+'</span>')+'</div>'+
           '<div class="inv-locs">'+act.map(function(s){ return '<button type="button" class="inv-lc'+(L===s.id?' on':'')+((r.loc[s.id]||0)<=0?' zero':'')+'" data-invloc2="'+esc(s.id)+'">'+esc(s.name)+' <b>'+bulkFmt(r.loc[s.id]||0)+'</b></button>'; }).join("")+'<span class="inv-lc-tot">Total <b>'+bulkFmt(r.qty)+'</b></span></div>'+
           '<div class="inv-sub" style="margin-top:6px">Used last 30 days'+(L==="all"?'':' here')+': <b>'+bulkFmt(used)+'</b>'+(wk!=null?' · about <b>'+Math.max(0,Math.round(wk))+' weeks</b> left at that rate':'')+' · reorder at '+bulkFmt(+b.reorderAt||0)+'</div>'+
           '<div class="inv-sub">Each sale (one month) uses: '+(doses.length?doses.map(function(f){ return f.dose+'mg \u2192 '+bulkFmt(f.mg)+((+b.costPerMg>0)?' ($'+money(f.mg*b.costPerMg)+')':''); }).join(' \u00b7 '):'no matching items yet')+' ('+(+b.mult||1)+'\u00d7 the dose)</div>'+
           '<div class="inv-sub">Cost: '+((+b.costPerMg>0)?'<b>$'+money(+b.costPerMg)+' per mg</b> \u00b7 $'+money(b.costPerMg*(+b.bottle||0))+' per '+(+b.bottle||0)+' mg bottle \u00b7 stock on hand worth <b>$'+money(here*b.costPerMg)+'</b>':'<span style="color:var(--red)">no cost per mg set</span> (Settings)')+'</div></div>'+
-          '<div class="bp-acts"><button class="btn-primary sub-mini" type="button" data-bpcount="'+esc(b.id)+'">Enter mg on hand</button><button class="btn-ghost sub-mini" type="button" data-bpact="'+esc(b.id)+'">Receive / move / waste</button><button class="btn-ghost sub-mini" type="button" data-bpedit="'+esc(b.id)+'">Settings</button></div></div>'; }).join("")+'</div>';
+          '<div class="bp-acts"><button class="btn-primary sub-mini" type="button" data-bpcount="'+esc(b.id)+'">Enter mg on hand</button><button class="btn-ghost sub-mini" type="button" data-bpact="'+esc(b.id)+'">Receive / move / waste</button><button class="btn-ghost sub-mini" type="button" data-bpedit="'+esc(b.id)+'">Cost &amp; settings</button></div></div>'; }).join("")+
+      '<div class="bp-foot"><button class="btn-ghost sub-mini" id="bpNew" type="button">+ Another medication counted in mg</button></div></div>';
     $("bpNew").onclick=function(){ openBulkEdit(null); };
     Array.prototype.forEach.call(el.querySelectorAll("[data-bpact]"),function(x){ x.onclick=function(){ openBulkAct(x.getAttribute("data-bpact")); }; });
     Array.prototype.forEach.call(el.querySelectorAll("[data-bpcount]"),function(x){ x.onclick=function(){ openBulkAct(x.getAttribute("data-bpcount"), "count"); }; });
@@ -6456,7 +6458,7 @@ window.startClinicApp = function(){
     invEditName = name || null;
     invEditEntity = entity || (invEntity==="all" ? "alpha" : invEntity);
     var p = name ? prodInEntity(name, invEditEntity) : null, r = name ? invRec(name) : {qty:0,reorderAt:5,startQty:0,adj:[]};
-    var isSvc = p ? isServiceItem(p) : false;
+    var isSvc = p ? (isServiceItem(p) || !!bulkFor(p.name)) : false;
     setInvType(isSvc ? "service" : "inventory");
     $("invFormTitle").textContent = name ? ("Edit "+name) : "New item";
     $("ivCompany").value = invEditEntity;
@@ -6741,7 +6743,7 @@ window.startClinicApp = function(){
     var lowOnly=$("invLowOnly").checked;
     var showCo = invEntity==="all";
     var items=0, low=0, out=0, value=0;
-    base.forEach(function(x){ if(isServiceItem(x.p)) return; if(isMedItem(x.p) && !inventory[x.p.name]) return; var r=invRec(x.p.name), qn=Q(x.p.name); items++; value+=qn*(+x.p.cost||0); if(qn<=0) out++; else if(qn<=r.reorderAt) low++; });
+    base.forEach(function(x){ if(isServiceItem(x.p) || bulkFor(x.p.name)) return; if(isMedItem(x.p) && !inventory[x.p.name]) return; var r=invRec(x.p.name), qn=Q(x.p.name); items++; value+=qn*(+x.p.cost||0); if(qn<=0) out++; else if(qn<=r.reorderAt) low++; });
     $("invStats").innerHTML=
       statCell("Products", items, "") + statCell("Low stock", low, low?"warn":"") + statCell("Out of stock", out, out?"bad":"") + statCell("Stock value"+(L==="all"?"":" \u00b7 "+siteName(L)), "$"+money(value), "");
     var rows=base.filter(function(x){ if(q && x.p.name.toLowerCase().indexOf(q)<0) return false; if(lowOnly){ if(isServiceItem(x.p) || (isMedItem(x.p) && !inventory[x.p.name])) return false; var r=invRec(x.p.name); return Q(x.p.name)<=r.reorderAt; } return true; })
@@ -6749,10 +6751,10 @@ window.startClinicApp = function(){
     if(!rows.length){ $("invList").innerHTML='<div class="rep-empty">No products'+(q?" match your search":"")+'.</div>'; return; }
     $("invList").innerHTML=rows.map(function(x){
       var p=x.p, r=invRec(p.name), qn=Q(p.name);
-      var bfi=bulkFor(p.name), isSvc = isServiceItem(p) || (!!bfi && !inventory[p.name]), isMed=isMedItem(p), uncounted=isMed && !inventory[p.name] && !bfi;
+      var bfi=bulkFor(p.name), isSvc = isServiceItem(p) || !!bfi, isMed=isMedItem(p), uncounted=isMed && !inventory[p.name] && !bfi;
       var state = qn<=0 ? "out" : (qn<=r.reorderAt ? "low" : "ok");
       var locLine = isSvc ? '' : '<div class="inv-locs">'+sites.filter(function(st){ return st.active!==false || r.loc[st.id]; }).map(function(st){ return '<button type="button" class="inv-lc'+(L===st.id?' on':'')+((r.loc[st.id]||0)<=0?' zero':'')+'" data-invloc2="'+esc(st.id)+'">'+esc(st.name)+' <b>'+(r.loc[st.id]||0)+'</b></button>'; }).join("")+'<span class="inv-lc-tot">Total <b>'+r.qty+'</b></span><button type="button" class="inv-lc-mv" data-invmove="'+esc(p.name)+'">Move</button></div>';
-      var badge = bfi && isSvc ? '<span class="inv-badge b-svc" title="Stock is counted in mg on the '+esc(bfi.pool.name)+' bottle">Uses '+bulkFmt(bfi.mg)+'</span>' : isSvc ? '<span class="inv-badge b-svc">Service</span>' : uncounted ? '<span class="inv-badge b-svc" title="Enter a count at a location to start tracking">Not counted</span>' : (state==="out" ? '<span class="inv-badge b-out">Out</span>' : state==="low" ? '<span class="inv-badge b-low">Low</span>' : '<span class="inv-badge b-ok">In stock</span>');
+      var badge = bfi ? '<span class="inv-badge b-svc" title="Stock is counted in mg on the '+esc(bfi.pool.name)+' inventory line">Uses '+bulkFmt(bfi.mg)+' of '+esc(bfi.pool.name)+' inventory</span>' : isSvc ? '<span class="inv-badge b-svc">Service</span>' : uncounted ? '<span class="inv-badge b-svc" title="Enter a count at a location to start tracking">Not counted</span>' : (state==="out" ? '<span class="inv-badge b-out">Out</span>' : state==="low" ? '<span class="inv-badge b-low">Low</span>' : '<span class="inv-badge b-ok">In stock</span>');
       var tag = p.cat==="Supplement" ? '<span class="inv-tag">Supplement</span>' : isMed ? '<span class="inv-tag t-svc">Service</span><span class="inv-tag t-med">Medication</span>' : (p.cat ? '<span class="inv-tag t-other">'+esc(p.cat)+'</span>' : '');
       var coTag = showCo ? '<span class="inv-co inv-co-'+x.entity+'">'+(x.entity==="alpha"?"Alpha":"MJS")+'</span>' : '';
       var meta=[]; if(p.vendor) meta.push(esc(p.vendor)); if(p.sku) meta.push("#"+esc(p.sku));
@@ -6789,7 +6791,7 @@ window.startClinicApp = function(){
   function decrementInventoryForSale(cart){
     var changed=false;
     var site=(typeof tillSite==="function" && tillSite())?tillSite():invShared();
-    (cart||[]).forEach(function(it){ if(inventory[it.name]){ var r=invRec(it.name); r.loc[site]=Math.max(0,(r.loc[site]||0)-(it.qty||1)); invPut(it.name, r); changed=true; }
+    (cart||[]).forEach(function(it){ if(inventory[it.name] && !bulkFor(it.name)){ var r=invRec(it.name); r.loc[site]=Math.max(0,(r.loc[site]||0)-(it.qty||1)); invPut(it.name, r); changed=true; }
       var bf=null; try{ bf=bulkFor(it.name); }catch(e){}
       if(bf){ var k=bulkKey(bf.pool), rb=invRec(k); rb.loc[site]=Math.max(0, Math.round(((rb.loc[site]||0)-bf.mg*(it.qty||1))*1000)/1000); rb.reorderAt=+bf.pool.reorderAt||0; invPutMg(k, rb); changed=true; } });
     if(changed) saveInventory();
