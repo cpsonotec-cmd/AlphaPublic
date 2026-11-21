@@ -786,6 +786,7 @@
   .inv-needle{font-size:12px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}.inv-needle input{width:56px;padding:3px 6px;margin-left:4px}.inv-needle-miss{color:#B45309;font-weight:700}
   .inv-ntsel{padding:3px 6px;border:1px solid var(--line);border-radius:7px;font-size:12px;max-width:190px}.iv-kitrow{display:flex;align-items:center;gap:8px;margin:5px 0;font-weight:500}.iv-kitrow input{width:64px}.nt-row{display:grid;grid-template-columns:1fr auto auto auto;gap:6px;align-items:center;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--line)}.nt-row input[data-nt="name"]{grid-column:1/-1;font-weight:700}.nt-row input{width:100%;box-sizing:border-box;padding:6px 8px}.nt-row label{display:flex;align-items:center;gap:4px;font-size:12px;white-space:nowrap}.nt-row label input{width:70px}.nt-each{font-size:12px;color:var(--muted);min-width:80px}
   .bk-tot td{font-weight:800;border-top:2px solid var(--line)}.bk-mg td{color:#5B21B6}.bk-plain td{color:var(--muted);font-style:italic}
+  .cash-onesafe{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:13.5px}.cash-onesafe label{display:flex;gap:6px;align-items:center}
   .cash-act{cursor:pointer;border-radius:8px}.cash-act:hover{background:#F1F5F9}.cash-edit{color:#94A3B8;font-weight:400;margin-left:4px}
   .bp-wrap{border:2px solid #C4B5FD;background:#FAF5FF;border-radius:14px;padding:4px 14px;margin-bottom:12px}.bp-foot{padding:8px 0;border-top:1px solid var(--line)}.bp-row{display:flex;gap:14px;align-items:flex-start;justify-content:space-between;border-top:1px solid var(--line);padding:12px 0}.bp-row:first-of-type{border-top:0}.bp-name{font-weight:800;font-size:15px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}.bp-big{font-size:22px;font-weight:800;margin-top:4px}.bp-big span{font-size:12.5px;font-weight:600;color:var(--muted)}.bp-acts{display:flex;flex-direction:column;gap:6px;flex-shrink:0}
   .cash-locbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px;font-size:14px;font-weight:700}
@@ -3974,7 +3975,13 @@ window.startClinicApp = function(){
     if(/^cash$/i.test(t.payment||"")) return Math.round(Math.max(0,(+t.total||0)-(+t.gcAmount||0)-(+t.arAmount||0))*100)/100;
     return 0;
   }
-  function cashLedgerBal(ent, code, loc){ var keep=acctEntity, out=0, sh=(typeof sharedSite==="function")?sharedSite().id:"setauket"; acctEntity="both";
+  // 21 Nov 2026: all cash is taken to one safe (Setauket) every day, so the safe balance lives there whatever location took the cash.
+  function cashOneSafe(){ return settings.cashOneSafe!==false; }
+  function cashSafeSite(){ return settings.cashSafeSite || ((typeof sharedSite==="function")?sharedSite().id:"setauket"); }
+  function cashLedgerBal(ent, code, loc){
+    if(code===CASH_SAFE && cashOneSafe() && loc && loc!=="all"){ return loc===cashSafeSite() ? cashLedgerBal0(ent, code, null) : 0; }
+    return cashLedgerBal0(ent, code, loc); }
+  function cashLedgerBal0(ent, code, loc){ var keep=acctEntity, out=0, sh=(typeof sharedSite==="function")?sharedSite().id:"setauket"; acctEntity="both";
     try{ buildLedger().forEach(function(e){ if(e.ent!==ent) return; if(loc && loc!=="all" && (e.loc||sh)!==loc) return; e.lines.forEach(function(l){ if(l.acct===code) out+=(+l.dr||0)-(+l.cr||0); }); }); } finally { acctEntity=keep; }
     return Math.round(out*100)/100+0; }
   function cashBankAccts(ent){ return (load("alphaperf_accounts_"+ent,[])||[]).filter(function(a){ return a.type==="Asset" && a.code!==CASH_SAFE && /cash|check|bank|saving/i.test(a.name||""); }); }
@@ -4010,6 +4017,7 @@ window.startClinicApp = function(){
         '<div class="cash-sub">'+(from?(ld?'Last deposit $'+money((ld.lines||[]).reduce(function(a,l){ return a+(l.acct===CASH_SAFE?(+l.cr||0):0); },0))+' on '+esc(fmtDate(parseISO(ld.date))):'No deposits recorded yet'):'Not tracking yet')+'</div></div>';
     }
     el.innerHTML=
+      '<div class="cash-onesafe"><label><input type="checkbox" id="cashOneSafe"'+(cashOneSafe()?' checked':'')+'> All cash is taken to the <b>'+esc(siteName(cashSafeSite()))+'</b> safe every day</label><span class="pkg-sub">'+(cashOneSafe()?'Cash taken at any location counts as in the '+esc(siteName(cashSafeSite()))+' safe. Counts, envelopes and deposits are for that safe.':'Each location keeps its own safe.')+'</span></div>'+
       '<div class="cash-locbar"><label>Location <select id="cashSite"><option value="all">All locations</option>'+sites.map(function(x){ return '<option value="'+esc(x.id)+'"'+(cashSite===x.id?' selected':'')+'>'+esc(x.name)+'</option>'; }).join("")+'</select></label>'+(cashSite!=="all"?'<span class="pkg-sub">Showing '+esc(siteName(cashSite))+' only: its safe, its cash and its deposits.</span>':'')+'</div>'+
       (from?'':'<div class="cash-start"><b>Start tracking the safe.</b> Count the cash in the safe now. From then on, cash taken at the register is held as “cash in safe” until you record a deposit to the bank.<button type="button" class="btn-primary" id="cashStartBtn">Count the safe to start</button></div>')+
       '<div class="cash-cards">'+card("mjs","MJS Medical Wellness")+card("alpha","Alpha Male Health Restoration")+
@@ -4039,6 +4047,7 @@ window.startClinicApp = function(){
     if($("cashCountBtn")) $("cashCountBtn").onclick=function(){ openCashCount(false); };
     if($("cashOutBtn")) $("cashOutBtn").onclick=openCashOut;
     if($("cashAdjBtn")) $("cashAdjBtn").onclick=openCashAdjust;
+    if($("cashOneSafe")) $("cashOneSafe").onchange=function(){ settings.cashOneSafe=this.checked; saveSettings(); if(window.__hipAudit) window.__hipAudit("cash_one_safe", this.checked?"on":"off"); renderCashPage(); };
     Array.prototype.forEach.call(el.querySelectorAll("[data-cje]"),function(r){ r.onclick=function(){ var v=r.getAttribute("data-cje").split("|"); openCashEdit(v[0], v[1]); }; });
     if($("cashEnvBtn")) $("cashEnvBtn").onclick=openNewEnvelope;
     if($("cashCounterBtn")) $("cashCounterBtn").onclick=openCashCounter;
@@ -4110,10 +4119,10 @@ window.startClinicApp = function(){
       if(window.__hipAudit) window.__hipAudit("cash_adjust", (e==="alpha"?"Alpha":"MJS")+" "+siteName(loc)+" "+(a>0?"+":"-")+"$"+money(v)+" · "+why+" ("+ini+")");
       gcModalClose(); renderCashPage(); toast("Safe adjusted"); };
   }
-  function cashLocField(id){ var cur=cashSite!=="all"?cashSite:((typeof tillSite==="function")?tillSite():"setauket");
+  function cashLocField(id){ var cur=cashOneSafe()?cashSafeSite():(cashSite!=="all"?cashSite:((typeof tillSite==="function")?tillSite():"setauket"));
     return '<div class="pos-field"><label>Location</label><select id="'+id+'">'+sites.filter(function(x){ return x.active!==false || x.id===cur; }).map(function(x){ return '<option value="'+esc(x.id)+'"'+(x.id===cur?' selected':'')+'>'+esc(x.name)+'</option>'; }).join("")+'</select></div>'; }
   function openCashDeposit(){
-    var loc0=cashSite!=="all"?cashSite:((typeof tillSite==="function")?tillSite():"setauket");
+    var loc0=cashOneSafe()?cashSafeSite():(cashSite!=="all"?cashSite:((typeof tillSite==="function")?tillSite():"setauket"));
     var safe={mjs:cashLedgerBal("mjs",CASH_SAFE,loc0), alpha:cashLedgerBal("alpha",CASH_SAFE,loc0)};
     function bankSel(e){ var l=cashBankAccts(e); if(!l.length) l=[{code:"1000",name:"Cash / Checking"}]; return '<select id="cdBank_'+e+'">'+l.map(function(a){ return '<option value="'+esc(a.code)+'"'+(a.code==="1000"?' selected':'')+'>'+esc(a.code+" "+a.name)+'</option>'; }).join("")+'</select>'; }
     gcModalShow("Record a bank deposit",
@@ -4141,7 +4150,7 @@ window.startClinicApp = function(){
     };
   }
   function openCashCount(start){
-    var loc0=cashSite!=="all"?cashSite:((typeof tillSite==="function")?tillSite():"setauket");
+    var loc0=cashOneSafe()?cashSafeSite():(cashSite!=="all"?cashSite:((typeof tillSite==="function")?tillSite():"setauket"));
     var safe={mjs:cashLedgerBal("mjs",CASH_SAFE,loc0), alpha:cashLedgerBal("alpha",CASH_SAFE,loc0)}, exp=Math.round((safe.mjs+safe.alpha)*100)/100;
     gcModalShow(start?"Starting count":"Count the safe",
       (start?'<div class="gc-hint" style="margin-bottom:10px">Count the cash in the safe and split it by company as best you can (put it all under MJS if you can’t tell). This cash is already in the books as in the bank, so it is moved to “cash in safe”.</div>'+
@@ -4348,7 +4357,7 @@ window.startClinicApp = function(){
   function envNextLabel(loc, d){ var pre=(siteName(loc)||"SAFE").replace(/[^A-Za-z]/g,"").slice(0,3).toUpperCase()+"-"+d.replace(/-/g,"").slice(2);
     var n=cashEnv.filter(function(v){ return (v.label||"").indexOf(pre+"-")===0; }).length; return pre+"-"+(n+1); }
   function openNewEnvelope(){
-    var loc0=cashSite!=="all"?cashSite:((typeof tillSite==="function")?tillSite():"setauket"), cnt={counts:{},coins:0,total:0}, splitTouched=false;
+    var loc0=cashOneSafe()?cashSafeSite():(cashSite!=="all"?cashSite:((typeof tillSite==="function")?tillSite():"setauket")), cnt={counts:{},coins:0,total:0}, splitTouched=false;
     function bal(l){ var s={mjs:cashLedgerBal("mjs",CASH_SAFE,l), alpha:cashLedgerBal("alpha",CASH_SAFE,l)}, inEnv={mjs:0,alpha:0}; envSealed(l).forEach(function(v){ inEnv.mjs+=+v.mjs||0; inEnv.alpha+=+v.alpha||0; });
       return {mjs:Math.max(0,Math.round((s.mjs-inEnv.mjs)*100)/100), alpha:Math.max(0,Math.round((s.alpha-inEnv.alpha)*100)/100)}; }
     var avail=bal(loc0);
