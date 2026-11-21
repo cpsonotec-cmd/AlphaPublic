@@ -4150,13 +4150,21 @@ window.startClinicApp = function(){
   function ensureBulkPools(){
     ensureRegProducts(); if(regProducts.pending) return;
     if(!bulkPools.some(function(b){ return b.id==="bp-tirzepatide"; }) && (regProducts.mjs||[]).some(function(p){ return /^tirzepatide\s+\d/i.test(p.name||""); })){
-      bulkPools.push({id:"bp-tirzepatide", name:"Tirzepatide", unit:"mg", bottle:100, mult:4, reorderAt:100}); saveBulkPools(); }
+      bulkPools.push({id:"bp-tirzepatide", name:"Tirzepatide", unit:"mg", bottle:100, mult:4, reorderAt:100, costPerMg:2.2}); saveBulkPools(); }
+    bulkPools.forEach(function(b){ if(b.id==="bp-tirzepatide" && b.costPerMg===undefined){ b.costPerMg=2.2; saveBulkPools(); } });   // price sheet: $22 per 10 mg
   }
   function bulkEsc(s){ return String(s).replace(/[.*+?^${}()|[\]\\]/g,"\\$&"); }
   // which pool an item draws from, and how many mg one unit uses
   function bulkFor(name){ var n=(name||"").trim();
     for(var i=0;i<bulkPools.length;i++){ var b=bulkPools[i], m=n.match(new RegExp("^"+bulkEsc(b.name)+"\\s+(\\d+(?:\\.\\d+)?)\\s*mg\\b","i")); if(m) return {pool:b, mg:Math.round(parseFloat(m[1])*(+b.mult||1)*1000)/1000, dose:parseFloat(m[1])}; }
     return null; }
+  // set each dose item's cost from the cost per mg (dose x multiplier x $/mg); returns the items changed
+  function bulkReprice(b){ var cpm=+b.costPerMg; if(!(cpm>0)) return []; var ch=[]; ensureRegProducts(); if(regProducts.pending) return ch;
+    ["mjs","alpha"].forEach(function(e){ (regProducts[e]||[]).forEach(function(p){ var f=bulkFor(p.name); if(!f || f.pool.id!==b.id) return; var c=Math.round(f.mg*cpm*100)/100;
+      if(Math.abs((+p.cost||0)-c)>0.004){ ch.push(p.name+" $"+money(+p.cost||0)+" \u2192 $"+money(c)); p.cost=c; }
+      if(treatmentPricing[p.name] && !treatmentPricing[p.name].doses && Math.abs((+treatmentPricing[p.name].cost||0)-c)>0.004){ treatmentPricing[p.name].cost=c; } }); });
+    if(ch.length){ saveRegProducts(); try{ store.set("alphaperf_pricing", JSON.stringify(treatmentPricing)); }catch(e){} if(window.__hipAudit) window.__hipAudit("bulk_cost", b.name+" $"+cpm+"/mg: "+ch.join("; ")); }
+    return ch; }
   function bulkFmt(mg){ return (Math.round(mg*100)/100).toLocaleString("en-US")+" mg"; }
   function bulkUsed30(b, site){ var since=new Date(); since.setDate(since.getDate()-30); var s=since.toISOString().slice(0,10), u=0;
     txns.forEach(function(t){ if(t.type!=="sale" || (t.date||"")<s || (site && site!=="all" && t.location!==site)) return; (t.items||[]).forEach(function(l){ var f=bulkFor(l.name); if(f && f.pool.id===b.id) u+=f.mg*(+l.qty||1); }); }); return u; }
@@ -4172,14 +4180,16 @@ window.startClinicApp = function(){
           '<div class="bp-big">'+bulkFmt(here)+(bot?' <span>≈ '+(Math.round(here/bot*10)/10)+' bottle'+(Math.round(here/bot*10)/10===1?'':'s')+' of '+bot+' mg</span>':'')+(L==="all"?' <span>all locations</span>':' <span>at '+esc(siteName(L))+'</span>')+'</div>'+
           '<div class="inv-locs">'+act.map(function(s){ return '<button type="button" class="inv-lc'+(L===s.id?' on':'')+((r.loc[s.id]||0)<=0?' zero':'')+'" data-invloc2="'+esc(s.id)+'">'+esc(s.name)+' <b>'+bulkFmt(r.loc[s.id]||0)+'</b></button>'; }).join("")+'<span class="inv-lc-tot">Total <b>'+bulkFmt(r.qty)+'</b></span></div>'+
           '<div class="inv-sub" style="margin-top:6px">Used last 30 days'+(L==="all"?'':' here')+': <b>'+bulkFmt(used)+'</b>'+(wk!=null?' · about <b>'+Math.max(0,Math.round(wk))+' weeks</b> left at that rate':'')+' · reorder at '+bulkFmt(+b.reorderAt||0)+'</div>'+
-          '<div class="inv-sub">Each sale uses: '+(doses.length?doses.map(function(f){ return f.dose+'mg → '+bulkFmt(f.mg); }).join(' · '):'no matching items yet')+' ('+(+b.mult||1)+'× the dose)</div></div>'+
-          '<div class="bp-acts"><button class="btn-primary sub-mini" type="button" data-bpact="'+esc(b.id)+'">Receive / count</button><button class="btn-ghost sub-mini" type="button" data-bpedit="'+esc(b.id)+'">Settings</button></div></div>'; }).join("")+'</div>';
+          '<div class="inv-sub">Each sale (one month) uses: '+(doses.length?doses.map(function(f){ return f.dose+'mg \u2192 '+bulkFmt(f.mg)+((+b.costPerMg>0)?' ($'+money(f.mg*b.costPerMg)+')':''); }).join(' \u00b7 '):'no matching items yet')+' ('+(+b.mult||1)+'\u00d7 the dose)</div>'+
+          '<div class="inv-sub">Cost: '+((+b.costPerMg>0)?'<b>$'+money(+b.costPerMg)+' per mg</b> \u00b7 $'+money(b.costPerMg*(+b.bottle||0))+' per '+(+b.bottle||0)+' mg bottle \u00b7 stock on hand worth <b>$'+money(here*b.costPerMg)+'</b>':'<span style="color:var(--red)">no cost per mg set</span> (Settings)')+'</div></div>'+
+          '<div class="bp-acts"><button class="btn-primary sub-mini" type="button" data-bpcount="'+esc(b.id)+'">Enter mg on hand</button><button class="btn-ghost sub-mini" type="button" data-bpact="'+esc(b.id)+'">Receive / move / waste</button><button class="btn-ghost sub-mini" type="button" data-bpedit="'+esc(b.id)+'">Settings</button></div></div>'; }).join("")+'</div>';
     $("bpNew").onclick=function(){ openBulkEdit(null); };
     Array.prototype.forEach.call(el.querySelectorAll("[data-bpact]"),function(x){ x.onclick=function(){ openBulkAct(x.getAttribute("data-bpact")); }; });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-bpcount]"),function(x){ x.onclick=function(){ openBulkAct(x.getAttribute("data-bpcount"), "count"); }; });
     Array.prototype.forEach.call(el.querySelectorAll("[data-bpedit]"),function(x){ x.onclick=function(){ openBulkEdit(x.getAttribute("data-bpedit")); }; });
     Array.prototype.forEach.call(el.querySelectorAll("[data-invloc2]"),function(x){ x.onclick=function(){ invLoc=x.getAttribute("data-invloc2"); paintInventory(); }; });
   }
-  function openBulkAct(id){
+  function openBulkAct(id, startMode){
     var b=bulkPools.filter(function(x){ return x.id===id; })[0]; if(!b) return;
     var act=sites.filter(function(x){ return x.active!==false; }), l0=invLoc!=="all"?invLoc:((typeof tillSite==="function"&&tillSite())?tillSite():invShared());
     function so(idd,sel){ return '<select id="'+idd+'">'+act.map(function(s){ return '<option value="'+esc(s.id)+'"'+(s.id===sel?' selected':'')+'>'+esc(s.name)+'</option>'; }).join("")+'</select>'; }
@@ -4188,24 +4198,28 @@ window.startClinicApp = function(){
       '<div class="gc-row2"><div class="pos-field"><label id="bpLocL">Location</label>'+so("bpLoc",l0)+'</div><div class="pos-field" id="bpToW" style="display:none"><label>To</label>'+so("bpTo",(act.filter(function(s){ return s.id!==l0; })[0]||{}).id)+'</div></div>'+
       '<div class="gc-row2"><div class="pos-field"><label id="bpQL">Bottles</label><input type="number" id="bpQ" min="0" step="any" inputmode="decimal"></div><div class="pos-field"><label>Your initials</label><input type="text" id="bpIni" maxlength="4" style="text-transform:uppercase"></div></div>'+
       '<div class="gc-row2" id="bpSizeW"><div class="pos-field"><label>mg per bottle</label><input type="number" id="bpSize" min="0" step="any" inputmode="decimal" value="'+(+b.bottle||100)+'"></div><div class="pos-field" style="justify-content:flex-end"><label class="gc-xfer-check" style="margin:22px 0 0"><input type="checkbox" id="bpSizeDef"> Make this the usual bottle size</label></div></div>'+
+      '<div class="gc-row2" id="bpPaidW"><div class="pos-field"><label>Paid per bottle $ (optional)</label><input type="number" id="bpPaid" min="0" step="0.01" inputmode="decimal" placeholder="'+((+b.costPerMg>0)?money(b.costPerMg*(+b.bottle||0)):'')+'"></div><div class="pos-field"><label>= cost per mg</label><input type="text" id="bpCpm" disabled value="'+((+b.costPerMg>0)?'$'+money(+b.costPerMg):'')+'"></div></div>'+
       '<div class="gc-hint" id="bpHint"></div><div class="sub-err" id="bpErr"></div>',
       '<button class="btn-ghost" id="bpCancel" type="button">Cancel</button><button class="btn-primary" id="bpGo" type="button">Save</button>');
-    var mode="recv";
+    var mode=startMode||"recv";
+    if(startMode) Array.prototype.forEach.call($("bpMode").querySelectorAll("button"),function(y){ y.classList.toggle("on", y.getAttribute("data-bpm")===startMode); });
     function bsize(){ var v=+$("bpSize").value; return v>0?v:(+b.bottle||0); }
     function hint(){ var r=invRec(bulkKey(b)), l=$("bpLoc").value, have=r.loc[l]||0, q=+$("bpQ").value||0;
       $("bpToW").style.display=mode==="move"?"":"none"; $("bpLocL").textContent=mode==="move"?"From":"Location";
-      $("bpSizeW").style.display=mode==="recv"?"":"none";
+      $("bpSizeW").style.display=mode==="recv"?"":"none"; $("bpPaidW").style.display=mode==="recv"?"":"none";
+      var pd=+$("bpPaid").value; $("bpCpm").value=pd>0&&bsize()>0?"$"+(Math.round(pd/bsize()*10000)/10000):((+b.costPerMg>0)?"$"+money(+b.costPerMg):"");
       $("bpQL").textContent=mode==="recv"?"Bottles":mode==="count"?"mg on hand now (count every open bottle)":"mg";
       $("bpHint").textContent=siteName(l)+" has "+bulkFmt(have)+(mode==="recv"&&q?" \u2192 "+bulkFmt(have+q*bsize())+" ("+q+" \u00d7 "+bsize()+" mg)":mode==="count"&&$("bpQ").value!==""?" → "+bulkFmt(q)+" ("+(q-have>=0?"+":"")+bulkFmt(q-have)+")":(mode==="waste"||mode==="move")&&q?" → "+bulkFmt(have-q):""); }
     Array.prototype.forEach.call($("bpMode").querySelectorAll("[data-bpm]"),function(x){ x.onclick=function(){ mode=x.getAttribute("data-bpm"); Array.prototype.forEach.call($("bpMode").querySelectorAll("button"),function(y){ y.classList.toggle("on", y===x); }); hint(); }; });
-    $("bpQ").oninput=hint; $("bpLoc").onchange=hint; $("bpSize").oninput=hint; hint();
+    $("bpQ").oninput=hint; $("bpLoc").onchange=hint; $("bpSize").oninput=hint; $("bpPaid").oninput=hint; hint();
     $("bpCancel").onclick=gcModalClose;
     $("bpGo").onclick=function(){ var l=$("bpLoc").value, q=+$("bpQ").value, ini=($("bpIni").value||"").trim().toUpperCase(), r=invRec(bulkKey(b)), have=r.loc[l]||0, delta=0, why="";
       if(!($("bpQ").value!=="" && q>=0) || (mode!=="count" && !(q>0))){ $("bpErr").textContent="Enter an amount."; return; }
       if(!/^[A-Z]{2,4}$/.test(ini)){ $("bpErr").textContent="Enter your initials."; return; }
       if(mode==="recv"){ var bs=+$("bpSize").value; if(!(bs>0)){ $("bpErr").textContent="Enter the mg per bottle."; return; }
         delta=q*bs; why="received "+q+" bottle"+(q===1?"":"s")+" of "+bs+" mg";
-        if($("bpSizeDef").checked && bs!==+b.bottle){ b.bottle=bs; saveBulkPools(); } }
+        if($("bpSizeDef").checked && bs!==+b.bottle){ b.bottle=bs; saveBulkPools(); }
+        var pd=+$("bpPaid").value; if(pd>0){ var cpm=Math.round(pd/bs*10000)/10000; why+=" at $"+money(pd)+" ($"+cpm+"/mg)"; if(cpm!==+b.costPerMg){ b.costPerMg=cpm; saveBulkPools(); var _rc=bulkReprice(b); if(_rc.length) setTimeout(function(){ toast("Dose costs updated: "+_rc.length+" item"+(_rc.length===1?"":"s")); },1200); } } }
       else if(mode==="count"){ delta=q-have; why="counted "+bulkFmt(q); }
       else if(mode==="waste"){ if(q>have){ $("bpErr").textContent=siteName(l)+" only has "+bulkFmt(have)+"."; return; } delta=-q; why="wasted/expired"; }
       else { var to=$("bpTo").value; if(to===l){ $("bpErr").textContent="Pick two different locations."; return; } if(q>have){ $("bpErr").textContent=siteName(l)+" only has "+bulkFmt(have)+"."; return; }
@@ -4223,14 +4237,14 @@ window.startClinicApp = function(){
     gcModalShow(b?b.name+" settings":"New bulk medication",
       '<div class="pos-field"><label>Name (items named "'+(b?esc(b.name):'Name')+' 2.5mg", "… 5mg" draw from it)</label><input type="text" id="beName" value="'+esc(b?b.name:"")+'" placeholder="e.g. Semaglutide"'+(b?' disabled':'')+'></div>'+
       '<div class="gc-row2"><div class="pos-field"><label>Bottle size (mg)</label><input type="number" id="beBottle" min="0" step="any" value="'+(b?b.bottle:100)+'"></div><div class="pos-field"><label>mg used = dose ×</label><input type="number" id="beMult" min="0" step="any" value="'+(b?b.mult:4)+'"></div></div>'+
-      '<div class="pos-field"><label>Reorder when below (mg)</label><input type="number" id="beRe" min="0" step="any" value="'+(b?(+b.reorderAt||0):100)+'"></div><div class="gc-hint">Dose × 4 = four weekly shots per sale.</div><div class="sub-err" id="beErr"></div>',
+      '<div class="gc-row2"><div class="pos-field"><label>Reorder when below (mg)</label><input type="number" id="beRe" min="0" step="any" value="'+(b?(+b.reorderAt||0):100)+'"></div><div class="pos-field"><label>Cost per mg ($)</label><input type="number" id="beCpm" min="0" step="0.0001" value="'+(b&&b.costPerMg?b.costPerMg:"")+'" placeholder="e.g. 2.20"></div></div><div class="gc-hint">Each dose item\u2019s cost is set to dose \u00d7 multiplier \u00d7 cost per mg (e.g. 2.5mg \u00d7 4 \u00d7 $2.20 = $22).</div><div class="gc-hint">Dose × 4 = four weekly shots per sale.</div><div class="sub-err" id="beErr"></div>',
       '<button class="btn-ghost" id="beCancel" type="button">Cancel</button><button class="btn-primary" id="beGo" type="button">Save</button>');
     $("beCancel").onclick=gcModalClose;
-    $("beGo").onclick=function(){ var nm=($("beName").value||"").trim(), bo=+$("beBottle").value, mu=+$("beMult").value, re=+$("beRe").value||0;
+    $("beGo").onclick=function(){ var nm=($("beName").value||"").trim(), bo=+$("beBottle").value, mu=+$("beMult").value, re=+$("beRe").value||0, cpm=+$("beCpm").value||0;
       if(!b){ if(nm.length<2){ $("beErr").textContent="Enter the medication name."; return; } if(bulkPools.some(function(x){ return x.name.toLowerCase()===nm.toLowerCase(); })){ $("beErr").textContent="Already set up."; return; } }
       if(!(bo>0) || !(mu>0)){ $("beErr").textContent="Enter the bottle size and the multiplier."; return; }
-      if(b){ b.bottle=bo; b.mult=mu; b.reorderAt=re; } else bulkPools.push({id:"bp-"+nm.toLowerCase().replace(/[^a-z0-9]+/g,"-"), name:nm, unit:"mg", bottle:bo, mult:mu, reorderAt:re});
-      saveBulkPools(); gcModalClose(); paintInventory(); toast("Saved"); };
+      if(b){ b.bottle=bo; b.mult=mu; b.reorderAt=re; b.costPerMg=cpm; } else { b={id:"bp-"+nm.toLowerCase().replace(/[^a-z0-9]+/g,"-"), name:nm, unit:"mg", bottle:bo, mult:mu, reorderAt:re, costPerMg:cpm}; bulkPools.push(b); }
+      saveBulkPools(); var ch=bulkReprice(b); gcModalClose(); paintInventory(); toast(ch.length?"Saved. Dose costs updated: "+ch.length+" item"+(ch.length===1?"":"s"):"Saved"); };
   }
   // ---------- Cash counter and deposit envelopes (16 Nov 2026) ----------
   // Count bills by denomination. Cash for the bank is sealed in a labelled envelope (still in the safe, nothing posts);
