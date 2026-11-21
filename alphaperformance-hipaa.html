@@ -783,6 +783,7 @@
   .pv-grp{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px;width:100%}.pv-grp .pos-visit-tlabel{width:100%}.pv-add{cursor:pointer;border:1.5px solid var(--line);background:#fff;font:inherit;font-weight:700;font-size:13px;border-radius:99px;padding:5px 11px;color:var(--ink,#0F172A)}.pv-add:hover{border-color:#059669;background:#ECFDF5}.pv-chip.pv-add.on{border-color:#059669;background:#D1FAE5;color:#065F46}.pv-repeat{cursor:pointer;border:1.5px dashed #059669;background:#fff;color:#047857;font:inherit;font-weight:700;font-size:13px;border-radius:9px;padding:6px 12px}
   .inv-tag.t-med{background:#EDE9FE;color:#5B21B6}.inv-tag.t-svc{background:#E0F2FE;color:#075985}
   .inv-tag.t-disc{background:#FEE2E2;color:#991B1B}.iv-disc{background:#FEF2F2}
+  .inv-needle{font-size:12px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}.inv-needle input{width:56px;padding:3px 6px;margin-left:4px}.inv-needle-miss{color:#B45309;font-weight:700}
   .bp-wrap{border:2px solid #C4B5FD;background:#FAF5FF;border-radius:14px;padding:4px 14px;margin-bottom:12px}.bp-foot{padding:8px 0;border-top:1px solid var(--line)}.bp-row{display:flex;gap:14px;align-items:flex-start;justify-content:space-between;border-top:1px solid var(--line);padding:12px 0}.bp-row:first-of-type{border-top:0}.bp-name{font-weight:800;font-size:15px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}.bp-big{font-size:22px;font-weight:800;margin-top:4px}.bp-big span{font-size:12.5px;font-weight:600;color:var(--muted)}.bp-acts{display:flex;flex-direction:column;gap:6px;flex-shrink:0}
   .cash-locbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px;font-size:14px;font-weight:700}
   .cash-locbar select{margin-left:6px;padding:9px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font-size:14px;font-weight:700}
@@ -1912,6 +1913,8 @@
             <label class="ivf">Vendor<input id="ivVendor" autocomplete="off" placeholder="Supplier / brand"></label>
             <label class="ivf">SKU / Item #<input id="ivSku" autocomplete="off" placeholder="Optional"></label>
             <label class="ivf">Unit cost<input id="ivCost" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></label>
+            <label class="ivf iv-needle">Needles per treatment<input id="ivNeedles" type="number" min="0" step="1" inputmode="numeric" placeholder="e.g. 4"></label>
+            <label class="ivf iv-needle">Cost per needle (all medications)<input id="ivNeedleCost" type="number" min="0" step="0.01" inputmode="decimal" placeholder="optional"></label>
             <label class="ivf">Retail price <span class="ivf-note">= Register price</span><input id="ivRetail" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></label>
             <label class="ivf ivf-full iv-nodisc iv-disc"><input id="ivDisc" type="checkbox"> <span><b>Discontinued / obsolete</b><br><span class="ivf-note">Hidden from Items (unless "Show discontinued" is ticked), the register and suggested ordering. Past sales are kept.</span></span></label>
             <label class="ivf ivf-full iv-nodisc"><input id="ivNoDisc" type="checkbox"> <span><b>No discounts on this item</b><br><span class="ivf-note">Promotions, member and order discounts skip it. A manager can override at the register with initials and a reason.</span></span></label>
@@ -6474,6 +6477,10 @@ window.startClinicApp = function(){
     $("ivRetail").value = p?(p.price||0):"";
     $("ivNoDisc").checked = !!(p && p.noDiscount);
     $("ivDisc").checked = !!(p && p.discontinued);
+    $("ivNeedles").value = (p && p.needles!=null) ? p.needles : "";
+    $("ivNeedleCost").value = (+settings.needleCost>0) ? settings.needleCost : "";
+    function _ndl(){ var med=$("ivCat").value==="Medication"; Array.prototype.forEach.call(document.querySelectorAll(".iv-needle"),function(x){ x.style.display=med?"":"none"; }); }
+    $("ivCat").onchange=_ndl; setTimeout(_ndl,0);
     $("ivStartQty").value = name?r.startQty:"";
     var _l0=invLoc!=="all"?invLoc:((typeof tillSite==="function" && tillSite())?tillSite():invShared());
     $("ivLoc").innerHTML=sites.filter(function(x){ return x.active!==false || r.loc[x.id]; }).map(function(x){ return '<option value="'+esc(x.id)+'"'+(x.id===_l0?' selected':'')+'>'+esc(x.name)+'</option>'; }).join("");
@@ -6507,6 +6514,8 @@ window.startClinicApp = function(){
     var dup=(regProducts[target]||[]).filter(function(x){ return x.name.toLowerCase()===name.toLowerCase() && x.name!==invEditName; })[0];
     if(dup){ $("ivName").focus(); toast("An item with that name already exists in "+entityName(target)); return; }
     var fields={ price:retail, cost:cost, cat:cat, vendor:vendor, sku:sku, invNotes:notes, type:(isSvc?"service":"inventory"), noDiscount:!!($("ivNoDisc")&&$("ivNoDisc").checked), discontinued:!!($("ivDisc")&&$("ivDisc").checked) };
+    if(cat==="Medication"){ var _nd=$("ivNeedles").value; fields.needles=_nd===""?null:Math.max(0,Math.round(+_nd||0));
+      var _nc=$("ivNeedleCost").value; var _ncv=_nc===""?0:Math.max(0,Math.round((+_nc||0)*100)/100); if(_ncv!==(+settings.needleCost||0)){ settings.needleCost=_ncv; saveSettings(); } }
     var finalName=name;
     if(invEditName){
       var oldEntity=invEditEntity, p=prodInEntity(invEditName, oldEntity);
@@ -6766,6 +6775,7 @@ window.startClinicApp = function(){
       var tag = p.cat==="Supplement" ? '<span class="inv-tag">Supplement</span>' : isMed ? '<span class="inv-tag t-svc">Service</span><span class="inv-tag t-med">Medication</span>' : (p.cat ? '<span class="inv-tag t-other">'+esc(p.cat)+'</span>' : '');
       var coTag = showCo ? '<span class="inv-co inv-co-'+x.entity+'">'+(x.entity==="alpha"?"Alpha":"MJS")+'</span>' : '';
       var meta=[]; if(p.vendor) meta.push(esc(p.vendor)); if(p.sku) meta.push("#"+esc(p.sku));
+      var needleLine = isMed ? '<div class="inv-needle"><label>Needles per treatment <input type="number" min="0" step="1" inputmode="numeric" class="inv-ro" data-invneedle="'+esc(x.entity+"|"+p.id)+'" value="'+(p.needles!=null?p.needles:"")+'" placeholder="?"></label>'+(p.needles!=null && +settings.needleCost>0?' <span>supplies $'+money(p.needles*settings.needleCost)+' per treatment</span>':'')+(p.needles==null?' <span class="inv-needle-miss">not set</span>':'')+'</div>' : '';
       var metaLine = meta.length ? '<span class="inv-vendor">'+meta.join(" \u00b7 ")+'</span>' : '';
       var ctrls = isSvc ?
         ('<div class="inv-ctrls"><span class="inv-svc-price">$'+money(p.price)+'</span>'+badge+
@@ -6780,7 +6790,7 @@ window.startClinicApp = function(){
           '<button type="button" class="inv-edit" data-invedit="'+esc(p.name)+'" data-invent="'+x.entity+'" aria-label="Edit item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4z"/></svg></button>'+
         '</div>');
       return '<div class="inv-row '+(isSvc?"is-svc":uncounted?"":state)+'">'+
-        '<div class="inv-name">'+coTag+esc(p.name)+(p.discontinued?'<span class="inv-tag t-disc">Discontinued</span>':'')+(isSvc?'':tag)+'<div class="inv-sub">$'+money(p.price)+' retail \u00b7 $'+money(p.cost)+' cost'+(metaLine?' \u00b7 '+metaLine:'')+'</div>'+locLine+'</div>'+
+        '<div class="inv-name">'+coTag+esc(p.name)+(p.discontinued?'<span class="inv-tag t-disc">Discontinued</span>':'')+(isSvc?'':tag)+'<div class="inv-sub">$'+money(p.price)+' retail \u00b7 $'+money(p.cost)+' cost'+(metaLine?' \u00b7 '+metaLine:'')+'</div>'+needleLine+locLine+'</div>'+
         ctrls+
       '</div>';
         '</div>'+
@@ -6792,6 +6802,8 @@ window.startClinicApp = function(){
     Array.prototype.forEach.call(el.querySelectorAll("[data-invloc2]"),function(b){ b.onclick=function(){ invLoc=b.getAttribute("data-invloc2"); paintInventory(); }; });
     Array.prototype.forEach.call(el.querySelectorAll("[data-invmove]"),function(b){ b.onclick=function(){ openInvMove(b.getAttribute("data-invmove")); }; });
     Array.prototype.forEach.call(el.querySelectorAll("[data-invqty]"),function(inp){ inp.onchange=function(){ var n=inp.getAttribute("data-invqty"); invSet(n, parseInt(inp.value,10)||0, null, L); paintInventory(); }; });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-invneedle]"),function(inp){ inp.onclick=function(e){ e.stopPropagation(); }; inp.onchange=function(){ var v=inp.getAttribute("data-invneedle").split("|"), p=(regProducts[v[0]]||[]).filter(function(x){ return x.id===v[1]; })[0]; if(!p) return;
+      p.needles=inp.value===""?null:Math.max(0,Math.round(+inp.value||0)); saveRegProducts(); paintInventory(); }; });
     Array.prototype.forEach.call(el.querySelectorAll("[data-invro]"),function(inp){ inp.onchange=function(){ var n=inp.getAttribute("data-invro"); invSet(n, null, parseInt(inp.value,10)||0, L==="all"?null:L); paintInventory(); }; });
     Array.prototype.forEach.call(el.querySelectorAll("[data-invedit]"),function(b){ b.onclick=function(){ openInvForm(b.getAttribute("data-invedit"), b.getAttribute("data-invent")); window.scrollTo(0,0); }; });
   }
