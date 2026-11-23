@@ -6439,7 +6439,7 @@ window.startClinicApp = function(){
       } else {
         var ee=t.entity||"mjs";
         if(!both && ee!==acctEntity) return;
-        var code=acctCodeByNameEnt(ee, t.category||t.name)||acctCodeByName(t.category||t.name)||"5900";
+        var code=acctCodeByNameEnt(ee, t.category||t.name)||acctCodeOnChart(ee, t.account)||acctCodeByName(t.category||t.name)||"5900";
         entries.push({tid:t.id,date:t.date,ref:"EXP",memo:(t.name||t.category||"Expense")+(t.paidFrom==="safe"?" (cash from safe)":""),lines:[{acct:code,dr:t.amount||0,cr:0},{acct:(t.paidFrom==="safe"?"1005":"1000"),dr:0,cr:t.amount||0}],ent:ee});
       }
     }
@@ -8300,6 +8300,8 @@ window.startClinicApp = function(){
   // QuickBooks (Alpha Male Health Restoration): 5000 Cost of Goods Sold, 5100 COGS - Medical Supplies, 5105 COGS Suppliments,
   // 7110 Supplies, 7115 Amazon Purchases. The app had 5000 "Medical Supplies" and 5100 "Payroll & Staff", which clashed.
   // Runs once (flag in settings), keyed to Alpha only. MJS numbering is separate and untouched.
+  // an expense that carries its account code (e.g. 5105, imported from QuickBooks) resolves by that code when its name is not on the chart
+  function acctCodeOnChart(ent, code){ if(!code) return null; code=String(code); return (load("alphaperf_accounts_"+ent,[])||[]).some(function(x){ return x.code===code; })?code:null; }
   function acctCodeByNameEnt(ent, nm){ var A=load("alphaperf_accounts_"+ent,[])||[], a=A.filter(function(x){ return x.name===nm; })[0]; return a?a.code:null; }
   function alphaChartToQB(){
     if(settings.alphaChartQB==="2026-11-23") return false;
