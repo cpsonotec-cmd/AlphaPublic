@@ -1207,14 +1207,14 @@
   .hc-track{flex:1;height:12px;background:var(--canvas);border-radius:8px;overflow:hidden}
   .hc-fill{height:100%;border-radius:8px}
   .hc-bar-val{width:76px;text-align:right;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
-  .hc-donut-wrap{display:flex;gap:16px;align-items:center;margin-top:8px;flex-wrap:wrap}
+  .hc-donut-wrap{display:flex;gap:14px;align-items:center;margin-top:8px;flex-wrap:wrap;justify-content:center}
   .hc-donut{position:relative;width:132px;height:132px;flex-shrink:0}
   .hc-donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
   .hc-donut-c-val{font-size:14px;font-weight:700}.hc-donut-c-lbl{font-size:10px;color:var(--muted)}
-  .hc-legend{flex:1;min-width:150px}
-  .hc-leg{display:flex;align-items:center;gap:8px;font-size:12.5px;margin-bottom:5px}
+  .hc-legend{flex:1 1 100%;min-width:0}
+  .hc-leg{display:flex;align-items:flex-start;gap:8px;font-size:12.5px;margin-bottom:6px;line-height:1.3}
   .hc-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
-  .hc-leg-lbl{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hc-leg-lbl{flex:1;min-width:0;white-space:normal;overflow-wrap:anywhere}
   .hc-leg-val{font-weight:600;font-variant-numeric:tabular-nums}
   .hc-acct-list{margin-top:12px;border-top:1px solid var(--line);padding-top:6px}
   .hc-acct{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
@@ -6917,6 +6917,10 @@ window.startClinicApp = function(){
     Array.prototype.forEach.call(el.querySelectorAll("[data-ndact]"),function(x){ x.onclick=function(){ var v=x.getAttribute("data-ndact").split("|"); openNeedleAct(v[0], v[1]); }; });
     Array.prototype.forEach.call(el.querySelectorAll("[data-invloc2]"),function(x){ x.onclick=function(){ invLoc=x.getAttribute("data-invloc2"); paintInventory(); }; });
   }
+  // the medical supplies account for either company (MJS "COGS - Medical Supplies" 5100, Alpha "Medical Supplies"); same reporting line
+  function supAcctName(ent){ var A=load("alphaperf_accounts_"+ent,[])||[], a=A.filter(function(x){ return /^(cogs\s*-\s*)?medical supplies$/i.test(x.name||""); })[0];
+    if(a) return a.name; var code=["5100","5190","5195"].filter(function(c){ return !A.some(function(x){ return x.code===c; }); })[0]||("51"+Math.floor(Math.random()*90+10));
+    A.push({id:code, code:code, name:"COGS - Medical Supplies", type:"Expense"}); store.set("alphaperf_accounts_"+ent, JSON.stringify(A)); if(typeof schedulePush==="function") schedulePush(); return "COGS - Medical Supplies"; }
   function openNeedleAct(id, mode){
     var t=needleType(id); if(!t) return; var act=sites.filter(function(x){ return x.active!==false; }), l0=invLoc!=="all"?invLoc:((typeof tillSite==="function"&&tillSite())?tillSite():invShared());
     function so(idd,sel){ return '<select id="'+idd+'">'+act.map(function(s){ return '<option value="'+esc(s.id)+'"'+(s.id===sel?' selected':'')+'>'+esc(s.name)+'</option>'; }).join("")+'</select>'; }
@@ -6924,7 +6928,9 @@ window.startClinicApp = function(){
       '<div class="gc-chips" style="margin-bottom:10px" id="ndMode">'+[["recv","Boxes received"],["count","Count on hand"],["move","Move"],["waste","Wasted / lost"]].map(function(x){ return '<button type="button" data-ndm="'+x[0]+'" class="'+(x[0]===mode?'on':'')+'">'+x[1]+'</button>'; }).join("")+'</div>'+
       '<div class="gc-row2"><div class="pos-field"><label id="ndLocL">Location</label>'+so("ndLoc",l0)+'</div><div class="pos-field" id="ndToW" style="display:none"><label>To</label>'+so("ndTo",(act.filter(function(s){ return s.id!==l0; })[0]||{}).id)+'</div></div>'+
       '<div class="gc-row2"><div class="pos-field"><label id="ndQL">Boxes</label><input type="number" id="ndQ" min="0" step="1" inputmode="numeric"></div><div class="pos-field"><label>Your initials</label><input type="text" id="ndIni" maxlength="4" style="text-transform:uppercase"></div></div>'+
-      '<div class="gc-row2" id="ndBuyW"><div class="pos-field"><label>How many in a box / pack</label><input type="number" id="ndBox" min="1" step="1" value="'+(+t.box||100)+'"></div><div class="pos-field"><label>Paid per box $ (this purchase)</label><input type="number" id="ndPaid" min="0" step="0.01" inputmode="decimal" placeholder="'+(+t.boxCost?money(+t.boxCost):'')+'"></div></div>'+
+      '<div id="ndBuyW"><div class="gc-row2"><div class="pos-field"><label>How many in a box / pack</label><input type="number" id="ndBox" min="1" step="1" value="'+(+t.box||100)+'"></div><div class="pos-field"><label>Paid per box $ (this purchase)</label><input type="number" id="ndPaid" min="0" step="0.01" inputmode="decimal" placeholder="'+(+t.boxCost?money(+t.boxCost):'')+'"></div></div>'+
+        '<div class="gc-row2"><div class="pos-field"><label>Paid by</label><select id="ndEnt"><option value="alpha">Alpha</option><option value="mjs">MJS</option></select></div><div class="pos-field"><label>Vendor</label><input type="text" id="ndVendor" placeholder="e.g. Henry Schein, Amazon" value="'+esc(t.brand||"")+'"></div></div>'+
+        '<label class="gc-xfer-check" style="margin-left:0"><input type="checkbox" id="ndExp" checked> Add the cost to expenses (Medical Supplies, for the company that paid)</label></div>'+
       '<div class="gc-hint" id="ndHint"></div>'+((t.buys||[]).length?'<div class="gc-hist-h">Recent purchases</div>'+(t.buys||[]).slice(0,6).map(function(b){ return '<div class="gc-hist"><span>'+esc(fmtDate(parseISO(b.date)))+' · '+b.boxes+' box'+(b.boxes===1?'':'es')+' of '+b.per+' · '+esc(siteName(b.loc))+' · '+esc(b.ini||"")+'</span><b>$'+money(b.paid)+'/box</b></div>'; }).join(""):'')+'<div class="sub-err" id="ndErr"></div>',
       '<button class="btn-ghost" id="ndCancel" type="button">Cancel</button><button class="btn-primary" id="ndGo" type="button">Save</button>');
     function hint(){ var r=invRec(needleKey(t)), l=$("ndLoc").value, have=r.loc[l]||0, q=+$("ndQ").value||0, per=+$("ndBox").value||+t.box||100;
@@ -6941,7 +6947,11 @@ window.startClinicApp = function(){
       if(mode==="recv"){ var per=Math.round(+$("ndBox").value||0), paid=Math.round((+$("ndPaid").value||0)*100)/100; if(!(per>0)){ $("ndErr").textContent="Enter how many come in a box."; return; }
         r.loc[l]=have+q*per; why="received "+q+" box"+(q===1?"":"es")+" of "+per+(paid>0?" at $"+money(paid):"");
         var list=needleTypes().map(function(x){ return Object.assign({},x); }), me=list.filter(function(x){ return x.id===t.id; })[0];
-        if(me){ if(paid>0){ me.boxCost=paid; me.box=per; } me.buys=[{date:todayISO(), boxes:q, per:per, paid:paid||null, loc:l, ini:ini}].concat(me.buys||[]).slice(0,24); settings.needleTypes=list; saveSettings(); } }
+        var payEnt=$("ndEnt").value, vend=($("ndVendor").value||"").trim();
+        if(me){ if(paid>0){ me.boxCost=paid; me.box=per; } me.buys=[{date:todayISO(), boxes:q, per:per, paid:paid||null, loc:l, ini:ini, ent:payEnt, vendor:vend}].concat(me.buys||[]).slice(0,24); settings.needleTypes=list; saveSettings(); }
+        if(paid>0 && $("ndExp").checked){ var cat=supAcctName(payEnt), amt=Math.round(q*paid*100)/100;
+          txns.push({id:txId(), date:todayISO(), type:"expense", entity:payEnt, name:vend||t.name, category:cat, amount:amt, note:q+" \u00d7 "+t.name+" ("+per+" per box) @ $"+money(paid), location:l, locSrc:"entered", supplyBuy:t.id, at:new Date().toISOString(), by:ini});
+          saveTxns(); why+=" \u00b7 $"+money(amt)+" to "+(payEnt==="alpha"?"Alpha":"MJS")+" "+cat; } }
       else if(mode==="count"){ r.loc[l]=q; why="counted "+q+" ("+(q-have>=0?"+":"")+(q-have)+")"; }
       else if(mode==="waste"){ if(q>have){ $("ndErr").textContent=siteName(l)+" only has "+have+"."; return; } r.loc[l]=have-q; why="wasted/lost "+q; }
       else { var to=$("ndTo").value; if(to===l){ $("ndErr").textContent="Pick two different locations."; return; } if(q>have){ $("ndErr").textContent=siteName(l)+" only has "+have+"."; return; } r.loc[l]=have-q; r.loc[to]=(r.loc[to]||0)+q; why="moved "+q+" to "+siteName(to); }
