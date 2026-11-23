@@ -8300,12 +8300,14 @@ window.startClinicApp = function(){
   function medSupCodes(){ var A=load("alphaperf_accounts_mjs",[])||[], by=function(re){ var a=A.filter(function(x){ return re.test(x.name||""); })[0]; return a?a.code:null; };
     return {med:by(/^cogs\s*-\s*medication$/i)||MED_ACCT, sup:by(/^cogs\s*-\s*medical supplies$/i)||((A.filter(function(x){ return x.code===SUP_ACCT; })[0]||{}).name&&/suppl/i.test((A.filter(function(x){ return x.code===SUP_ACCT; })[0]||{}).name)?SUP_ACCT:null)||by(/^medical supplies$/i)}; }
   function cogsSplit(range){ var MS=medSupCodes(), keep=acctEntity, o={med:0, sup:0, rev:0, loc:{}, months:{}}, sh=(typeof sharedSite==="function")?sharedSite().id:"setauket", ent=keep; acctEntity="both";
-    try{ buildLedger().forEach(function(e){ if(e.ent!=="mjs") return; var inR=inRangeR(e.date, range), mk=(e.date||"").slice(0,7), L=o.loc[e.loc||sh]||(o.loc[e.loc||sh]={med:0,sup:0,rev:0}), M=o.months[mk]||(o.months[mk]={med:0,sup:0,rev:0});
+    try{ var supRe=/^(cogs\s*-\s*)?medical supplies$/i, alSupSet={}, alSup=false; (load("alphaperf_accounts_alpha",[])||[]).concat(load("alphaperf_accounts_mjs",[])||[]).forEach(function(x){ if(supRe.test(x.name||"")){ alSupSet[x.code]=1; alSup=true; } });
+    buildLedger().forEach(function(e){ if(e.ent==="alpha"){ if(!alSup) return; var inA=inRangeR(e.date, range), mkA=(e.date||"").slice(0,7), LA=o.loc[e.loc||sh]||(o.loc[e.loc||sh]={med:0,sup:0,rev:0}), MA=o.months[mkA]||(o.months[mkA]={med:0,sup:0,rev:0});
+        e.lines.forEach(function(l){ if(!alSupSet[l.acct]) return; var v=l.dr-l.cr; MA.sup+=v; if(inA){ o.sup+=v; o.supAlpha=(o.supAlpha||0)+v; LA.sup+=v; } }); return; }
+      if(e.ent!=="mjs") return; var inR=inRangeR(e.date, range), mk=(e.date||"").slice(0,7), L=o.loc[e.loc||sh]||(o.loc[e.loc||sh]={med:0,sup:0,rev:0}), M=o.months[mk]||(o.months[mk]={med:0,sup:0,rev:0});
       e.lines.forEach(function(l){ var v=0, k=null; if(l.acct===MS.med){ k="med"; v=l.dr-l.cr; } else if(MS.sup && l.acct===MS.sup){ k="sup"; v=l.dr-l.cr; } else { var a=null; try{ a=(load("alphaperf_accounts_"+e.ent,[])||[]).filter(function(x){ return x.code===l.acct; })[0]; }catch(_){} if(a && a.type==="Income"){ k="rev"; v=l.cr-l.dr; } }
         if(!k) return; M[k]+=v; if(inR){ o[k]+=v; L[k]+=v; } }); }); } finally { acctEntity=keep; }
     return o; }
   function homeCogsCard(range, lbl){
-    if(acctEntity==="alpha") return "";
     var c=cogsSplit(range), pr=priorRange(range), p=pr?cogsSplit(pr):null, pct=function(v,r){ return r>0.004?(v/r*100):null; }, f=function(x){ return x==null?"–":x.toFixed(1)+"%"; };
     if(Math.abs(c.med)<0.005 && Math.abs(c.sup)<0.005 && !(p && (p.med||p.sup))) return "";
     var mp=pct(c.med,c.rev), sp=pct(c.sup,c.rev), pmp=p?pct(p.med,p.rev):null, psp=p?pct(p.sup,p.rev):null;
@@ -8315,9 +8317,9 @@ window.startClinicApp = function(){
     var trend='<table class="hm-table"><thead><tr><th>Month</th><th>Revenue</th><th>Medication</th><th>%</th><th>Supplies</th><th>%</th></tr></thead><tbody>'+months.map(function(k){ var x=mm[k]||{med:0,sup:0,rev:0}; return '<tr><td>'+esc(new Date(+k.slice(0,4), +k.slice(5)-1, 1).toLocaleDateString("en-US",{month:"short",year:"numeric"}))+'</td><td>'+sMoney(x.rev)+'</td><td>'+sMoney(x.med)+'</td><td><b>'+f(pct(x.med,x.rev))+'</b></td><td>'+sMoney(x.sup)+'</td><td>'+f(pct(x.sup,x.rev))+'</td></tr>'; }).join("")+'</tbody></table>';
     var locs=Object.keys(c.loc).filter(function(k){ var x=c.loc[k]; return x.rev||x.med||x.sup; });
     var byLoc='<table class="hm-table"><thead><tr><th>Location</th><th>Revenue</th><th>Medication</th><th>%</th><th>Supplies</th><th>%</th></tr></thead><tbody>'+locs.map(function(k){ var x=c.loc[k]; return '<tr><td>'+esc(siteName(k))+'</td><td>'+sMoney(x.rev)+'</td><td>'+sMoney(x.med)+'</td><td><b>'+f(pct(x.med,x.rev))+'</b></td><td>'+sMoney(x.sup)+'</td><td>'+f(pct(x.sup,x.rev))+'</td></tr>'; }).join("")+'</tbody></table>';
-    return '<div class="home-card home-wide" id="homeCogs"><div class="hc-head"><span class="hc-title">Medication &amp; medical supplies (MJS)</span><span class="hc-period">'+esc(lbl)+'</span></div>'+
-      '<div class="cash-sumrow"><div><span>Medication cost (5110)</span><b>'+sMoney(c.med)+'</b></div><div><span>Medication % of revenue</span><b>'+f(mp)+' '+pts(mp,pmp)+'</b></div><div><span>Medical supplies (5100)</span><b>'+sMoney(c.sup)+'</b></div><div><span>Supplies % of revenue</span><b>'+f(sp)+' '+pts(sp,psp)+'</b></div></div>'+
-      '<div class="hs-notes" style="margin:6px 0 10px"><div>Both are cost of goods: this splits one total, so gross margin is the same. Revenue here is MJS revenue ('+sMoney(c.rev)+'), since both costs are MJS\u2019s. Change is in percentage points against the period before.</div></div>'+
+    return '<div class="home-card home-wide" id="homeCogs"><div class="hc-head"><span class="hc-title">Medication &amp; medical supplies</span><span class="hc-period">'+esc(lbl)+'</span></div>'+
+      '<div class="cash-sumrow"><div><span>Medication cost (5110)</span><b>'+sMoney(c.med)+'</b></div><div><span>Medication % of revenue</span><b>'+f(mp)+' '+pts(mp,pmp)+'</b></div><div><span>Medical supplies (MJS 5100 + Alpha)</span><b>'+sMoney(c.sup)+'</b></div><div><span>Supplies % of revenue</span><b>'+f(sp)+' '+pts(sp,psp)+'</b></div></div>'+
+      '<div class="hs-notes" style="margin:6px 0 10px"><div>Both are cost of goods: this splits one total, so gross margin is the same. Medical supplies are now bought by Alpha, so the supplies figure adds Alpha\u2019s medical supplies'+(c.supAlpha?' ($'+money(c.supAlpha)+' this period)':'')+' to MJS 5100. Both percentages are of MJS revenue ('+sMoney(c.rev)+'), where the treatments are sold. Change is in percentage points against the period before.</div></div>'+
       '<div class="hc-sub" style="margin-top:4px">Last 6 months</div><div class="hm-table-wrap">'+trend+'</div>'+
       (locs.length>1?'<div class="hc-sub" style="margin-top:10px">By location</div><div class="hm-table-wrap">'+byLoc+'</div>':'')+'</div>';
   }
@@ -8804,6 +8806,7 @@ window.startClinicApp = function(){
     if(!amt){ $("posExpAmt").focus(); return; }
     var _rt=acctEntity==="mjs"?medRoute(note, nm):{cat:nm, review:false};
     if(_rt.cat!==nm) toast((_rt.review?"Looks like a pharmacy: posted to ":"Pharmacy vendor: posted to ")+_rt.cat+(_rt.review?" (flagged for review)":""));
+    else if(acctEntity==="mjs" && /medical supplies/i.test(_rt.cat||"")) toast("Saved to MJS. Note: medical supplies are now bought by Alpha; switch to Alpha if this one was.");
     txns.push({ id:txId(), date:$("posExpDate").value||todayISO(), type:"expense", name:note||_rt.cat, category:_rt.cat, amount:amt, note:note, entity:acctEntity, location:($("posExpLoc")&&$("posExpLoc").value)||sharedSite().id, locSrc:"entered", medReview:_rt.review?true:undefined });
     saveTxns();
     $("posExpAmt").value=""; $("posExpNote").value="";
