@@ -789,6 +789,7 @@
   .cash-onesafe{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:13.5px}.cash-onesafe label{display:flex;gap:6px;align-items:center}
   .cash-act{cursor:pointer;border-radius:8px}.cash-act:hover{background:#F1F5F9}.cash-edit{color:#94A3B8;font-weight:400;margin-left:4px}
   .nd-pick{display:block;width:100%;text-align:left;padding:11px 14px;margin-bottom:6px;border:1.5px solid var(--line);border-radius:10px;background:#fff;font:inherit;font-weight:700;cursor:pointer}.nd-pick:hover{border-color:#2563EB;background:#EFF6FF}
+  .cg-plug td{color:var(--muted)}
   .inv-needle-bad{color:#B91C1C;font-weight:800}
   .bp-wrap.nd-wrap{border-color:#93C5FD;background:#F0F9FF}
   .bp-wrap{border:2px solid #C4B5FD;background:#FAF5FF;border-radius:14px;padding:4px 14px;margin-bottom:12px}.bp-foot{padding:8px 0;border-top:1px solid var(--line)}.bp-row{display:flex;gap:14px;align-items:flex-start;justify-content:space-between;border-top:1px solid var(--line);padding:12px 0}.bp-row:first-of-type{border-top:0}.bp-name{font-weight:800;font-size:15px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}.bp-big{font-size:22px;font-weight:800;margin-top:4px}.bp-big span{font-size:12.5px;font-weight:600;color:var(--muted)}.bp-acts{display:flex;flex-direction:column;gap:6px;flex-shrink:0}
@@ -6438,8 +6439,8 @@ window.startClinicApp = function(){
       } else {
         var ee=t.entity||"mjs";
         if(!both && ee!==acctEntity) return;
-        var code=acctCodeByName(t.category||t.name)||"5900";
-        entries.push({date:t.date,ref:"EXP",memo:(t.name||t.category||"Expense")+(t.paidFrom==="safe"?" (cash from safe)":""),lines:[{acct:code,dr:t.amount||0,cr:0},{acct:(t.paidFrom==="safe"?"1005":"1000"),dr:0,cr:t.amount||0}],ent:ee});
+        var code=acctCodeByNameEnt(ee, t.category||t.name)||acctCodeByName(t.category||t.name)||"5900";
+        entries.push({tid:t.id,date:t.date,ref:"EXP",memo:(t.name||t.category||"Expense")+(t.paidFrom==="safe"?" (cash from safe)":""),lines:[{acct:code,dr:t.amount||0,cr:0},{acct:(t.paidFrom==="safe"?"1005":"1000"),dr:0,cr:t.amount||0}],ent:ee});
       }
     }
     // promotional/donated certificates post nothing at issue (they become a discount when redeemed).
@@ -6918,7 +6919,7 @@ window.startClinicApp = function(){
     Array.prototype.forEach.call(el.querySelectorAll("[data-invloc2]"),function(x){ x.onclick=function(){ invLoc=x.getAttribute("data-invloc2"); paintInventory(); }; });
   }
   // the medical supplies account for either company (MJS "COGS - Medical Supplies" 5100, Alpha "Medical Supplies"); same reporting line
-  function supAcctName(ent){ var A=load("alphaperf_accounts_"+ent,[])||[], a=A.filter(function(x){ return /^(cogs\s*-\s*)?medical supplies$/i.test(x.name||""); })[0];
+  function supAcctName(ent){ var A=load("alphaperf_accounts_"+ent,[])||[], a=A.filter(function(x){ return x.code==="5100" && /medical supplies/i.test(x.name||""); })[0]||A.filter(function(x){ return /^(cogs\s*-\s*)?medical supplies$/i.test(x.name||""); })[0];
     if(a) return a.name; var code=["5100","5190","5195"].filter(function(c){ return !A.some(function(x){ return x.code===c; }); })[0]||("51"+Math.floor(Math.random()*90+10));
     A.push({id:code, code:code, name:"COGS - Medical Supplies", type:"Expense"}); store.set("alphaperf_accounts_"+ent, JSON.stringify(A)); if(typeof schedulePush==="function") schedulePush(); return "COGS - Medical Supplies"; }
   function openNeedleAct(id, mode){
@@ -8295,6 +8296,39 @@ window.startClinicApp = function(){
       '<div class="hm-table-wrap"><table class="hm-table hs-table"><thead><tr><th>Location</th><th>Sales</th><th>Revenue</th><th>% of revenue</th><th>Per day open</th><th>Site cost</th><th>After site cost</th></tr></thead><tbody>'+body+'</tbody><tfoot>'+foot+'</tfoot></table></div>'+
       '<div class="hs-notes">'+notes.map(function(n){ return '<div>'+n+'</div>'; }).join("")+'</div></div>';
   }
+  // ---------- Alpha chart matched to QuickBooks (23 Nov 2026) ----------
+  // QuickBooks (Alpha Male Health Restoration): 5000 Cost of Goods Sold, 5100 COGS - Medical Supplies, 5105 COGS Suppliments,
+  // 7110 Supplies, 7115 Amazon Purchases. The app had 5000 "Medical Supplies" and 5100 "Payroll & Staff", which clashed.
+  // Runs once (flag in settings), keyed to Alpha only. MJS numbering is separate and untouched.
+  function acctCodeByNameEnt(ent, nm){ var A=load("alphaperf_accounts_"+ent,[])||[], a=A.filter(function(x){ return x.name===nm; })[0]; return a?a.code:null; }
+  function alphaChartToQB(){
+    if(settings.alphaChartQB==="2026-11-23") return false;
+    var A=load("alphaperf_accounts_alpha",null); if(!A || !A.length) return false;
+    var tx=load("alphaperf_txns",null); if(!Array.isArray(tx) || !tx.length) return false;   // sales/expenses not loaded yet
+    var js=load("alphaperf_journals_alpha",[])||[], changed=[];
+    // 1. move "Payroll & Staff" off 5100
+    var pay=A.filter(function(a){ return a.code==="5100" && !/medical supplies/i.test(a.name||""); })[0];
+    if(pay){ var free=["6000","6005","6010","6100"].filter(function(c){ return !A.some(function(a){ return a.code===c; }); })[0]||"6099";
+      js.forEach(function(j){ if(j.alphaQB) return; var hit=false; (j.lines||[]).forEach(function(l){ if(l.acct==="5100"){ l.acct=free; hit=true; } }); if(hit) j.alphaQB=1; });
+      changed.push(pay.code+" "+pay.name+" → "+free); pay.code=free; pay.id=free; }
+    // 2. the QuickBooks accounts, by code
+    function put(code, name){ var a=A.filter(function(x){ return x.code===code; })[0]; if(a){ if(a.name!==name){ changed.push(code+" "+a.name+" → "+name); a.oldName=a.name; a.name=name; } a.type="Expense"; } else { A.push({id:code, code:code, name:name, type:"Expense"}); changed.push("added "+code+" "+name); } }
+    put("5000","Cost of Goods Sold"); put("5100","COGS - Medical Supplies"); put("5105","COGS Suppliments"); put("7110","Supplies"); put("7115","Amazon Purchases");
+    A=A.filter(function(a){ return !(a.code==="5050"); });
+    // 3. Alpha expenses to the matching QuickBooks account
+    var moved=0;
+    tx.forEach(function(t){ if(t.type!=="expense" || t.entity!=="alpha") return; var c=String(t.category||""), who=(t.name||"")+" "+(t.note||""), to=null;
+      if(/^cogs - supplements \/ medical supplies$/i.test(c)) to="COGS - Medical Supplies";
+      else if(/^(supplement cogs|cogs - supplements|cogs suppliments)$/i.test(c)) to="COGS Suppliments";
+      else if(/^medical supplies$/i.test(c)) to=/thorne|supplement/i.test(who)?"COGS Suppliments":"COGS - Medical Supplies";
+      if(to && to!==t.category){ t.qbRemap=(t.qbRemap||"")+c+" → "+to+" (2026-11-23)"; t.category=to; if(!t.name || t.name===c) t.name=to; moved++; } });
+    store.set("alphaperf_accounts_alpha", JSON.stringify(A)); store.set("alphaperf_journals_alpha", JSON.stringify(js));
+    if(moved){ txns=tx; saveTxns(); }
+    settings.alphaChartQB="2026-11-23"; saveSettings();
+    try{ if(window.__hipAudit) window.__hipAudit("alpha_chart_qb", changed.join("; ")+" · "+moved+" Alpha expenses moved"); }catch(e){}
+    if(acctEntity==="alpha"){ try{ loadEntity("alpha"); }catch(e){} }
+    return {changed:changed, moved:moved};
+  }
   // ---------- Medication (5110) vs medical supplies (5100), MJS (22 Nov 2026) ----------
   // Both are cost of goods; this is a split of the same total. Shown as % of revenue, by month and by location.
   var MED_ACCT="5110", SUP_ACCT="5100";
@@ -8309,29 +8343,39 @@ window.startClinicApp = function(){
   // codes for the two accounts in the MJS chart (by QuickBooks name first, then by code)
   function medSupCodes(){ var A=load("alphaperf_accounts_mjs",[])||[], by=function(re){ var a=A.filter(function(x){ return re.test(x.name||""); })[0]; return a?a.code:null; };
     return {med:by(/^cogs\s*-\s*medication$/i)||MED_ACCT, sup:by(/^cogs\s*-\s*medical supplies$/i)||((A.filter(function(x){ return x.code===SUP_ACCT; })[0]||{}).name&&/suppl/i.test((A.filter(function(x){ return x.code===SUP_ACCT; })[0]||{}).name)?SUP_ACCT:null)||by(/^medical supplies$/i)}; }
-  function cogsSplit(range){ var MS=medSupCodes(), keep=acctEntity, o={med:0, sup:0, rev:0, loc:{}, months:{}}, sh=(typeof sharedSite==="function")?sharedSite().id:"setauket", ent=keep; acctEntity="both";
-    try{ var supRe=/^(cogs\s*-\s*)?medical supplies$/i, alSupSet={}, alSup=false; (load("alphaperf_accounts_alpha",[])||[]).concat(load("alphaperf_accounts_mjs",[])||[]).forEach(function(x){ if(supRe.test(x.name||"")){ alSupSet[x.code]=1; alSup=true; } });
-    buildLedger().forEach(function(e){ if(e.ent==="alpha"){ if(!alSup) return; var inA=inRangeR(e.date, range), mkA=(e.date||"").slice(0,7), LA=o.loc[e.loc||sh]||(o.loc[e.loc||sh]={med:0,sup:0,rev:0}), MA=o.months[mkA]||(o.months[mkA]={med:0,sup:0,rev:0});
-        e.lines.forEach(function(l){ if(!alSupSet[l.acct]) return; var v=l.dr-l.cr; MA.sup+=v; if(inA){ o.sup+=v; o.supAlpha=(o.supAlpha||0)+v; LA.sup+=v; } }); return; }
-      if(e.ent!=="mjs") return; var inR=inRangeR(e.date, range), mk=(e.date||"").slice(0,7), L=o.loc[e.loc||sh]||(o.loc[e.loc||sh]={med:0,sup:0,rev:0}), M=o.months[mk]||(o.months[mk]={med:0,sup:0,rev:0});
-      e.lines.forEach(function(l){ var v=0, k=null; if(l.acct===MS.med){ k="med"; v=l.dr-l.cr; } else if(MS.sup && l.acct===MS.sup){ k="sup"; v=l.dr-l.cr; } else { var a=null; try{ a=(load("alphaperf_accounts_"+e.ent,[])||[]).filter(function(x){ return x.code===l.acct; })[0]; }catch(_){} if(a && a.type==="Income"){ k="rev"; v=l.cr-l.dr; } }
-        if(!k) return; M[k]+=v; if(inR){ o[k]+=v; L[k]+=v; } }); }); } finally { acctEntity=keep; }
+  var COGS_PLUG=/agree with quickbooks|backfill from quickbooks|october quickbooks total|quickbooks total|quickbooks p&l/i;
+  function supCodeFor(ent){ var A=load("alphaperf_accounts_"+ent,[])||[], a=A.filter(function(x){ return x.code==="5100"; })[0]; return a && /medical supplies/i.test(a.name||"") ? "5100" : null; }
+  function cogsSplit(range){ var MS=medSupCodes(), supM=supCodeFor("mjs"), supA=supCodeFor("alpha"), keep=acctEntity, o={med:0, medPlug:0, sup:0, supAlpha:0, rev:0, loc:{}, months:{}}, sh=(typeof sharedSite==="function")?sharedSite().id:"setauket"; acctEntity="both";
+    var tmemo={}; txns.forEach(function(t){ if(t.type==="expense") tmemo[t.id]=(t.name||"")+" "+(t.note||"")+" "+(t.memo||""); });
+    var jmemo={}; (load("alphaperf_journals_mjs",[])||[]).forEach(function(j){ jmemo[j.id]=j.memo||""; });
+    try{ buildLedger().forEach(function(e){ var inR=inRangeR(e.date, range), mk=(e.date||"").slice(0,7), lk=e.loc||sh, L=o.loc[lk]||(o.loc[lk]={med:0,sup:0,rev:0}), M=o.months[mk]||(o.months[mk]={med:0,medPlug:0,sup:0,rev:0});
+      var text=(e.memo||"")+" "+(e.tid?(tmemo[e.tid]||""):"")+" "+(e.je?(jmemo[e.je]||""):""), plug=COGS_PLUG.test(text);
+      e.lines.forEach(function(l){ var v=0, k=null;
+        if(e.ent==="alpha"){ if(supA && l.acct===supA){ k="sup"; v=l.dr-l.cr; if(inR) o.supAlpha+=v; } }
+        else if(e.ent==="mjs"){ if(l.acct===MS.med){ k="med"; v=l.dr-l.cr; } else if(supM && l.acct===supM){ k="sup"; v=l.dr-l.cr; }
+          else { var a=(load("alphaperf_accounts_mjs",[])||[]).filter(function(x){ return x.code===l.acct; })[0]; if(a && a.type==="Income"){ k="rev"; v=l.cr-l.dr; } } }
+        if(!k) return; M[k]+=v; if(k==="med" && plug) M.medPlug+=v; if(inR){ o[k]+=v; if(k==="med" && plug) o.medPlug+=v; L[k]+=v; } }); }); } finally { acctEntity=keep; }
     return o; }
   function homeCogsCard(range, lbl){
     var c=cogsSplit(range), pr=priorRange(range), p=pr?cogsSplit(pr):null, pct=function(v,r){ return r>0.004?(v/r*100):null; }, f=function(x){ return x==null?"–":x.toFixed(1)+"%"; };
     if(Math.abs(c.med)<0.005 && Math.abs(c.sup)<0.005 && !(p && (p.med||p.sup))) return "";
-    var mp=pct(c.med,c.rev), sp=pct(c.sup,c.rev), pmp=p?pct(p.med,p.rev):null, psp=p?pct(p.sup,p.rev):null;
+    var inv=c.med-c.medPlug, pinv=p?p.med-p.medPlug:null;
+    var mp=pct(inv,c.rev), sp=pct(c.sup,c.rev), pmp=p?pct(pinv,p.rev):null, psp=p?pct(p.sup,p.rev):null;
     function pts(a,b){ if(a==null||b==null) return ""; var d=Math.round((a-b)*10)/10; return '<span class="hc-chg '+(d>0?'neg':'pos')+'">'+(d>0?'+':'')+d+' pts</span>'; }
     var now=new Date(), months=[]; for(var i=5;i>=0;i--){ var d=new Date(now.getFullYear(), now.getMonth()-i, 1); months.push(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")); }
     var mm=cogsSplit({start:null,end:null}).months;
-    var trend='<table class="hm-table"><thead><tr><th>Month</th><th>Revenue</th><th>Medication</th><th>%</th><th>Supplies</th><th>%</th></tr></thead><tbody>'+months.map(function(k){ var x=mm[k]||{med:0,sup:0,rev:0}; return '<tr><td>'+esc(new Date(+k.slice(0,4), +k.slice(5)-1, 1).toLocaleDateString("en-US",{month:"short",year:"numeric"}))+'</td><td>'+sMoney(x.rev)+'</td><td>'+sMoney(x.med)+'</td><td><b>'+f(pct(x.med,x.rev))+'</b></td><td>'+sMoney(x.sup)+'</td><td>'+f(pct(x.sup,x.rev))+'</td></tr>'; }).join("")+'</tbody></table>';
-    var locs=Object.keys(c.loc).filter(function(k){ var x=c.loc[k]; return x.rev||x.med||x.sup; });
-    var byLoc='<table class="hm-table"><thead><tr><th>Location</th><th>Revenue</th><th>Medication</th><th>%</th><th>Supplies</th><th>%</th></tr></thead><tbody>'+locs.map(function(k){ var x=c.loc[k]; return '<tr><td>'+esc(siteName(k))+'</td><td>'+sMoney(x.rev)+'</td><td>'+sMoney(x.med)+'</td><td><b>'+f(pct(x.med,x.rev))+'</b></td><td>'+sMoney(x.sup)+'</td><td>'+f(pct(x.sup,x.rev))+'</td></tr>'; }).join("")+'</tbody></table>';
+    var trend='<table class="hm-table"><thead><tr><th>Month</th><th>Revenue</th><th>Medication invoices</th><th>Adjustments</th><th>Medication %</th><th>Supplies</th><th>Supplies %</th></tr></thead><tbody>'+months.map(function(k){ var x=mm[k]||{med:0,medPlug:0,sup:0,rev:0}, iv=x.med-x.medPlug, mostly=Math.abs(x.medPlug)>Math.abs(iv) && Math.abs(x.medPlug)>0.005;
+      return '<tr'+(mostly?' class="cg-plug"':'')+'><td>'+esc(new Date(+k.slice(0,4), +k.slice(5)-1, 1).toLocaleDateString("en-US",{month:"short",year:"numeric"}))+(mostly?' <span class="inv-tag t-disc" title="Most of this month’s medication cost is a catch-up adjustment from QuickBooks, not invoices">incomplete</span>':'')+'</td><td>'+sMoney(x.rev)+'</td><td>'+sMoney(iv)+'</td><td>'+(Math.abs(x.medPlug)>0.005?sMoney(x.medPlug):'–')+'</td><td><b>'+f(pct(iv,x.rev))+'</b></td><td>'+sMoney(x.sup)+'</td><td>'+f(pct(x.sup,x.rev))+'</td></tr>'; }).join("")+'</tbody></table>';
+    // medication and supplies are bought centrally: share them out by each location's revenue
+    var locs=Object.keys(c.loc).filter(function(k){ return c.loc[k].rev>0.004; }), totRev=locs.reduce(function(a,k){ return a+c.loc[k].rev; },0);
+    var byLoc='<table class="hm-table"><thead><tr><th>Location</th><th>Revenue</th><th>Share</th><th>Medication (allocated)</th><th>Supplies (allocated)</th></tr></thead><tbody>'+locs.map(function(k){ var x=c.loc[k], sh=totRev?x.rev/totRev:0; return '<tr><td>'+esc(siteName(k))+'</td><td>'+sMoney(x.rev)+'</td><td>'+(sh*100).toFixed(1)+'%</td><td>'+sMoney(inv*sh)+'</td><td>'+sMoney(c.sup*sh)+'</td></tr>'; }).join("")+'</tbody></table>';
     return '<div class="home-card home-wide" id="homeCogs"><div class="hc-head"><span class="hc-title">Medication &amp; medical supplies</span><span class="hc-period">'+esc(lbl)+'</span></div>'+
-      '<div class="cash-sumrow"><div><span>Medication cost (5110)</span><b>'+sMoney(c.med)+'</b></div><div><span>Medication % of revenue</span><b>'+f(mp)+' '+pts(mp,pmp)+'</b></div><div><span>Medical supplies (MJS 5100 + Alpha)</span><b>'+sMoney(c.sup)+'</b></div><div><span>Supplies % of revenue</span><b>'+f(sp)+' '+pts(sp,psp)+'</b></div></div>'+
-      '<div class="hs-notes" style="margin:6px 0 10px"><div>Both are cost of goods: this splits one total, so gross margin is the same. Medical supplies are now bought by Alpha, so the supplies figure adds Alpha\u2019s medical supplies'+(c.supAlpha?' ($'+money(c.supAlpha)+' this period)':'')+' to MJS 5100. Both percentages are of MJS revenue ('+sMoney(c.rev)+'), where the treatments are sold. Change is in percentage points against the period before.</div></div>'+
+      '<div class="cash-sumrow"><div><span>Medication invoices (MJS 5110)</span><b>'+sMoney(inv)+'</b></div><div><span>Medication % of revenue</span><b>'+f(mp)+' '+pts(mp,pmp)+'</b></div><div><span>Medical supplies (MJS 5100 + Alpha 5100)</span><b>'+sMoney(c.sup)+'</b></div><div><span>Supplies % of revenue</span><b>'+f(sp)+' '+pts(sp,psp)+'</b></div></div>'+
+      '<div class="hs-notes" style="margin:6px 0 10px"><div>Medical supplies are MJS 5100 plus Alpha 5100 (both “COGS - Medical Supplies”)'+(c.supAlpha?', of which Alpha $'+money(c.supAlpha):'')+'. Percentages are of MJS revenue ('+sMoney(c.rev)+').</div>'+
+        (Math.abs(c.medPlug)>0.005?'<div>Medication catch-up adjustments from QuickBooks this period ('+sMoney(c.medPlug)+') are left out of the medication figures and shown separately, because they are not invoices.</div>':'')+'</div>'+
       '<div class="hc-sub" style="margin-top:4px">Last 6 months</div><div class="hm-table-wrap">'+trend+'</div>'+
-      (locs.length>1?'<div class="hc-sub" style="margin-top:10px">By location</div><div class="hm-table-wrap">'+byLoc+'</div>':'')+'</div>';
+      '<div class="hs-notes" style="margin:4px 0 0"><div>A month marked <b>incomplete</b> is mostly catch-up adjustments, so its percentage is not comparable.</div></div>'+
+      (locs.length>1?'<div class="hc-sub" style="margin-top:10px">By location (allocated by each location’s share of revenue, since medication and supplies are bought centrally)</div><div class="hm-table-wrap">'+byLoc+'</div>':'')+'</div>';
   }
   function renderHomeSummary(){
     var range=posRange(), lbl=posPeriodLabel();
@@ -8815,6 +8859,8 @@ window.startClinicApp = function(){
     if(!nm){ toast("Pick an expense account"); return; }
     if(!amt){ $("posExpAmt").focus(); return; }
     var _rt=acctEntity==="mjs"?medRoute(note, nm):{cat:nm, review:false};
+    // needles and syringes are medical supplies (5100) for either company, e.g. Amazon orders that default to office supplies
+    if(_rt.cat===nm && /syring|needle|sharps|alcohol (prep )?pad/i.test(note) && !/medical supplies/i.test(nm) && (acctEntity==="mjs"||acctEntity==="alpha")){ _rt={cat:supAcctName(acctEntity), review:false}; toast("Needles/syringes: posted to "+_rt.cat); }
     if(_rt.cat!==nm) toast((_rt.review?"Looks like a pharmacy: posted to ":"Pharmacy vendor: posted to ")+_rt.cat+(_rt.review?" (flagged for review)":""));
     else if(acctEntity==="mjs" && /medical supplies/i.test(_rt.cat||"")) toast("Saved to MJS. Note: medical supplies are now bought by Alpha; switch to Alpha if this one was.");
     txns.push({ id:txId(), date:$("posExpDate").value||todayISO(), type:"expense", name:note||_rt.cat, category:_rt.cat, amount:amt, note:note, entity:acctEntity, location:($("posExpLoc")&&$("posExpLoc").value)||sharedSite().id, locSrc:"entered", medReview:_rt.review?true:undefined });
@@ -10848,6 +10894,7 @@ window.startClinicApp = function(){
   applyThorneSupps();
   try{ ensureTreatmentsInItems(); }catch(e){}
   try{ dedupeRegProducts(); }catch(e){}
+  try{ alphaChartToQB(); }catch(e){ console.error("[alpha chart]", e); }
   try{ backfillClientLinks(); }catch(e){}
   try{ runMembershipBilling(); }catch(e){}
   switchView("patients");
