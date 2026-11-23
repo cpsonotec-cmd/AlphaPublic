@@ -6288,7 +6288,10 @@ window.startClinicApp = function(){
   var ACCT_VER=4;
   function loadEntity(key){
     var accts = load("alphaperf_accounts_"+key, null);
-    if(!accts || !accts.length || +load("alphaperf_accts_ver_"+key,1) < ACCT_VER){
+    // 22 Nov 2026: never replace a chart that has accounts in it. A missing version number used to reset the whole
+    // chart to the starter list (that wiped the real MJS chart between 19 and 21 Nov). Only an empty chart is seeded.
+    if(accts && accts.length && +load("alphaperf_accts_ver_"+key,1) < ACCT_VER){ store.set("alphaperf_accts_ver_"+key, ACCT_VER); }
+    if(!accts || !accts.length){
       accts = clone(key==="alpha"?DEFAULT_ACCOUNTS_ALPHA:DEFAULT_ACCOUNTS_MJS);
       accts.forEach(function(a){ if(!a.id) a.id=a.code||("ac"+Math.random().toString(36).slice(2,8)); });
       store.set("alphaperf_accounts_"+key, JSON.stringify(accts));
