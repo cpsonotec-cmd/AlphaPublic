@@ -789,7 +789,7 @@
   .cash-onesafe{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:13.5px}.cash-onesafe label{display:flex;gap:6px;align-items:center}
   .cash-act{cursor:pointer;border-radius:8px}.cash-act:hover{background:#F1F5F9}.cash-edit{color:#94A3B8;font-weight:400;margin-left:4px}
   .nd-pick{display:block;width:100%;text-align:left;padding:11px 14px;margin-bottom:6px;border:1.5px solid var(--line);border-radius:10px;background:#fff;font:inherit;font-weight:700;cursor:pointer}.nd-pick:hover{border-color:#2563EB;background:#EFF6FF}
-  .cg-plug td{color:var(--muted)}
+  .cg-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}.cg-tile{background:#F8FAFC;border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}.cg-tile span{font-size:12px;color:var(--muted)}.cg-tile b{font-size:20px}.cg-tile em{font-style:normal;font-size:13px;font-weight:700}.cg-tile i{font-size:11.5px;color:var(--muted)}.cg-spl{background:#FEFCE8}.cg-inc{color:var(--muted)}.cg-trend td,.cg-trend th{white-space:nowrap}
   .inv-needle-bad{color:#B91C1C;font-weight:800}
   .bp-wrap.nd-wrap{border-color:#93C5FD;background:#F0F9FF}
   .bp-wrap{border:2px solid #C4B5FD;background:#FAF5FF;border-radius:14px;padding:4px 14px;margin-bottom:12px}.bp-foot{padding:8px 0;border-top:1px solid var(--line)}.bp-row{display:flex;gap:14px;align-items:flex-start;justify-content:space-between;border-top:1px solid var(--line);padding:12px 0}.bp-row:first-of-type{border-top:0}.bp-name{font-weight:800;font-size:15px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}.bp-big{font-size:22px;font-weight:800;margin-top:4px}.bp-big span{font-size:12.5px;font-weight:600;color:var(--muted)}.bp-acts{display:flex;flex-direction:column;gap:6px;flex-shrink:0}
@@ -8318,7 +8318,7 @@ window.startClinicApp = function(){
     // 3. Alpha expenses to the matching QuickBooks account
     var moved=0;
     tx.forEach(function(t){ if(t.type!=="expense" || t.entity!=="alpha") return; var c=String(t.category||""), who=(t.name||"")+" "+(t.note||""), to=null;
-      if(/^cogs - supplements \/ medical supplies$/i.test(c)) to="COGS - Medical Supplies";
+      if(/^cogs - supplements \/ medical supplies$/i.test(c)) to="COGS Suppliments";
       else if(/^(supplement cogs|cogs - supplements|cogs suppliments)$/i.test(c)) to="COGS Suppliments";
       else if(/^medical supplies$/i.test(c)) to=/thorne|supplement/i.test(who)?"COGS Suppliments":"COGS - Medical Supplies";
       if(to && to!==t.category){ t.qbRemap=(t.qbRemap||"")+c+" → "+to+" (2026-11-23)"; t.category=to; if(!t.name || t.name===c) t.name=to; moved++; } });
@@ -8345,37 +8345,49 @@ window.startClinicApp = function(){
     return {med:by(/^cogs\s*-\s*medication$/i)||MED_ACCT, sup:by(/^cogs\s*-\s*medical supplies$/i)||((A.filter(function(x){ return x.code===SUP_ACCT; })[0]||{}).name&&/suppl/i.test((A.filter(function(x){ return x.code===SUP_ACCT; })[0]||{}).name)?SUP_ACCT:null)||by(/^medical supplies$/i)}; }
   var COGS_PLUG=/agree with quickbooks|backfill from quickbooks|october quickbooks total|quickbooks total|quickbooks p&l/i;
   function supCodeFor(ent){ var A=load("alphaperf_accounts_"+ent,[])||[], a=A.filter(function(x){ return x.code==="5100"; })[0]; return a && /medical supplies/i.test(a.name||"") ? "5100" : null; }
-  function cogsSplit(range){ var MS=medSupCodes(), supM=supCodeFor("mjs"), supA=supCodeFor("alpha"), keep=acctEntity, o={med:0, medPlug:0, sup:0, supAlpha:0, rev:0, loc:{}, months:{}}, sh=(typeof sharedSite==="function")?sharedSite().id:"setauket"; acctEntity="both";
+  // three cost lines (23 Nov 2026): medication (MJS 5110), medical supplies (MJS 5100 + Alpha 5100), supplements (Alpha 5105).
+  // Supplements are resold product, so they are never added into the other two.
+  var COGS_LINES=[["med","Medication"],["sup","Medical supplies"],["spl","Supplements"]];
+  function cogsZero(){ return {med:0,sup:0,spl:0,medPlug:0,supPlug:0,splPlug:0,rev:0}; }
+  function cogsSplit(range){ var MS=medSupCodes(), supM=supCodeFor("mjs"), supA=supCodeFor("alpha"), keep=acctEntity, o=cogsZero(), sh=(typeof sharedSite==="function")?sharedSite().id:"setauket"; o.loc={}; o.months={}; o.supAlpha=0; acctEntity="both";
+    var AL=load("alphaperf_accounts_alpha",[])||[], splA=AL.some(function(x){ return x.code==="5105"; })?"5105":null;
     var tmemo={}; txns.forEach(function(t){ if(t.type==="expense") tmemo[t.id]=(t.name||"")+" "+(t.note||"")+" "+(t.memo||""); });
-    var jmemo={}; (load("alphaperf_journals_mjs",[])||[]).forEach(function(j){ jmemo[j.id]=j.memo||""; });
-    try{ buildLedger().forEach(function(e){ var inR=inRangeR(e.date, range), mk=(e.date||"").slice(0,7), lk=e.loc||sh, L=o.loc[lk]||(o.loc[lk]={med:0,sup:0,rev:0}), M=o.months[mk]||(o.months[mk]={med:0,medPlug:0,sup:0,rev:0});
+    var jmemo={}; (load("alphaperf_journals_mjs",[])||[]).concat(load("alphaperf_journals_alpha",[])||[]).forEach(function(j){ jmemo[j.id]=j.memo||""; });
+    try{ buildLedger().forEach(function(e){ var inR=inRangeR(e.date, range), mk=(e.date||"").slice(0,7), lk=e.loc||sh, L=o.loc[lk]||(o.loc[lk]=cogsZero()), M=o.months[mk]||(o.months[mk]=cogsZero());
       var text=(e.memo||"")+" "+(e.tid?(tmemo[e.tid]||""):"")+" "+(e.je?(jmemo[e.je]||""):""), plug=COGS_PLUG.test(text);
       e.lines.forEach(function(l){ var v=0, k=null;
-        if(e.ent==="alpha"){ if(supA && l.acct===supA){ k="sup"; v=l.dr-l.cr; if(inR) o.supAlpha+=v; } }
+        if(e.ent==="alpha"){ if(supA && l.acct===supA){ k="sup"; v=l.dr-l.cr; if(inR) o.supAlpha+=v; } else if(splA && l.acct===splA){ k="spl"; v=l.dr-l.cr; } }
         else if(e.ent==="mjs"){ if(l.acct===MS.med){ k="med"; v=l.dr-l.cr; } else if(supM && l.acct===supM){ k="sup"; v=l.dr-l.cr; }
           else { var a=(load("alphaperf_accounts_mjs",[])||[]).filter(function(x){ return x.code===l.acct; })[0]; if(a && a.type==="Income"){ k="rev"; v=l.cr-l.dr; } } }
-        if(!k) return; M[k]+=v; if(k==="med" && plug) M.medPlug+=v; if(inR){ o[k]+=v; if(k==="med" && plug) o.medPlug+=v; L[k]+=v; } }); }); } finally { acctEntity=keep; }
+        if(!k) return; M[k]+=v; if(k!=="rev" && plug) M[k+"Plug"]+=v; if(inR){ o[k]+=v; if(k!=="rev" && plug) o[k+"Plug"]+=v; L[k]+=v; } }); }); } finally { acctEntity=keep; }
+    // account 5050 should be gone from Alpha
+    o.flag5050=AL.some(function(x){ return x.code==="5050"; }) || txns.some(function(t){ return t.type==="expense" && t.entity==="alpha" && /supplements \/ medical supplies/i.test(t.category||""); });
     return o; }
   function homeCogsCard(range, lbl){
     var c=cogsSplit(range), pr=priorRange(range), p=pr?cogsSplit(pr):null, pct=function(v,r){ return r>0.004?(v/r*100):null; }, f=function(x){ return x==null?"–":x.toFixed(1)+"%"; };
-    if(Math.abs(c.med)<0.005 && Math.abs(c.sup)<0.005 && !(p && (p.med||p.sup))) return "";
-    var inv=c.med-c.medPlug, pinv=p?p.med-p.medPlug:null;
-    var mp=pct(inv,c.rev), sp=pct(c.sup,c.rev), pmp=p?pct(pinv,p.rev):null, psp=p?pct(p.sup,p.rev):null;
+    if(!COGS_LINES.some(function(L){ return Math.abs(c[L[0]])>0.005 || (p && Math.abs(p[L[0]])>0.005); })) return "";
+    function inv(o,k){ return o[k]-o[k+"Plug"]; }
     function pts(a,b){ if(a==null||b==null) return ""; var d=Math.round((a-b)*10)/10; return '<span class="hc-chg '+(d>0?'neg':'pos')+'">'+(d>0?'+':'')+d+' pts</span>'; }
+    var labels={med:"Medication invoices (MJS 5110)", sup:"Medical supplies (MJS 5100 + Alpha 5100)", spl:"Supplements (Alpha 5105, resold)"};
+    var tiles=COGS_LINES.map(function(L){ var k=L[0], v=inv(c,k), pp=pct(v,c.rev), pv=p?pct(inv(p,k),p.rev):null;
+      return '<div class="cg-tile cg-'+k+'"><span>'+labels[k]+'</span><b>'+sMoney(v)+'</b><em>'+f(pp)+' of revenue '+pts(pp,pv)+'</em>'+(Math.abs(c[k+"Plug"])>0.005?'<i>+ '+sMoney(c[k+"Plug"])+' adjustments left out</i>':'')+'</div>'; }).join("");
     var now=new Date(), months=[]; for(var i=5;i>=0;i--){ var d=new Date(now.getFullYear(), now.getMonth()-i, 1); months.push(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")); }
     var mm=cogsSplit({start:null,end:null}).months;
-    var trend='<table class="hm-table"><thead><tr><th>Month</th><th>Revenue</th><th>Medication invoices</th><th>Adjustments</th><th>Medication %</th><th>Supplies</th><th>Supplies %</th></tr></thead><tbody>'+months.map(function(k){ var x=mm[k]||{med:0,medPlug:0,sup:0,rev:0}, iv=x.med-x.medPlug, mostly=Math.abs(x.medPlug)>Math.abs(iv) && Math.abs(x.medPlug)>0.005;
-      return '<tr'+(mostly?' class="cg-plug"':'')+'><td>'+esc(new Date(+k.slice(0,4), +k.slice(5)-1, 1).toLocaleDateString("en-US",{month:"short",year:"numeric"}))+(mostly?' <span class="inv-tag t-disc" title="Most of this month’s medication cost is a catch-up adjustment from QuickBooks, not invoices">incomplete</span>':'')+'</td><td>'+sMoney(x.rev)+'</td><td>'+sMoney(iv)+'</td><td>'+(Math.abs(x.medPlug)>0.005?sMoney(x.medPlug):'–')+'</td><td><b>'+f(pct(iv,x.rev))+'</b></td><td>'+sMoney(x.sup)+'</td><td>'+f(pct(x.sup,x.rev))+'</td></tr>'; }).join("")+'</tbody></table>';
-    // medication and supplies are bought centrally: share them out by each location's revenue
+    var trend='<table class="hm-table cg-trend"><thead><tr><th>Month</th><th>Revenue</th>'+COGS_LINES.map(function(L){ return '<th>'+L[1]+'</th><th>%</th>'; }).join("")+'<th>Adjustments</th></tr></thead><tbody>'+months.map(function(k){ var x=mm[k]||cogsZero(), adj=x.medPlug+x.supPlug+x.splPlug;
+      var cells=COGS_LINES.map(function(L){ var key=L[0], iv=inv(x,key), mostly=Math.abs(x[key+"Plug"])>Math.abs(iv) && Math.abs(x[key+"Plug"])>0.005;
+        return '<td'+(mostly?' class="cg-inc" title="Mostly catch-up adjustments: not comparable"':'')+'>'+sMoney(iv)+(mostly?' <span class="inv-tag t-disc">incomplete</span>':'')+'</td><td><b>'+f(pct(iv,x.rev))+'</b></td>'; }).join("");
+      return '<tr><td>'+esc(new Date(+k.slice(0,4), +k.slice(5)-1, 1).toLocaleDateString("en-US",{month:"short",year:"numeric"}))+'</td><td>'+sMoney(x.rev)+'</td>'+cells+'<td>'+(Math.abs(adj)>0.005?sMoney(adj):'–')+'</td></tr>'; }).join("")+'</tbody></table>';
     var locs=Object.keys(c.loc).filter(function(k){ return c.loc[k].rev>0.004; }), totRev=locs.reduce(function(a,k){ return a+c.loc[k].rev; },0);
-    var byLoc='<table class="hm-table"><thead><tr><th>Location</th><th>Revenue</th><th>Share</th><th>Medication (allocated)</th><th>Supplies (allocated)</th></tr></thead><tbody>'+locs.map(function(k){ var x=c.loc[k], sh=totRev?x.rev/totRev:0; return '<tr><td>'+esc(siteName(k))+'</td><td>'+sMoney(x.rev)+'</td><td>'+(sh*100).toFixed(1)+'%</td><td>'+sMoney(inv*sh)+'</td><td>'+sMoney(c.sup*sh)+'</td></tr>'; }).join("")+'</tbody></table>';
-    return '<div class="home-card home-wide" id="homeCogs"><div class="hc-head"><span class="hc-title">Medication &amp; medical supplies</span><span class="hc-period">'+esc(lbl)+'</span></div>'+
-      '<div class="cash-sumrow"><div><span>Medication invoices (MJS 5110)</span><b>'+sMoney(inv)+'</b></div><div><span>Medication % of revenue</span><b>'+f(mp)+' '+pts(mp,pmp)+'</b></div><div><span>Medical supplies (MJS 5100 + Alpha 5100)</span><b>'+sMoney(c.sup)+'</b></div><div><span>Supplies % of revenue</span><b>'+f(sp)+' '+pts(sp,psp)+'</b></div></div>'+
-      '<div class="hs-notes" style="margin:6px 0 10px"><div>Medical supplies are MJS 5100 plus Alpha 5100 (both “COGS - Medical Supplies”)'+(c.supAlpha?', of which Alpha $'+money(c.supAlpha):'')+'. Percentages are of MJS revenue ('+sMoney(c.rev)+').</div>'+
-        (Math.abs(c.medPlug)>0.005?'<div>Medication catch-up adjustments from QuickBooks this period ('+sMoney(c.medPlug)+') are left out of the medication figures and shown separately, because they are not invoices.</div>':'')+'</div>'+
+    var byLoc='<table class="hm-table"><thead><tr><th>Location</th><th>Revenue</th><th>Share</th>'+COGS_LINES.map(function(L){ return '<th>'+L[1]+' (allocated)</th>'; }).join("")+'</tr></thead><tbody>'+locs.map(function(k){ var x=c.loc[k], sh=totRev?x.rev/totRev:0; return '<tr><td>'+esc(siteName(k))+'</td><td>'+sMoney(x.rev)+'</td><td>'+(sh*100).toFixed(1)+'%</td>'+COGS_LINES.map(function(L){ return '<td>'+sMoney(inv(c,L[0])*sh)+'</td>'; }).join("")+'</tr>'; }).join("")+'</tbody></table>';
+    var mcs=inv(c,"med")+inv(c,"sup");
+    return '<div class="home-card home-wide" id="homeCogs"><div class="hc-head"><span class="hc-title">Medication, medical supplies &amp; supplements</span><span class="hc-period">'+esc(lbl)+'</span></div>'+
+      (c.flag5050?'<div class="gc-bad" style="margin-bottom:8px">⚠ Alpha still has account 5050 or expenses filed as “COGS - Supplements / Medical Supplies”. These should be on 5105 (supplements) or 5100 (medical supplies).</div>':'')+
+      '<div class="cg-tiles">'+tiles+'</div>'+
+      '<div class="hs-notes" style="margin:6px 0 10px"><div>Each percentage is of MJS revenue ('+sMoney(c.rev)+'). Medication + medical supplies (used in treatment): <b>'+sMoney(mcs)+'</b>, '+f(pct(mcs,c.rev))+'. Supplements are resold product, so they are shown on their own and not added to that.</div>'+
+        (c.supAlpha?'<div>Medical supplies include Alpha '+sMoney(c.supAlpha)+'.</div>':'')+
+        '<div>Catch-up adjustments from QuickBooks are left out of each line and shown in the Adjustments column. A line marked <b>incomplete</b> is mostly adjustments that month, so its percentage is not comparable.</div></div>'+
       '<div class="hc-sub" style="margin-top:4px">Last 6 months</div><div class="hm-table-wrap">'+trend+'</div>'+
-      '<div class="hs-notes" style="margin:4px 0 0"><div>A month marked <b>incomplete</b> is mostly catch-up adjustments, so its percentage is not comparable.</div></div>'+
-      (locs.length>1?'<div class="hc-sub" style="margin-top:10px">By location (allocated by each location’s share of revenue, since medication and supplies are bought centrally)</div><div class="hm-table-wrap">'+byLoc+'</div>':'')+'</div>';
+      (locs.length>1?'<div class="hc-sub" style="margin-top:10px">By location (allocated by each location’s share of revenue, since these are bought centrally)</div><div class="hm-table-wrap">'+byLoc+'</div>':'')+'</div>';
   }
   function renderHomeSummary(){
     var range=posRange(), lbl=posPeriodLabel();
