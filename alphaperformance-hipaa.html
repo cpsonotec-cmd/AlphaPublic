@@ -976,7 +976,7 @@
   .gc-hint{font-size:12px;color:var(--muted);margin-top:4px}
   .gc-note{font-size:13px;background:var(--canvas);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 14px;line-height:1.5}
   .gc-chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:8px}
-  .ba-tabs{margin-bottom:12px}.ba-pos-box{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:9px 11px;margin-bottom:10px}.ba-pos{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px;cursor:pointer}.ba-pos-sub{font-size:12px;color:var(--muted);margin:3px 0 0 24px}.ba-mems{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.ba-mem{background:#F1F5F9;border-radius:999px;padding:4px 6px 4px 11px;font-size:13px;display:inline-flex;align-items:center;gap:4px}.ba-mem button{border:0;background:transparent;font-size:16px;line-height:1;cursor:pointer;color:var(--muted)}.ba-grp{border:1px solid var(--line);border-radius:10px;padding:6px 10px;margin-bottom:8px}.ba-grp-h{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--line);margin-bottom:2px}.ba-disc{color:var(--muted);font-style:normal}.ba-items{display:flex;flex-direction:column;gap:6px;margin-top:8px}.ba-item{display:flex;align-items:center;gap:6px;font-size:13px}.ba-item span:first-child{flex:1}.ba-item input{width:80px}.ba-item select{width:auto}.ba-item button{border:0;background:transparent;font-size:16px;cursor:pointer;color:var(--muted)}
+  .ba-tabs{margin-bottom:12px}.ba-pos-box{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:9px 11px;margin-bottom:10px}.ba-pos{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px;cursor:pointer}.ba-pos-sub{font-size:12px;color:var(--muted);margin:3px 0 0 24px}.ba-mems{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.ba-mem{background:#F1F5F9;border-radius:999px;padding:4px 6px 4px 11px;font-size:13px;display:inline-flex;align-items:center;gap:4px}.ba-mem button{border:0;background:transparent;font-size:16px;line-height:1;cursor:pointer;color:var(--muted)}.ba-grp{border:1px solid var(--line);border-radius:10px;padding:6px 10px;margin-bottom:8px}.ba-grp-h{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--line);margin-bottom:2px}.ba-disc{color:var(--muted);font-style:normal}.ba-items{display:flex;flex-direction:column;gap:6px;margin-top:8px}.ba-item{display:flex;align-items:center;gap:6px;font-size:13px}.ba-item span:first-child{flex:1}.ba-item input{width:80px}.ba-item select{width:auto}.ba-chg-edit{margin-left:8px;border:1px solid var(--line);background:var(--card);border-radius:7px;padding:2px 8px;font-size:12px;cursor:pointer}.ba-item button{border:0;background:transparent;font-size:16px;cursor:pointer;color:var(--muted)}
   .gc-chips button{padding:8px 13px;border:1px solid var(--line);background:var(--card);border-radius:9px;font-weight:600;font-size:13px;color:var(--ink);cursor:pointer}
   .gc-chips button.on{background:var(--emerald);color:#fff;border-color:var(--emerald)}
   .gc-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.gc-row2>*{min-width:0}.gc-row2 input,.gc-row2 select{width:100%;box-sizing:border-box}
@@ -4718,13 +4718,50 @@ window.startClinicApp = function(){
       '<div class="gc-det-grid"><div><span>Open balance</span><b>$'+money(tot)+'</b></div><div><span>Open charges</span><b>'+open.length+'</b></div><div><span>Discount</span><b>'+baPct(a)+'% base'+(baItemRates(a)?' + '+baItemRates(a)+' item rates':'')+'</b></div><div><span>People</span><b>'+(a.members||[]).length+'</b></div></div>'+
       (a.note?'<div class="gc-note" style="margin:10px 0">'+esc(a.note)+'</div>':'')+
       '<div class="gc-hist-h">What has been bought (not settled)</div>'+
-      (groups.length?groups.map(function(g){ return '<div class="ba-grp"><div class="ba-grp-h"><b>'+esc(g.name)+'</b><b>$'+money(g.total)+'</b></div>'+g.rows.map(function(t){ return '<div class="gc-hist"><span>'+esc(fmtDate(parseISO(t.date)))+' · '+esc(baItemsText(t))+(+t.discountAmt>0.004?' <i class="ba-disc">(−$'+money(t.discountAmt)+' discount)</i>':'')+'</span><b>$'+money(arOpen(t))+'</b></div>'; }).join("")+'</div>'; }).join(""):'<div class="gc-hint">Nothing open.</div>')+
+      (groups.length?groups.map(function(g){ return '<div class="ba-grp"><div class="ba-grp-h"><b>'+esc(g.name)+'</b><b>$'+money(g.total)+'</b></div>'+g.rows.map(function(t){ return '<div class="gc-hist"><span>'+esc(fmtDate(parseISO(t.date)))+' · '+esc(baItemsText(t))+(+t.discountAmt>0.004?' <i class="ba-disc">(−$'+money(t.discountAmt)+' discount)</i>':'')+'</span><b>$'+money(arOpen(t))+' <button type="button" class="ba-chg-edit" data-bachg="'+esc(t.id)+'">Edit</button></b></div>'; }).join("")+'</div>'; }).join(""):'<div class="gc-hint">Nothing open.</div>')+
       '<div class="gc-hist-h">Settled</div>'+(hist.length?hist.map(function(s){ return '<div class="gc-hist"><span>'+esc(fmtDate(parseISO(s.date)))+' · '+esc(s.method)+(s.ref?' '+esc(s.ref):'')+' · '+s.count+' charge'+(s.count===1?'':'s')+' ('+esc(s.ini||"")+')</span><b>$'+money(s.amount)+'</b></div>'; }).join(""):'<div class="gc-hint">Not settled yet.</div>'),
       '<button class="btn-ghost" id="baEdit" type="button">Edit</button><button class="btn-ghost" id="baStmt" type="button"'+(open.length?'':' disabled')+'>Print statement</button><button class="btn-primary" id="baSettle" type="button"'+(open.length?'':' disabled')+'>Settle $'+money(tot)+'</button><button class="btn-ghost" id="baClose" type="button">Close</button>');
     $("baClose").onclick=gcModalClose;
     $("baEdit").onclick=function(){ openBillAcctEdit(a.id); };
     $("baStmt").onclick=function(){ baPrintStatement(a); };
     $("baSettle").onclick=function(){ openBillSettle(a.id); };
+    Array.prototype.forEach.call(document.querySelectorAll("#gcBody [data-bachg]"),function(b){ b.onclick=function(){ openBillChargeEdit(a.id, b.getAttribute("data-bachg")); }; });
+  }
+  // change what an unsettled charge costs, item by item, before the account is settled
+  function openBillChargeEdit(acctId, tid){
+    var t=txns.filter(function(x){ return x.id===tid; })[0]; if(!t || t.billSettled) return;
+    var who=(findPatient(t.clientId)||{}).name||t.clientName||"";
+    gcModalShow("Edit charge \u00b7 "+who+" \u00b7 "+fmtDate(parseISO(t.date)),
+      '<div class="ba-items">'+(t.items||[]).map(function(l,i){ var g=(+l.retail||0)*(l.qty||1); return '<div class="ba-item"><span>'+esc(l.name)+((l.qty||1)>1?' \u00d7'+l.qty:'')+' <i class="ba-disc">list $'+money(g)+'</i></span><span>$</span><input type="number" min="0" step="0.01" data-bcl="'+i+'" value="'+lineNet(l).toFixed(2)+'"></div>'; }).join("")+'</div>'+
+      '<div class="gc-row2" style="margin-top:10px"><div class="pos-field"><label>Your initials</label><input type="text" id="bcIni" maxlength="4" placeholder="e.g. CP" style="text-transform:uppercase"></div><div class="pos-field"><label>Reason</label><input type="text" id="bcWhy" placeholder="e.g. agreed price"></div></div>'+
+      '<div class="gc-hint">The new amounts replace what this sale charged. Totals, revenue and the account balance update.</div><div class="sub-err" id="bcErr"></div>',
+      '<button class="btn-ghost" id="bcCancel" type="button">Back</button><button class="btn-primary" id="bcGo" type="button">Save charge</button>');
+    $("bcCancel").onclick=function(){ openBillAcct(acctId); };
+    $("bcGo").onclick=function(){
+      var ini=($("bcIni").value||"").trim().toUpperCase(), why=($("bcWhy").value||"").trim();
+      if(!/^[A-Z]{2,4}$/.test(ini)){ $("bcErr").textContent="Enter your initials (2 to 4 letters)."; return; }
+      var r=baEditCharge(tid, Array.prototype.map.call(document.querySelectorAll("#gcBody [data-bcl]"),function(i){ return +i.value; }), ini, why);
+      if(r!==true){ $("bcErr").textContent=r; return; }
+      openBillAcct(acctId); toast("Charge updated");
+    };
+  }
+  function baEditCharge(tid, nets, ini, why){
+    var t=txns.filter(function(x){ return x.id===tid; })[0]; if(!t) return "Sale not found."; if(t.billSettled) return "Already settled.";
+    if(nets.length!==(t.items||[]).length || nets.some(function(v){ return !(v>=0); })) return "Enter an amount for every item.";
+    var before=+t.total||0, gc=+t.gcAmount||0;
+    var tot0=Math.round(nets.reduce(function(a,v){ return a+Math.round(v*100)/100; },0)*100)/100;
+    if(gc>tot0+0.004) return "The total can't be less than the gift certificate or credit used ($"+money(gc)+").";
+    t.items.forEach(function(l,i){ var q=l.qty||1, g=(+l.retail||0)*q, n=Math.round(nets[i]*100)/100;
+      if(n>g+0.004){ l.retail=Math.round(n/q*100)/100; l.discPct=0; l.discAmt=Math.max(0,Math.round((l.retail*q-n)*100)/100); }
+      else { l.discPct=0; l.discAmt=Math.round((g-n)*100)/100; } delete l.baDisc; delete l.baSet; });
+    var sub=t.items.reduce(function(a,l){ return a+(+l.retail||0)*(l.qty||1); },0), tot=Math.round(t.items.reduce(function(a,l){ return a+lineNet(l); },0)*100)/100;
+    t.subtotal=Math.round(sub*100)/100; t.total=tot; t.discountAmt=Math.round((sub-tot)*100)/100; t.discountPct=0; t.discountName=""; t.profit=Math.round((tot-(+t.cost||0))*100)/100;
+    t.arAmount=Math.round((tot-gc)*100)/100;
+    if(Array.isArray(t.payments)){ t.payments=t.payments.map(function(p){ return /account|invoice|unpaid/i.test(p.method||"")?{method:p.method, amount:t.arAmount}:p; }); }
+    t.billEdits=(t.billEdits||[]).concat([{at:new Date().toISOString(), by:window.__curEmail?window.__curEmail():"", ini:ini, why:why||"", from:before, to:tot}]);
+    saveTxns();
+    if(window.__hipAudit) window.__hipAudit("billacct_charge_edit", (t.billAcctName||"")+" \u00b7 $"+money(before)+" \u2192 $"+money(tot)+" \u00b7 "+ini+(why?" \u00b7 "+why:""));
+    return true;
   }
   function baPrintStatement(a){
     var open=baCharges(a.id), groups=baGroups(open), tot=baOpenTotal(a.id), clinic=esc(settings.name||"Alpha Performance");
