@@ -976,6 +976,7 @@
   .gc-hint{font-size:12px;color:var(--muted);margin-top:4px}
   .gc-note{font-size:13px;background:var(--canvas);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 14px;line-height:1.5}
   .gc-chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:8px}
+  .ba-tabs{margin-bottom:12px}.ba-pos-box{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:9px 11px;margin-bottom:10px}.ba-pos{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px;cursor:pointer}.ba-pos-sub{font-size:12px;color:var(--muted);margin:3px 0 0 24px}.ba-mems{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.ba-mem{background:#F1F5F9;border-radius:999px;padding:4px 6px 4px 11px;font-size:13px;display:inline-flex;align-items:center;gap:4px}.ba-mem button{border:0;background:transparent;font-size:16px;line-height:1;cursor:pointer;color:var(--muted)}.ba-grp{border:1px solid var(--line);border-radius:10px;padding:6px 10px;margin-bottom:8px}.ba-grp-h{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--line);margin-bottom:2px}.ba-disc{color:var(--muted);font-style:normal}
   .gc-chips button{padding:8px 13px;border:1px solid var(--line);background:var(--card);border-radius:9px;font-weight:600;font-size:13px;color:var(--ink);cursor:pointer}
   .gc-chips button.on{background:var(--emerald);color:#fff;border-color:var(--emerald)}
   .gc-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.gc-row2>*{min-width:0}.gc-row2 input,.gc-row2 select{width:100%;box-sizing:border-box}
@@ -1845,6 +1846,7 @@
         </div>
         <div class="reg-box reg-box-pay">
         <div class="reg-box-h">Payment</div>
+        <div id="posBillBox" class="ba-pos-box" style="display:none"></div>
         <div class="pos-line" id="posPayRow"><span class="reg-lbl">Payment method</span>
           <select id="posPay"><option>Cash</option><option>Card</option><option>Zelle</option><option>Check</option><option>Invoice (unpaid)</option><option>Other</option></select>
         </div>
@@ -4514,6 +4516,9 @@ window.startClinicApp = function(){
   function clientCreditTotal(clientId){ return Math.round(creditsFor(clientId).reduce(function(a,c){ return a+creditBalance(c); },0)*100)/100; }
   function renderCredits(){
     var el=$("creditsPage"); if(!el) return;
+    var tabs='<div class="gc-chips ba-tabs">'+[["credits","Customer credits"],["bill","Bill later accounts"]].map(function(x){ return '<button type="button" data-crtab="'+x[0]+'" class="'+(crTab===x[0]?'on':'')+'">'+x[1]+'</button>'; }).join("")+'</div>';
+    function wireTabs(){ Array.prototype.forEach.call(el.querySelectorAll("[data-crtab]"),function(b){ b.onclick=function(){ crTab=b.getAttribute("data-crtab"); renderCredits(); }; }); }
+    if(crTab==="bill"){ renderBillAccts(el, tabs); wireTabs(); return; }
     var q=crQ.trim().toLowerCase();
     var list=credits.slice().sort(function(a,b){ return (b.issued||"").localeCompare(a.issued||"") || (b.at||"").localeCompare(a.at||""); }).filter(function(c){
       var bal=creditBalance(c), st=c.voided?"void":(bal>0.004?"open":"used");
@@ -4522,7 +4527,7 @@ window.startClinicApp = function(){
       return true; });
     var open=credits.filter(function(c){ return creditBalance(c)>0.004; }), openTot=open.reduce(function(a,c){ return a+creditBalance(c); },0);
     var usedTot=credits.reduce(function(a,c){ return a+creditUsed(c.id); },0);
-    el.innerHTML='<div class="rep-card"><div class="inv-statgrid"><div class="inv-stat"><div class="inv-stat-val">$'+money(openTot)+'</div><div class="inv-stat-lbl">Open credit owed to clients</div></div>'+
+    el.innerHTML=tabs+'<div class="rep-card"><div class="inv-statgrid"><div class="inv-stat"><div class="inv-stat-val">$'+money(openTot)+'</div><div class="inv-stat-lbl">Open credit owed to clients</div></div>'+
         '<div class="inv-stat"><div class="inv-stat-val">'+open.length+'</div><div class="inv-stat-lbl">Clients with credit</div></div>'+
         '<div class="inv-stat"><div class="inv-stat-val">$'+money(usedTot)+'</div><div class="inv-stat-lbl">Used so far</div></div></div></div>'+
       '<div class="rep-card"><div class="inv-tools"><input type="text" id="crQ" class="cash-q" style="margin:0;flex:1" placeholder="Search client or reason" value="'+esc(crQ)+'"><button class="btn-primary inv-add" id="crNewBtn" type="button">+ Issue credit</button></div>'+
@@ -4531,7 +4536,7 @@ window.startClinicApp = function(){
           return '<div class="gc-row" data-crid="'+esc(c.id)+'"><div class="gc-r-main"><div class="gc-r-num">'+esc(p?p.name:(c.clientName||"Unknown client"))+' <span class="gc-chip '+(st==="Open"?'gc-open':'gc-void')+'">'+st+'</span></div>'+
             '<div class="gc-r-sub">'+esc(c.reason||"")+' \u00b7 issued '+esc(fmtDate(parseISO(c.issued)))+(c.byName?' by '+esc(c.byName):'')+(used>0?' \u00b7 used $'+money(used):'')+'</div></div>'+
             '<div class="gc-r-amt"><b>$'+money(bal)+'</b><span>of $'+money(c.amount)+'</span></div></div>'; }).join(""):'<div class="pos-cart-empty">'+(q?'No credits match.':'No credits here.')+'</div>')+'</div>';
-    $("crNewBtn").onclick=function(){ openIssueCredit(null); };
+    wireTabs(); $("crNewBtn").onclick=function(){ openIssueCredit(null); };
     $("crQ").oninput=function(){ crQ=this.value; var p=this.selectionStart; renderCredits(); var n=$("crQ"); n.focus(); try{ n.setSelectionRange(p,p); }catch(e){} };
     Array.prototype.forEach.call(el.querySelectorAll("[data-crf]"),function(b){ b.onclick=function(){ crFilter=b.getAttribute("data-crf"); renderCredits(); }; });
     Array.prototype.forEach.call(el.querySelectorAll("[data-crid]"),function(r){ r.onclick=function(){ openCreditDetail(r.getAttribute("data-crid")); }; });
@@ -4582,6 +4587,163 @@ window.startClinicApp = function(){
       if(window.__hipAudit) window.__hipAudit("credit_voided", (p?p.name:"")+" $"+money(bal)+" \u00b7 "+why.trim());
       gcModalClose(); renderCredits(); toast("Credit voided");
     };
+  }
+  // ---------- Bill later accounts (23 Nov 2026) ----------
+  // A payer (e.g. one client who pays for several people) gets an account. Sales for its members can be billed to it:
+  // the sale is booked as a receivable (1100) at the account's discount level, and the payer settles at month end.
+  // Settling posts a journal per company (cash or bank debit, 1100 credit) and stamps each sale settled.
+  var billAccts = load("alphaperf_billaccts", []); if(!Array.isArray(billAccts)) billAccts=[];
+  function saveBillAccts(){ store.set("alphaperf_billaccts", JSON.stringify(billAccts)); if(window.__recordWrite){ try{ window.__recordWrite("alphaperf_billaccts"); }catch(e){} } if(typeof schedulePush==="function") schedulePush(); }
+  var BA_PAY="Bill to account", posBill=null, crTab="credits";
+  function baById(id){ return billAccts.filter(function(a){ return a.id===id; })[0]||null; }
+  function baForClient(cid){ if(!cid) return null; return billAccts.filter(function(a){ return a.active!==false && ((a.members||[]).some(function(m){ return m.id===cid; }) || a.payerId===cid); })[0]||null; }
+  function baCharges(id, open){ return txns.filter(function(t){ return t && t.type==="sale" && t.billAcct===id && (open===false ? !!t.billSettled : !t.billSettled && arOpen(t)>0.004); }).sort(function(a,b){ return (a.date||"").localeCompare(b.date||""); }); }
+  function baOpenTotal(id){ return Math.round(baCharges(id).reduce(function(s,t){ return s+arOpen(t); },0)*100)/100; }
+  function baPct(a){ return Math.max(0, Math.min(100, +((a||{}).discountPct)||0)); }
+  // register: apply the account discount and payment method while "bill to account" is on
+  function baApplyCart(){
+    var a=baForClient(posClientId);
+    if(posBill && (!a || posBill!==a.id)) posBill=null;
+    var pct=posBill?baPct(a):0;
+    posCart.forEach(function(l){
+      if(l.baDisc && (!posBill || lineNoDisc(l) || l.promo)){ l.discPct=0; delete l.baDisc; }
+      else if(posBill && pct>0 && !l.gcSell && !l.promo && !lineNoDisc(l) && (+l.discPct||0)<pct){ l.discPct=pct; l.baDisc=true; }
+    });
+    if(posBill && pct>0 && posDiscMode!=="item" && posCart.some(function(l){ return l.baDisc; })){
+      posDiscMode="item"; if($("posDiscount")) $("posDiscount").value=""; if($("posDiscountAmt")) $("posDiscountAmt").value="";
+      Array.prototype.forEach.call(document.querySelectorAll("#posDiscMode [data-dmode]"),function(b){ b.classList.toggle("on", b.getAttribute("data-dmode")==="item"); });
+      if($("posDiscOrder")) $("posDiscOrder").style.display="none"; if($("posDiscItemHint")) $("posDiscItemHint").style.display="block";
+    }
+    var sel=$("posPay");
+    if(sel){
+      var opt=Array.prototype.filter.call(sel.options,function(o){ return o.value===BA_PAY; })[0];
+      if(posBill && !opt){ opt=document.createElement("option"); opt.textContent=BA_PAY; opt.value=BA_PAY; sel.appendChild(opt); }
+      if(posBill){ sel.value=BA_PAY; if(posSplitActive) toggleSplit(false); }
+      else if(opt){ if(sel.value===BA_PAY) sel.value="Cash"; opt.remove(); }
+      if(!sel.__baWired){ sel.__baWired=true; sel.addEventListener("change",function(){ if(posBill && sel.value!==BA_PAY){ posBill=null; renderCart(); } }); }
+    }
+    var box=$("posBillBox"); if(!box) return;
+    if(!a){ box.style.display="none"; box.innerHTML=""; return; }
+    var payer=a.payerId?findPatient(a.payerId):null;
+    box.style.display="block";
+    box.innerHTML='<label class="ba-pos"><input type="checkbox" id="baOn"'+(posBill?' checked':'')+'> Bill this sale to <b>'+esc(a.name)+'</b>'+(baPct(a)?' <span class="gc-chip gc-open">'+baPct(a)+'% account discount</span>':'')+'</label>'+
+      '<div class="ba-pos-sub">Open on the account: $'+money(baOpenTotal(a.id))+(payer && payer.id!==posClientId?' · paid by '+esc(payer.name):'')+'</div>';
+    $("baOn").onchange=function(){ posBill=this.checked?a.id:null; renderCart(); };
+  }
+  function renderBillAccts(el, tabs){
+    var list=billAccts.slice().sort(function(a,b){ return (a.active===false)-(b.active===false) || (a.name||"").localeCompare(b.name||""); });
+    var openTot=list.reduce(function(s,a){ return s+baOpenTotal(a.id); },0);
+    el.innerHTML=tabs+'<div class="rep-card"><div class="inv-statgrid"><div class="inv-stat"><div class="inv-stat-val">$'+money(openTot)+'</div><div class="inv-stat-lbl">Open on bill later accounts</div></div>'+
+        '<div class="inv-stat"><div class="inv-stat-val">'+list.filter(function(a){ return a.active!==false; }).length+'</div><div class="inv-stat-lbl">Active accounts</div></div></div></div>'+
+      '<div class="rep-card"><div class="inv-tools"><div class="gc-hint" style="flex:1;margin:0">Someone who pays for other people. Their sales are billed to the account at its discount, and settled at month end.</div><button class="btn-primary inv-add" id="baNewBtn" type="button">+ New account</button></div>'+
+      (list.length?list.map(function(a){ var open=baCharges(a.id), tot=baOpenTotal(a.id);
+        return '<div class="gc-row" data-baid="'+esc(a.id)+'"><div class="gc-r-main"><div class="gc-r-num">'+esc(a.name)+' <span class="gc-chip '+(a.active===false?'gc-void':'gc-open')+'">'+(a.active===false?'Closed':(baPct(a)?baPct(a)+'% off':'No discount'))+'</span></div>'+
+          '<div class="gc-r-sub">'+(a.members||[]).length+' '+((a.members||[]).length===1?'person':'people')+': '+esc((a.members||[]).map(function(m){ var p=findPatient(m.id); return p?p.name:m.name; }).join(", ")||"none yet")+'</div></div>'+
+          '<div class="gc-r-amt"><b>$'+money(tot)+'</b><span>'+open.length+' open charge'+(open.length===1?'':'s')+'</span></div></div>'; }).join(""):'<div class="pos-cart-empty">No bill later accounts yet.</div>')+'</div>';
+    $("baNewBtn").onclick=function(){ openBillAcctEdit(null); };
+    Array.prototype.forEach.call(el.querySelectorAll("[data-baid]"),function(r){ r.onclick=function(){ openBillAcct(r.getAttribute("data-baid")); }; });
+  }
+  function baClientPicker(inputId, dropId, onPick){
+    var q=$(inputId), dd=$(dropId);
+    q.oninput=function(){ var v=q.value.trim().toLowerCase(), dig=v.replace(/\D/g,""); if(!v){ dd.style.display="none"; return; }
+      var hits=patients.filter(function(x){ return (x.name||"").toLowerCase().indexOf(v)>=0 || (x.email||"").toLowerCase().indexOf(v)>=0 || (dig.length>=3 && (x.phone||"").replace(/\D/g,"").indexOf(dig)>=0); }).slice(0,10);
+      dd.innerHTML=hits.length?hits.map(function(x){ return '<div class="cd-item" data-bac="'+esc(x.id)+'"><span class="pd-name">'+esc(x.name)+'</span><span class="pkg-sub">'+esc(x.phone||x.email||"")+'</span></div>'; }).join(""):'<div class="cd-empty">No clients match</div>';
+      dd.style.display="block";
+      Array.prototype.forEach.call(dd.querySelectorAll("[data-bac]"),function(it){ it.onmousedown=function(e){ e.preventDefault(); dd.style.display="none"; onPick(findPatient(it.getAttribute("data-bac"))); }; }); };
+    q.onblur=function(){ setTimeout(function(){ dd.style.display="none"; },150); };
+  }
+  function openBillAcctEdit(id){
+    var a=id?baById(id):null, d=a?JSON.parse(JSON.stringify(a)):{name:"", payerId:"", members:[], discountPct:0, note:""};
+    function memHtml(){ return d.members.length?d.members.map(function(m,i){ var p=findPatient(m.id); return '<span class="ba-mem">'+esc(p?p.name:m.name)+' <button type="button" data-barm="'+i+'" aria-label="Remove">×</button></span>'; }).join(""):'<div class="gc-hint">No one added yet.</div>'; }
+    gcModalShow(a?"Edit bill later account":"New bill later account",
+      '<div class="pos-field"><label>Who pays (account name)</label><div class="client-search" style="position:relative"><input type="text" id="baName" placeholder="Search a client, or type a name" autocomplete="off" value="'+esc(d.name)+'"><div class="client-drop" id="baNameDrop" style="display:none"></div></div></div>'+
+      '<div class="gc-row2"><div class="pos-field"><label>Discount level (%)</label><input type="number" id="baPct" min="0" max="100" step="1" inputmode="decimal" value="'+(baPct(d)||"")+'" placeholder="0"></div><div class="pos-field"><label>Note</label><input type="text" id="baNote" value="'+esc(d.note||"")+'" placeholder="e.g. settles first week of the month"></div></div>'+
+      '<div class="pos-field"><label>People billed to this account</label><div class="client-search" style="position:relative"><input type="text" id="baMemQ" placeholder="Search a client to add" autocomplete="off"><div class="client-drop" id="baMemDrop" style="display:none"></div></div><div class="ba-mems" id="baMems">'+memHtml()+'</div></div>'+
+      (a?'<label class="gc-xfer-check" style="margin-left:0"><input type="checkbox" id="baClosed"'+(a.active===false?' checked':'')+'> Account closed (no new charges)</label>':'')+
+      '<div class="sub-err" id="baErr"></div>',
+      '<button class="btn-ghost" id="baCancel" type="button">Cancel</button><button class="btn-primary" id="baGo" type="button">'+(a?'Save':'Create account')+'</button>');
+    function wireMems(){ $("baMems").innerHTML=memHtml(); Array.prototype.forEach.call($("baMems").querySelectorAll("[data-barm]"),function(b){ b.onclick=function(){ d.members.splice(+b.getAttribute("data-barm"),1); wireMems(); }; }); }
+    wireMems();
+    baClientPicker("baName","baNameDrop",function(p){ if(!p) return; d.payerId=p.id; $("baName").value=p.name; if(!d.members.some(function(m){ return m.id===p.id; })){ d.members.push({id:p.id, name:p.name}); wireMems(); } });
+    var nmIn=$("baName"), _oi=nmIn.oninput; nmIn.oninput=function(){ d.payerId=""; _oi.call(nmIn); };
+    baClientPicker("baMemQ","baMemDrop",function(p){ if(!p) return; $("baMemQ").value="";
+      var other=billAccts.filter(function(x){ return x.id!==d.id && x.active!==false && (x.members||[]).some(function(m){ return m.id===p.id; }); })[0];
+      if(other){ $("baErr").textContent=p.name+" is already on "+other.name+"’s account. Remove them there first."; return; }
+      $("baErr").textContent=""; if(!d.members.some(function(m){ return m.id===p.id; })){ d.members.push({id:p.id, name:p.name}); wireMems(); } });
+    $("baCancel").onclick=gcModalClose;
+    $("baGo").onclick=function(){
+      var nm=($("baName").value||"").trim(), pct=+$("baPct").value||0;
+      if(nm.length<2){ $("baErr").textContent="Enter who pays."; return; }
+      if(pct<0 || pct>100){ $("baErr").textContent="Discount must be between 0 and 100%."; return; }
+      if(!d.members.length){ $("baErr").textContent="Add at least one person."; return; }
+      var rec=a||{id:"ba"+Date.now().toString(36)+Math.random().toString(36).slice(2,5), created:todayISO(), by:window.__curEmail?window.__curEmail():"", settlements:[]};
+      rec.name=nm; rec.payerId=d.payerId||""; rec.discountPct=Math.round(pct*100)/100; rec.note=($("baNote").value||"").trim(); rec.members=d.members.map(function(m){ var p=findPatient(m.id); return {id:m.id, name:p?p.name:m.name}; });
+      rec.active=!($("baClosed") && $("baClosed").checked); rec.updatedAt=new Date().toISOString();
+      if(!a) billAccts.push(rec); saveBillAccts();
+      if(window.__hipAudit) window.__hipAudit(a?"billacct_edit":"billacct_new", nm+" · "+rec.members.length+" people · "+rec.discountPct+"%");
+      gcModalClose(); renderCredits(); if(activeView==="register") renderCart(); toast(a?"Account saved":"Account created for "+nm);
+    };
+    setTimeout(function(){ try{ $("baName").focus(); }catch(e){} },50);
+  }
+  function baItemsText(t){ return (t.items||[]).map(function(l){ return (l.name||"")+((l.qty||1)>1?" ×"+l.qty:""); }).join(", "); }
+  function baGroups(rows){ var g={}, order=[]; rows.forEach(function(t){ var k=t.clientId||t.clientName||"?"; if(!g[k]){ g[k]={name:(findPatient(t.clientId)||{}).name||t.clientName||"Walk-in", rows:[], total:0}; order.push(k); } g[k].rows.push(t); g[k].total+=arOpen(t)||(+t.total||0); }); return order.map(function(k){ return g[k]; }).sort(function(a,b){ return a.name.localeCompare(b.name); }); }
+  function openBillAcct(id){
+    var a=baById(id); if(!a) return;
+    var open=baCharges(a.id), tot=baOpenTotal(a.id), groups=baGroups(open), hist=(a.settlements||[]).slice().reverse();
+    gcModalShow(a.name+" · bill later",
+      '<div class="gc-det-grid"><div><span>Open balance</span><b>$'+money(tot)+'</b></div><div><span>Open charges</span><b>'+open.length+'</b></div><div><span>Discount</span><b>'+baPct(a)+'%</b></div><div><span>People</span><b>'+(a.members||[]).length+'</b></div></div>'+
+      (a.note?'<div class="gc-note" style="margin:10px 0">'+esc(a.note)+'</div>':'')+
+      '<div class="gc-hist-h">What has been bought (not settled)</div>'+
+      (groups.length?groups.map(function(g){ return '<div class="ba-grp"><div class="ba-grp-h"><b>'+esc(g.name)+'</b><b>$'+money(g.total)+'</b></div>'+g.rows.map(function(t){ return '<div class="gc-hist"><span>'+esc(fmtDate(parseISO(t.date)))+' · '+esc(baItemsText(t))+(+t.discountAmt>0.004?' <i class="ba-disc">(−$'+money(t.discountAmt)+' discount)</i>':'')+'</span><b>$'+money(arOpen(t))+'</b></div>'; }).join("")+'</div>'; }).join(""):'<div class="gc-hint">Nothing open.</div>')+
+      '<div class="gc-hist-h">Settled</div>'+(hist.length?hist.map(function(s){ return '<div class="gc-hist"><span>'+esc(fmtDate(parseISO(s.date)))+' · '+esc(s.method)+(s.ref?' '+esc(s.ref):'')+' · '+s.count+' charge'+(s.count===1?'':'s')+' ('+esc(s.ini||"")+')</span><b>$'+money(s.amount)+'</b></div>'; }).join(""):'<div class="gc-hint">Not settled yet.</div>'),
+      '<button class="btn-ghost" id="baEdit" type="button">Edit</button><button class="btn-ghost" id="baStmt" type="button"'+(open.length?'':' disabled')+'>Print statement</button><button class="btn-primary" id="baSettle" type="button"'+(open.length?'':' disabled')+'>Settle $'+money(tot)+'</button><button class="btn-ghost" id="baClose" type="button">Close</button>');
+    $("baClose").onclick=gcModalClose;
+    $("baEdit").onclick=function(){ openBillAcctEdit(a.id); };
+    $("baStmt").onclick=function(){ baPrintStatement(a); };
+    $("baSettle").onclick=function(){ openBillSettle(a.id); };
+  }
+  function baPrintStatement(a){
+    var open=baCharges(a.id), groups=baGroups(open), tot=baOpenTotal(a.id), clinic=esc(settings.name||"Alpha Performance");
+    var html='<!doctype html><html><head><meta charset="utf-8"><title>Statement - '+esc(a.name)+'</title><style>body{font:14px/1.45 -apple-system,Segoe UI,Arial,sans-serif;color:#111;margin:32px}h1{font-size:20px;margin:0}h2{font-size:15px;margin:22px 0 6px}table{width:100%;border-collapse:collapse}td,th{padding:6px 8px;border-bottom:1px solid #ddd;text-align:left;vertical-align:top}th{font-size:12px;color:#555;text-transform:uppercase}.n{text-align:right;white-space:nowrap}.tot td{font-weight:700;border-top:2px solid #111}.sub{color:#555}</style></head><body>'+
+      '<h1>'+clinic+'</h1><div class="sub">Account statement · '+esc(fmtDate(new Date()))+'</div><h2>Billed to: '+esc(a.name)+(baPct(a)?' ('+baPct(a)+'% account discount applied)':'')+'</h2>'+
+      groups.map(function(g){ return '<h2>'+esc(g.name)+'</h2><table><thead><tr><th>Date</th><th>Items</th><th class="n">Discount</th><th class="n">Amount</th></tr></thead><tbody>'+g.rows.map(function(t){ return '<tr><td>'+esc(fmtDate(parseISO(t.date)))+'</td><td>'+esc(baItemsText(t))+'</td><td class="n">'+(+t.discountAmt>0.004?'−$'+money(t.discountAmt):'')+'</td><td class="n">$'+money(arOpen(t))+'</td></tr>'; }).join("")+'<tr class="tot"><td colspan="3">Subtotal</td><td class="n">$'+money(g.total)+'</td></tr></tbody></table>'; }).join("")+
+      '<table style="margin-top:22px"><tr class="tot"><td>Total due</td><td class="n">$'+money(tot)+'</td></tr></table></body></html>';
+    var w=window.open("","_blank"); if(!w){ toast("Allow pop-ups to print the statement"); return; }
+    w.document.open(); w.document.write(html); w.document.close(); setTimeout(function(){ try{ w.focus(); w.print(); }catch(e){} },300);
+    if(window.__hipAudit) window.__hipAudit("billacct_statement", a.name+" $"+money(tot));
+  }
+  function openBillSettle(id){
+    var a=baById(id); if(!a) return; var open=baCharges(a.id), tot=baOpenTotal(a.id);
+    gcModalShow("Settle "+a.name,
+      '<div class="gc-det-grid"><div><span>Amount due</span><b>$'+money(tot)+'</b></div><div><span>Charges</span><b>'+open.length+'</b></div></div>'+
+      '<div class="gc-row2"><div class="pos-field"><label>Paid with</label><select id="bsM">'+["Card","Check","Cash","Zelle","Other"].map(function(m){ return '<option>'+m+'</option>'; }).join("")+'</select></div><div class="pos-field"><label>Date paid</label><input type="date" id="bsD" value="'+todayISO()+'"></div></div>'+
+      '<div class="gc-row2"><div class="pos-field"><label>Reference (check #, last 4)</label><input type="text" id="bsRef" maxlength="30"></div><div class="pos-field"><label>Your initials</label><input type="text" id="bsIni" maxlength="4" placeholder="e.g. CP" style="text-transform:uppercase"></div></div>'+
+      '<div class="gc-hint">All '+open.length+' open charges are marked settled and the receivable is cleared in the books for each company.</div><div class="sub-err" id="bsErr"></div>',
+      '<button class="btn-ghost" id="bsCancel" type="button">Cancel</button><button class="btn-primary" id="bsGo" type="button">Record $'+money(tot)+' payment</button>');
+    $("bsCancel").onclick=function(){ openBillAcct(a.id); };
+    $("bsGo").onclick=function(){
+      var m=$("bsM").value, d=$("bsD").value, ref=($("bsRef").value||"").trim(), ini=($("bsIni").value||"").trim().toUpperCase();
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(d)){ $("bsErr").textContent="Enter the date paid."; return; }
+      if(!/^[A-Z]{2,4}$/.test(ini)){ $("bsErr").textContent="Enter your initials (2 to 4 letters)."; return; }
+      var r=baSettle(a.id, {method:m, date:d, ref:ref, ini:ini});
+      if(!r){ $("bsErr").textContent="Nothing open to settle."; return; }
+      gcModalClose(); renderCredits(); toast(a.name+" settled: $"+money(r.amount));
+    };
+  }
+  function baSettle(id, o){
+    var a=baById(id); if(!a) return null; var open=baCharges(a.id); if(!open.length) return null;
+    var sid="bs"+Date.now().toString(36)+Math.random().toString(36).slice(2,5), byEnt={}, total=0, at=new Date().toISOString();
+    open.forEach(function(t){ var v=arOpen(t); var e=t.entity||"mjs"; byEnt[e]=Math.round(((byEnt[e]||0)+v)*100)/100; total+=v; t.billSettled={id:sid, date:o.date, method:o.method, ref:o.ref||"", at:at}; });
+    total=Math.round(total*100)/100;
+    var cash=/^cash$/i.test(o.method), cf=(typeof cashFrom==="function")?cashFrom():null, dr=(cash && cf && o.date>=cf)?CASH_SAFE:"1000";
+    var loc=cash?cashSafeSite():((typeof tillSite==="function")?tillSite():"");
+    Object.keys(byEnt).forEach(function(e){ var v=byEnt[e]; if(v<=0.004) return;
+      cashPostJE(e, {id:cashId(), date:o.date, at:at, by:cashWho(), ini:o.ini, billSettle:sid, billAcct:a.id, location:loc, memo:"Bill later account settled: "+a.name+" ("+o.method+(o.ref?" "+o.ref:"")+", "+o.ini+")", lines:[{acct:dr,dr:v,cr:0},{acct:"1100",dr:0,cr:v}]}); });
+    saveTxns();
+    a.settlements=a.settlements||[]; a.settlements.push({id:sid, date:o.date, method:o.method, ref:o.ref||"", ini:o.ini, amount:total, count:open.length, byEnt:byEnt, saleIds:open.map(function(t){ return t.id; }), at:at});
+    saveBillAccts();
+    if(window.__hipAudit) window.__hipAudit("billacct_settled", a.name+" $"+money(total)+" · "+o.method+" · "+o.ini);
+    return {amount:total, count:open.length, byEnt:byEnt};
   }
   // ---------- Suggested ordering: average patients per month on each item ----------
   var ordState={months:3, ent:"all", site:"all", q:"", all:false};
@@ -6361,7 +6523,7 @@ window.startClinicApp = function(){
     return { dues:dues, other:Math.round((t.total-dues)*100)/100 };
   }
   function isReceivable(t){ return t && t.type==="sale" && /invoice|account|unpaid/i.test(t.payment||"") && !t.paid; }
-  function arOpen(t){ if(!t || t.type!=="sale" || t.paid) return 0; if(t.arAmount!=null) return Math.max(0, Math.min(t.arAmount, t.total||0)); return isReceivable(t)?(t.total||0):0; }
+  function arOpen(t){ if(!t || t.type!=="sale" || t.paid || t.billSettled) return 0; if(t.arAmount!=null) return Math.max(0, Math.min(t.arAmount, t.total||0)); return isReceivable(t)?(t.total||0):0; }
   function saleDebitLines(amount, t){
     var ar = t.paid ? 0 : (t.arAmount!=null ? Math.max(0,Math.min(t.arAmount, t.total||0)) : (isReceivable(t)?(t.total||0):0));
     // proportion the AR to this posting's amount when a sale posts in parts (dues/other)
@@ -7223,7 +7385,7 @@ window.startClinicApp = function(){
     fillPosSelects(); renderCart();
   }
   function setPosClient(id){
-    if((id||"")!==posClientId){ posConsultWaive=null; posSubCharge=null; posCreditSkip=false; }
+    if((id||"")!==posClientId){ posConsultWaive=null; posSubCharge=null; posCreditSkip=false; posBill=null; }
     if(posPromo && posPromo.clientId!==(id||"")){ posPromo=null; promoClearLines(); if($("posPromoCard")) $("posPromoCard").checked=false; setTimeout(function(){ renderCart(); },0); if(id) toast("Promotion removed because the client changed"); }
     posClientId=id||"";
     var p=id?findPatient(id):null;
@@ -7588,6 +7750,7 @@ window.startClinicApp = function(){
     var el=$("posCart");
     if(posPromo) promoReapply();
     try{ enforceNoDisc(); }catch(e){ console.error(e); }
+    try{ baApplyCart(); }catch(e){ console.error(e); }
     var perItem = posDiscMode==="item";
     var _hasPkg = cartHasPkg();
     if(_hasPkg && !posPkgOverride){ posCart.forEach(function(l){ l.discPct=0; l.discAmt=0; }); if($("posDiscount")) $("posDiscount").value=""; if($("posDiscountAmt")) $("posDiscountAmt").value=""; }
@@ -7863,6 +8026,9 @@ window.startClinicApp = function(){
     }
     var cashDue=Math.round((total-gcAmt)*100)/100;
     var pay=$("posPay").value, payments=null, paySummary=pay, byItem=false;
+    var _ba=(pay===BA_PAY)?baById(posBill):null;
+    if(pay===BA_PAY && (!_ba || !p || baForClient(p.id)!==_ba)){ toast("This client is not on a bill later account. Choose another payment method."); return; }
+    if(_ba && posSplitActive){ toast("A sale billed to an account can't be split. Turn off split payment."); return; }
     if(posSplitActive){
       if(posSplitMode==="item"){
         byItem=true; paySummary="Split by item";
@@ -7918,6 +8084,7 @@ window.startClinicApp = function(){
       plan.push({ id:txId(), date:saleDate, type:"sale", clientId:p?p.id:"", clientName:p?p.name:"Walk-in",
         items:g.items.slice(), subtotal:g.sub, discountName:dn, discountPct:pct, discountAmt:eDisc, total:eTotal, cost:g.cost, profit:eTotal-g.cost,
         payment:paySummary, payments:ePayments, arAmount:eAr, source:"pos", entity:e, saleGroup:saleGroup,
+        billAcct:_ba?_ba.id:undefined, billAcctName:_ba?_ba.name:undefined, billDiscPct:_ba?baPct(_ba):undefined,
         gcAmount:eGcAmt>0?eGcAmt:undefined, gcParts:eGcParts.length?eGcParts:undefined, gcId:eGcParts.length?eGcParts[0].id:undefined, gcNum:eGcParts.length?eGcParts.map(function(x){ return x.num; }).join(" + "):undefined,
         gcSell:gcSellAmt>0?true:undefined, gcSellAmt:gcSellAmt>0?gcSellAmt:undefined,
         promoId:promoRec?promoRec.pr.id:undefined, promoName:promoRec?promoRec.pr.name:undefined,
@@ -10288,7 +10455,7 @@ window.startClinicApp = function(){
       app:"AlphaPerformance", schema:4, exportedAt:new Date().toISOString(),
       members:members, tiers:tiers, patients:patients, treatments:treatments,
       visitTypes:visitTypes, discounts:discounts, pricing:treatmentPricing, settings:settings,
-      txns:txns, giftcerts:giftcerts, credits:credits, cashEnvelopes:cashEnv, bulkPools:bulkPools, promos:promos, promoUses:promoUses, promoAttempts:promoAttempts, packages:packages, subs:subs, sites:sites, regProducts:regProducts,
+      txns:txns, giftcerts:giftcerts, credits:credits, cashEnvelopes:cashEnv, billAccts:billAccts, bulkPools:bulkPools, promos:promos, promoUses:promoUses, promoAttempts:promoAttempts, packages:packages, subs:subs, sites:sites, regProducts:regProducts,
       books:{ accounts:{ mjs:load("alphaperf_accounts_mjs",[]), alpha:load("alphaperf_accounts_alpha",[]) },
               journals:{ mjs:load("alphaperf_journals_mjs",[]), alpha:load("alphaperf_journals_alpha",[]) } },
       bookslock:booksLock
@@ -10334,6 +10501,7 @@ window.startClinicApp = function(){
           if(Array.isArray(data.credits)){ credits=data.credits; store.set("alphaperf_credits", JSON.stringify(credits)); }
           if(Array.isArray(data.bulkPools)){ bulkPools=data.bulkPools; store.set("alphaperf_bulkpools", JSON.stringify(bulkPools)); }
           if(Array.isArray(data.cashEnvelopes)){ cashEnv=data.cashEnvelopes; store.set("alphaperf_cash_envelopes", JSON.stringify(cashEnv)); }
+          if(Array.isArray(data.billAccts)){ billAccts=data.billAccts; store.set("alphaperf_billaccts", JSON.stringify(billAccts)); }
           if(Array.isArray(data.packages)){ packages=data.packages; savePackages(); }
           if(Array.isArray(data.promos)){ promos=data.promos; savePromos(); } if(Array.isArray(data.promoUses)){ promoUses=data.promoUses; savePromoUses(); } if(Array.isArray(data.promoAttempts)){ promoAttempts=data.promoAttempts; savePromoAttempts(); }
           if(data.regProducts){ ensureRegProducts();
@@ -10389,7 +10557,7 @@ window.startClinicApp = function(){
   function serializeState(){
     return { v:4, tiers:tiers, patients:patients, treatments:treatments, visitTypes:visitTypes, discounts:discounts, pricing:treatmentPricing,
              settings:{ name:settings.name, accent:settings.accent, followupDays:settings.followupDays },
-             txns:txns, giftcerts:giftcerts, credits:credits, cashEnvelopes:cashEnv, bulkPools:bulkPools, promos:promos, promoUses:promoUses, promoAttempts:promoAttempts, packages:packages, subs:subs,
+             txns:txns, giftcerts:giftcerts, credits:credits, cashEnvelopes:cashEnv, billAccts:billAccts, bulkPools:bulkPools, promos:promos, promoUses:promoUses, promoAttempts:promoAttempts, packages:packages, subs:subs,
              regProducts:(ensureRegProducts(), regProducts),
              books:{ accounts:{ mjs:load("alphaperf_accounts_mjs",[]), alpha:load("alphaperf_accounts_alpha",[]) },
                      journals:{ mjs:load("alphaperf_journals_mjs",[]), alpha:load("alphaperf_journals_alpha",[]) } },
@@ -10442,6 +10610,7 @@ window.startClinicApp = function(){
     if(Array.isArray(d.credits)){ credits=d.credits; store.set("alphaperf_credits", JSON.stringify(credits)); }
     if(Array.isArray(d.bulkPools)){ bulkPools=d.bulkPools; store.set("alphaperf_bulkpools", JSON.stringify(bulkPools)); }
     if(Array.isArray(d.cashEnvelopes)){ cashEnv=d.cashEnvelopes; store.set("alphaperf_cash_envelopes", JSON.stringify(cashEnv)); }
+    if(Array.isArray(d.billAccts)){ billAccts=d.billAccts; store.set("alphaperf_billaccts", JSON.stringify(billAccts)); }
     if(Array.isArray(d.packages)){ packages=d.packages; store.set("alphaperf_packages", JSON.stringify(packages)); }
     if(Array.isArray(d.sites)&&d.sites.length){ sites=d.sites; store.set("alphaperf_sites", JSON.stringify(sites)); }
     if(Array.isArray(d.subs)){ subs=d.subs; store.set("alphaperf_subs", JSON.stringify(subs)); }
@@ -10758,6 +10927,7 @@ window.startClinicApp = function(){
       else if(k==="alphaperf_credits"){ credits=load(k,[]); if(!Array.isArray(credits)) credits=[]; }
       else if(k==="alphaperf_bulkpools"){ bulkPools=load(k,[]); if(!Array.isArray(bulkPools)) bulkPools=[]; }
       else if(k==="alphaperf_cash_envelopes"){ cashEnv=load(k,[]); if(!Array.isArray(cashEnv)) cashEnv=[]; }
+      else if(k==="alphaperf_billaccts"){ billAccts=load(k,[]); if(!Array.isArray(billAccts)) billAccts=[]; }
       else if(k==="alphaperf_subs"){ subs=load(k,[]); if(!Array.isArray(subs)) subs=[]; }
       else if(k==="alphaperf_promouses") promoUses=load(k,[]);
       else if(k==="alphaperf_promoattempts") promoAttempts=load(k,[]);
@@ -11333,6 +11503,7 @@ window.startClinicApp = function(){
     "alphaperf_giftcerts":{k:"gc",t:"arr",label:"gift certificates"},
     "alphaperf_credits":{k:"cr",t:"arr",label:"customer credits"},
     "alphaperf_cash_envelopes":{k:"env",t:"arr",label:"deposit envelopes"},
+    "alphaperf_billaccts":{k:"ba",t:"arr",label:"bill later accounts"},
     "alphaperf_promouses":{k:"pu",t:"arr",label:"promotion redemptions"},
     "alphaperf_promoattempts":{k:"pa",t:"arr",label:"promotion attempts"},
     "alphaperf_journals_mjs":{k:"jm",t:"arr",label:"MJS journal entries"},
@@ -12499,7 +12670,7 @@ window.startClinicApp = function(){
     put("alphaperf_discounts", data.discounts);
     put("alphaperf_pricing", data.pricing);
     put("alphaperf_txns", data.txns);
-    put("alphaperf_giftcerts", data.giftcerts); put("alphaperf_credits", data.credits); put("alphaperf_bulkpools", data.bulkPools); put("alphaperf_cash_envelopes", data.cashEnvelopes);
+    put("alphaperf_giftcerts", data.giftcerts); put("alphaperf_credits", data.credits); put("alphaperf_bulkpools", data.bulkPools); put("alphaperf_cash_envelopes", data.cashEnvelopes); put("alphaperf_billaccts", data.billAccts);
     put("alphaperf_packages", data.packages); put("alphaperf_subs", data.subs); put("alphaperf_sites", data.sites); put("alphaperf_promos", data.promos); put("alphaperf_promouses", data.promoUses); put("alphaperf_promoattempts", data.promoAttempts);
     if(data.settings){ var s; try{ s=JSON.parse(JSON.stringify(data.settings)); }catch(e){ s={}; } delete s.supabaseUrl; delete s.supabaseKey; put("alphaperf_settings", s); }
     if(data.regProducts){ put("alphaperf_regprod_mjs", data.regProducts.mjs); put("alphaperf_regprod_alpha", data.regProducts.alpha); }
