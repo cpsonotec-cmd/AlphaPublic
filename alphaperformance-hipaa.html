@@ -976,7 +976,7 @@
   .gc-hint{font-size:12px;color:var(--muted);margin-top:4px}
   .gc-note{font-size:13px;background:var(--canvas);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 14px;line-height:1.5}
   .gc-chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:8px}
-  .ba-tabs{margin-bottom:12px}.ba-pos-box{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:9px 11px;margin-bottom:10px}.ba-pos{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px;cursor:pointer}.ba-pos-sub{font-size:12px;color:var(--muted);margin:3px 0 0 24px}.ba-mems{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.ba-mem{background:#F1F5F9;border-radius:999px;padding:4px 6px 4px 11px;font-size:13px;display:inline-flex;align-items:center;gap:4px}.ba-mem button{border:0;background:transparent;font-size:16px;line-height:1;cursor:pointer;color:var(--muted)}.ba-grp{border:1px solid var(--line);border-radius:10px;padding:6px 10px;margin-bottom:8px}.ba-grp-h{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--line);margin-bottom:2px}.ba-disc{color:var(--muted);font-style:normal}
+  .ba-tabs{margin-bottom:12px}.ba-pos-box{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:9px 11px;margin-bottom:10px}.ba-pos{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px;cursor:pointer}.ba-pos-sub{font-size:12px;color:var(--muted);margin:3px 0 0 24px}.ba-mems{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.ba-mem{background:#F1F5F9;border-radius:999px;padding:4px 6px 4px 11px;font-size:13px;display:inline-flex;align-items:center;gap:4px}.ba-mem button{border:0;background:transparent;font-size:16px;line-height:1;cursor:pointer;color:var(--muted)}.ba-grp{border:1px solid var(--line);border-radius:10px;padding:6px 10px;margin-bottom:8px}.ba-grp-h{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--line);margin-bottom:2px}.ba-disc{color:var(--muted);font-style:normal}.ba-items{display:flex;flex-direction:column;gap:6px;margin-top:8px}.ba-item{display:flex;align-items:center;gap:6px;font-size:13px}.ba-item span:first-child{flex:1}.ba-item input{width:80px}.ba-item select{width:auto}.ba-item button{border:0;background:transparent;font-size:16px;cursor:pointer;color:var(--muted)}
   .gc-chips button{padding:8px 13px;border:1px solid var(--line);background:var(--card);border-radius:9px;font-weight:600;font-size:13px;color:var(--ink);cursor:pointer}
   .gc-chips button.on{background:var(--emerald);color:#fff;border-color:var(--emerald)}
   .gc-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.gc-row2>*{min-width:0}.gc-row2 input,.gc-row2 select{width:100%;box-sizing:border-box}
@@ -4600,16 +4600,22 @@ window.startClinicApp = function(){
   function baCharges(id, open){ return txns.filter(function(t){ return t && t.type==="sale" && t.billAcct===id && (open===false ? !!t.billSettled : !t.billSettled && arOpen(t)>0.004); }).sort(function(a,b){ return (a.date||"").localeCompare(b.date||""); }); }
   function baOpenTotal(id){ return Math.round(baCharges(id).reduce(function(s,t){ return s+arOpen(t); },0)*100)/100; }
   function baPct(a){ return Math.max(0, Math.min(100, +((a||{}).discountPct)||0)); }
+  // per-item discount on the account; items not listed get the base discount
+  function baItemPct(a, name){ var m=(a&&a.itemDisc)||{}; return (name in m) ? Math.max(0, Math.min(100, +m[name]||0)) : baPct(a); }
+  function baItemPrice(a, name){ var m=(a&&a.itemPrice)||{}; return (name in m) ? Math.max(0, +m[name]||0) : null; }
+  function baItemRates(a){ return Object.keys((a&&a.itemDisc)||{}).length+Object.keys((a&&a.itemPrice)||{}).length; }
   // register: apply the account discount and payment method while "bill to account" is on
   function baApplyCart(){
     var a=baForClient(posClientId);
     if(posBill && (!a || posBill!==a.id)) posBill=null;
-    var pct=posBill?baPct(a):0;
     posCart.forEach(function(l){
-      if(l.baDisc && (!posBill || lineNoDisc(l) || l.promo)){ l.discPct=0; delete l.baDisc; }
-      else if(posBill && pct>0 && !l.gcSell && !l.promo && !lineNoDisc(l) && (+l.discPct||0)<pct){ l.discPct=pct; l.baDisc=true; }
+      var price=posBill?baItemPrice(a, l.name):null, want=posBill?(price!=null?0:baItemPct(a, l.name)):0;
+      var off=price!=null?Math.round(Math.max(0,(l.retail-price)*l.qty)*100)/100:0, key=want+"|"+off;
+      if(l.baDisc && ((+l.discPct||0)+"|"+(+l.discAmt||0))!==l.baSet){ delete l.baDisc; delete l.baSet; return; }   // changed by hand at the register: leave it
+      if(l.baDisc && (!posBill || lineNoDisc(l) || l.promo)){ l.discPct=0; l.discAmt=0; delete l.baDisc; delete l.baSet; }
+      else if(posBill && !l.gcSell && !l.promo && !lineNoDisc(l) && (l.baDisc || price!=null || (+l.discPct||0)<want)){ l.discPct=want; l.discAmt=off; l.baDisc=true; l.baSet=key; }
     });
-    if(posBill && pct>0 && posDiscMode!=="item" && posCart.some(function(l){ return l.baDisc; })){
+    if(posBill && posDiscMode!=="item" && posCart.some(function(l){ return l.baDisc; })){
       posDiscMode="item"; if($("posDiscount")) $("posDiscount").value=""; if($("posDiscountAmt")) $("posDiscountAmt").value="";
       Array.prototype.forEach.call(document.querySelectorAll("#posDiscMode [data-dmode]"),function(b){ b.classList.toggle("on", b.getAttribute("data-dmode")==="item"); });
       if($("posDiscOrder")) $("posDiscOrder").style.display="none"; if($("posDiscItemHint")) $("posDiscItemHint").style.display="block";
@@ -4626,7 +4632,7 @@ window.startClinicApp = function(){
     if(!a){ box.style.display="none"; box.innerHTML=""; return; }
     var payer=a.payerId?findPatient(a.payerId):null;
     box.style.display="block";
-    box.innerHTML='<label class="ba-pos"><input type="checkbox" id="baOn"'+(posBill?' checked':'')+'> Bill this sale to <b>'+esc(a.name)+'</b>'+(baPct(a)?' <span class="gc-chip gc-open">'+baPct(a)+'% account discount</span>':'')+'</label>'+
+    box.innerHTML='<label class="ba-pos"><input type="checkbox" id="baOn"'+(posBill?' checked':'')+'> Bill this sale to <b>'+esc(a.name)+'</b>'+((baPct(a)||baItemRates(a))?' <span class="gc-chip gc-open">'+baPct(a)+'% account discount'+(baItemRates(a)?', some items differ':'')+'</span>':'')+'</label>'+
       '<div class="ba-pos-sub">Open on the account: $'+money(baOpenTotal(a.id))+(payer && payer.id!==posClientId?' · paid by '+esc(payer.name):'')+'</div>';
     $("baOn").onchange=function(){ posBill=this.checked?a.id:null; renderCart(); };
   }
@@ -4637,7 +4643,7 @@ window.startClinicApp = function(){
         '<div class="inv-stat"><div class="inv-stat-val">'+list.filter(function(a){ return a.active!==false; }).length+'</div><div class="inv-stat-lbl">Active accounts</div></div></div></div>'+
       '<div class="rep-card"><div class="inv-tools"><div class="gc-hint" style="flex:1;margin:0">Someone who pays for other people. Their sales are billed to the account at its discount, and settled at month end.</div><button class="btn-primary inv-add" id="baNewBtn" type="button">+ New account</button></div>'+
       (list.length?list.map(function(a){ var open=baCharges(a.id), tot=baOpenTotal(a.id);
-        return '<div class="gc-row" data-baid="'+esc(a.id)+'"><div class="gc-r-main"><div class="gc-r-num">'+esc(a.name)+' <span class="gc-chip '+(a.active===false?'gc-void':'gc-open')+'">'+(a.active===false?'Closed':(baPct(a)?baPct(a)+'% off':'No discount'))+'</span></div>'+
+        return '<div class="gc-row" data-baid="'+esc(a.id)+'"><div class="gc-r-main"><div class="gc-r-num">'+esc(a.name)+' <span class="gc-chip '+(a.active===false?'gc-void':'gc-open')+'">'+(a.active===false?'Closed':(baPct(a)?baPct(a)+'% off':'No discount')+(baItemRates(a)?' \u00b7 '+baItemRates(a)+' item rates':''))+'</span></div>'+
           '<div class="gc-r-sub">'+(a.members||[]).length+' '+((a.members||[]).length===1?'person':'people')+': '+esc((a.members||[]).map(function(m){ var p=findPatient(m.id); return p?p.name:m.name; }).join(", ")||"none yet")+'</div></div>'+
           '<div class="gc-r-amt"><b>$'+money(tot)+'</b><span>'+open.length+' open charge'+(open.length===1?'':'s')+'</span></div></div>'; }).join(""):'<div class="pos-cart-empty">No bill later accounts yet.</div>')+'</div>';
     $("baNewBtn").onclick=function(){ openBillAcctEdit(null); };
@@ -4657,11 +4663,28 @@ window.startClinicApp = function(){
     function memHtml(){ return d.members.length?d.members.map(function(m,i){ var p=findPatient(m.id); return '<span class="ba-mem">'+esc(p?p.name:m.name)+' <button type="button" data-barm="'+i+'" aria-label="Remove">×</button></span>'; }).join(""):'<div class="gc-hint">No one added yet.</div>'; }
     gcModalShow(a?"Edit bill later account":"New bill later account",
       '<div class="pos-field"><label>Who pays (account name)</label><div class="client-search" style="position:relative"><input type="text" id="baName" placeholder="Search a client, or type a name" autocomplete="off" value="'+esc(d.name)+'"><div class="client-drop" id="baNameDrop" style="display:none"></div></div></div>'+
-      '<div class="gc-row2"><div class="pos-field"><label>Discount level (%)</label><input type="number" id="baPct" min="0" max="100" step="1" inputmode="decimal" value="'+(baPct(d)||"")+'" placeholder="0"></div><div class="pos-field"><label>Note</label><input type="text" id="baNote" value="'+esc(d.note||"")+'" placeholder="e.g. settles first week of the month"></div></div>'+
+      '<div class="gc-row2"><div class="pos-field"><label>Base discount (%)</label><input type="number" id="baPct" min="0" max="100" step="1" inputmode="decimal" value="'+(baPct(d)||"")+'" placeholder="0"></div><div class="pos-field"><label>Note</label><input type="text" id="baNote" value="'+esc(d.note||"")+'" placeholder="e.g. settles first week of the month"></div></div>'+
+      '<div class="pos-field"><label>Per-item discount or price (items not listed get the base discount)</label><div class="client-search" style="position:relative"><input type="text" id="baItemQ" placeholder="Search an item to set its own %" autocomplete="off"><div class="client-drop" id="baItemDrop" style="display:none"></div></div><div id="baItems"></div></div>'+
       '<div class="pos-field"><label>People billed to this account</label><div class="client-search" style="position:relative"><input type="text" id="baMemQ" placeholder="Search a client to add" autocomplete="off"><div class="client-drop" id="baMemDrop" style="display:none"></div></div><div class="ba-mems" id="baMems">'+memHtml()+'</div></div>'+
       (a?'<label class="gc-xfer-check" style="margin-left:0"><input type="checkbox" id="baClosed"'+(a.active===false?' checked':'')+'> Account closed (no new charges)</label>':'')+
       '<div class="sub-err" id="baErr"></div>',
       '<button class="btn-ghost" id="baCancel" type="button">Cancel</button><button class="btn-primary" id="baGo" type="button">'+(a?'Save':'Create account')+'</button>');
+    d.itemDisc=Object.assign({}, d.itemDisc||{}); d.itemPrice=Object.assign({}, d.itemPrice||{});
+    var listPrice={}; ensureRegProducts(); ["mjs","alpha"].forEach(function(e){ (regProducts[e]||[]).forEach(function(p){ if(p && p.name && listPrice[p.name]==null) listPrice[p.name]=+p.price||0; }); });
+    function wireItems(){ var ks=Object.keys(d.itemDisc).concat(Object.keys(d.itemPrice)).sort();
+      $("baItems").innerHTML=ks.length?'<div class="ba-items">'+ks.map(function(k){ var isP=(k in d.itemPrice), v=isP?d.itemPrice[k]:d.itemDisc[k];
+        return '<div class="ba-item"><span>'+esc(k)+(listPrice[k]!=null?' <i class="ba-disc">list $'+money(listPrice[k])+'</i>':'')+'</span><select data-baim="'+esc(k)+'"><option value="pct"'+(isP?'':' selected')+'>% off</option><option value="price"'+(isP?' selected':'')+'>Price $</option></select><input type="number" min="0" step="'+(isP?'0.01':'1')+'" data-baip="'+esc(k)+'" value="'+(+v)+'"><button type="button" data-baix="'+esc(k)+'" aria-label="Remove">\u00d7</button></div>'; }).join("")+'</div>':'<div class="gc-hint">Every item gets the base discount.</div>';
+      Array.prototype.forEach.call($("baItems").querySelectorAll("[data-baip]"),function(i){ i.oninput=function(){ var k=i.getAttribute("data-baip"); if(k in d.itemPrice) d.itemPrice[k]=Math.max(0,+i.value||0); else d.itemDisc[k]=Math.max(0,Math.min(100,+i.value||0)); }; });
+      Array.prototype.forEach.call($("baItems").querySelectorAll("[data-baim]"),function(sl){ sl.onchange=function(){ var k=sl.getAttribute("data-baim"); if(sl.value==="price"){ delete d.itemDisc[k]; d.itemPrice[k]=listPrice[k]!=null?Math.round(listPrice[k]*(1-(+$("baPct").value||0)/100)*100)/100:0; } else { delete d.itemPrice[k]; d.itemDisc[k]=+$("baPct").value||0; } wireItems(); }; });
+      Array.prototype.forEach.call($("baItems").querySelectorAll("[data-baix]"),function(b){ b.onclick=function(){ var k=b.getAttribute("data-baix"); delete d.itemDisc[k]; delete d.itemPrice[k]; wireItems(); }; }); }
+    wireItems();
+    (function(){ var q=$("baItemQ"), dd=$("baItemDrop"); ensureRegProducts();
+      var names={}; ["mjs","alpha"].forEach(function(e){ (regProducts[e]||[]).forEach(function(p){ if(p && p.name && !p.discontinued) names[p.name]=1; }); }); names=Object.keys(names).sort();
+      q.oninput=function(){ var v=q.value.trim().toLowerCase(); if(!v){ dd.style.display="none"; return; }
+        var hits=names.filter(function(n){ return n.toLowerCase().indexOf(v)>=0; }).slice(0,12);
+        dd.innerHTML=hits.length?hits.map(function(n){ return '<div class="cd-item" data-bai="'+esc(n)+'"><span class="pd-name">'+esc(n)+'</span></div>'; }).join(""):'<div class="cd-empty">No items match</div>'; dd.style.display="block";
+        Array.prototype.forEach.call(dd.querySelectorAll("[data-bai]"),function(it){ it.onmousedown=function(e){ e.preventDefault(); var n=it.getAttribute("data-bai"); if(!(n in d.itemDisc) && !(n in d.itemPrice)) d.itemDisc[n]=+$("baPct").value||0; q.value=""; dd.style.display="none"; wireItems(); var inp=$("baItems").querySelector('[data-baip="'+n.replace(/"/g,'\\"')+'"]'); if(inp){ inp.focus(); inp.select(); } }; }); };
+      q.onblur=function(){ setTimeout(function(){ dd.style.display="none"; },150); }; })();
     function wireMems(){ $("baMems").innerHTML=memHtml(); Array.prototype.forEach.call($("baMems").querySelectorAll("[data-barm]"),function(b){ b.onclick=function(){ d.members.splice(+b.getAttribute("data-barm"),1); wireMems(); }; }); }
     wireMems();
     baClientPicker("baName","baNameDrop",function(p){ if(!p) return; d.payerId=p.id; $("baName").value=p.name; if(!d.members.some(function(m){ return m.id===p.id; })){ d.members.push({id:p.id, name:p.name}); wireMems(); } });
@@ -4677,7 +4700,8 @@ window.startClinicApp = function(){
       if(pct<0 || pct>100){ $("baErr").textContent="Discount must be between 0 and 100%."; return; }
       if(!d.members.length){ $("baErr").textContent="Add at least one person."; return; }
       var rec=a||{id:"ba"+Date.now().toString(36)+Math.random().toString(36).slice(2,5), created:todayISO(), by:window.__curEmail?window.__curEmail():"", settlements:[]};
-      rec.name=nm; rec.payerId=d.payerId||""; rec.discountPct=Math.round(pct*100)/100; rec.note=($("baNote").value||"").trim(); rec.members=d.members.map(function(m){ var p=findPatient(m.id); return {id:m.id, name:p?p.name:m.name}; });
+      rec.name=nm; rec.payerId=d.payerId||""; rec.discountPct=Math.round(pct*100)/100; rec.itemDisc={}; Object.keys(d.itemDisc).forEach(function(k){ rec.itemDisc[k]=Math.max(0,Math.min(100,Math.round((+d.itemDisc[k]||0)*100)/100)); });
+      rec.itemPrice={}; Object.keys(d.itemPrice).forEach(function(k){ rec.itemPrice[k]=Math.max(0,Math.round((+d.itemPrice[k]||0)*100)/100); }); rec.note=($("baNote").value||"").trim(); rec.members=d.members.map(function(m){ var p=findPatient(m.id); return {id:m.id, name:p?p.name:m.name}; });
       rec.active=!($("baClosed") && $("baClosed").checked); rec.updatedAt=new Date().toISOString();
       if(!a) billAccts.push(rec); saveBillAccts();
       if(window.__hipAudit) window.__hipAudit(a?"billacct_edit":"billacct_new", nm+" · "+rec.members.length+" people · "+rec.discountPct+"%");
@@ -4691,7 +4715,7 @@ window.startClinicApp = function(){
     var a=baById(id); if(!a) return;
     var open=baCharges(a.id), tot=baOpenTotal(a.id), groups=baGroups(open), hist=(a.settlements||[]).slice().reverse();
     gcModalShow(a.name+" · bill later",
-      '<div class="gc-det-grid"><div><span>Open balance</span><b>$'+money(tot)+'</b></div><div><span>Open charges</span><b>'+open.length+'</b></div><div><span>Discount</span><b>'+baPct(a)+'%</b></div><div><span>People</span><b>'+(a.members||[]).length+'</b></div></div>'+
+      '<div class="gc-det-grid"><div><span>Open balance</span><b>$'+money(tot)+'</b></div><div><span>Open charges</span><b>'+open.length+'</b></div><div><span>Discount</span><b>'+baPct(a)+'% base'+(baItemRates(a)?' + '+baItemRates(a)+' item rates':'')+'</b></div><div><span>People</span><b>'+(a.members||[]).length+'</b></div></div>'+
       (a.note?'<div class="gc-note" style="margin:10px 0">'+esc(a.note)+'</div>':'')+
       '<div class="gc-hist-h">What has been bought (not settled)</div>'+
       (groups.length?groups.map(function(g){ return '<div class="ba-grp"><div class="ba-grp-h"><b>'+esc(g.name)+'</b><b>$'+money(g.total)+'</b></div>'+g.rows.map(function(t){ return '<div class="gc-hist"><span>'+esc(fmtDate(parseISO(t.date)))+' · '+esc(baItemsText(t))+(+t.discountAmt>0.004?' <i class="ba-disc">(−$'+money(t.discountAmt)+' discount)</i>':'')+'</span><b>$'+money(arOpen(t))+'</b></div>'; }).join("")+'</div>'; }).join(""):'<div class="gc-hint">Nothing open.</div>')+
