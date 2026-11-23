@@ -8406,9 +8406,13 @@ window.startClinicApp = function(){
         '<div class="hc-bar-row"><span class="hc-bar-lbl">Expenses</span><div class="hc-track"><div class="hc-fill" style="width:'+(cur.expenses/maxIE*100).toFixed(1)+'%;background:#0D9488"></div></div><span class="hc-bar-val">$'+money(cur.expenses)+'</span></div>'+
       '</div></div>';
     var PAL=["#2563EB","#0D9488","#7C3AED","#DB2777","#B45309","#DC2626","#0EA5E9","#65A30D","#6B7280"];
-    var eItems=Object.keys(cur.expBy).map(function(k,i){return {label:k, value:cur.expBy[k], color:PAL[i%PAL.length]};}).sort(function(a,b){return b.value-a.value;});
+    // donut: positive amounts only (a negative slice breaks the drawing into one solid ring), colours given after sorting, top 7 + Other
+    var ePos=Object.keys(cur.expBy).filter(function(k){ return cur.expBy[k]>0.004; }).map(function(k){ return {label:k, value:cur.expBy[k]}; }).sort(function(a,b){ return b.value-a.value; });
+    var eItems=ePos.slice(0,7).map(function(it,i){ it.color=PAL[i]; return it; });
+    if(ePos.length>7) eItems.push({label:"Other ("+(ePos.length-7)+")", value:ePos.slice(7).reduce(function(a,x){ return a+x.value; },0), color:PAL[8]});
+    var eNeg=Object.keys(cur.expBy).filter(function(k){ return cur.expBy[k]<-0.004; }).reduce(function(a,k){ return a+cur.expBy[k]; },0);
     var donut = eItems.length ? donutSVG(eItems, 132) : '<div class="hc-empty-donut">No expenses in period</div>';
-    var legend = eItems.slice(0,6).map(function(it){ return '<div class="hc-leg"><span class="hc-dot" style="background:'+it.color+'"></span><span class="hc-leg-lbl">'+esc(it.label)+'</span><span class="hc-leg-val">$'+money(it.value)+'</span></div>'; }).join('');
+    var legend = eItems.map(function(it){ return '<div class="hc-leg"><span class="hc-dot" style="background:'+it.color+'"></span><span class="hc-leg-lbl">'+esc(it.label)+'</span><span class="hc-leg-val">$'+money(it.value)+'</span></div>'; }).join('')+(eNeg?'<div class="hc-leg"><span class="hc-dot" style="background:transparent;border:1px solid #9CA3AF"></span><span class="hc-leg-lbl">Credits and reclasses</span><span class="hc-leg-val">−$'+money(-eNeg)+'</span></div>':'');
     var expCard='<div class="home-card">'+
       '<div class="hc-head"><span class="hc-title">Expenses</span><span class="hc-period">'+esc(lbl)+'</span></div>'+
       '<div class="hc-sub">Spending</div><div class="hc-big">$'+money(cur.expenses)+'</div>'+
