@@ -788,6 +788,7 @@
   .bk-tot td{font-weight:800;border-top:2px solid var(--line)}.bk-mg td{color:#5B21B6}.bk-plain td{color:var(--muted);font-style:italic}
   .cash-onesafe{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:13.5px}.cash-onesafe label{display:flex;gap:6px;align-items:center}
   .cash-act{cursor:pointer;border-radius:8px}.cash-act:hover{background:#F1F5F9}.cash-edit{color:#94A3B8;font-weight:400;margin-left:4px}
+  .nd-pick{display:block;width:100%;text-align:left;padding:11px 14px;margin-bottom:6px;border:1.5px solid var(--line);border-radius:10px;background:#fff;font:inherit;font-weight:700;cursor:pointer}.nd-pick:hover{border-color:#2563EB;background:#EFF6FF}
   .bp-wrap.nd-wrap{border-color:#93C5FD;background:#F0F9FF}
   .bp-wrap{border:2px solid #C4B5FD;background:#FAF5FF;border-radius:14px;padding:4px 14px;margin-bottom:12px}.bp-foot{padding:8px 0;border-top:1px solid var(--line)}.bp-row{display:flex;gap:14px;align-items:flex-start;justify-content:space-between;border-top:1px solid var(--line);padding:12px 0}.bp-row:first-of-type{border-top:0}.bp-name{font-weight:800;font-size:15px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}.bp-big{font-size:22px;font-weight:800;margin-top:4px}.bp-big span{font-size:12.5px;font-weight:600;color:var(--muted)}.bp-acts{display:flex;flex-direction:column;gap:6px;flex-shrink:0}
   .cash-locbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px;font-size:14px;font-weight:700}
@@ -1902,7 +1903,7 @@
         <button class="btn-primary inv-add" id="invAddBtn">+ Add item</button>
         <button class="btn-ghost inv-add" id="invUploadBtn" title="Import from an invoice or price list">Upload invoice</button>
         <button class="btn-ghost inv-add" id="invMoveBtn" title="Move stock from one location to another">Move stock</button>
-        <button class="btn-ghost inv-add" id="invNeedleBtn" title="Needle and syringe types and their cost">Needles &amp; syringes</button>
+        <button class="btn-ghost inv-add" id="invNeedleBtn" title="Needles, syringes and containers: types and cost">Supplies</button>
       </div>
       <div class="scrim" id="invFormScrim" style="display:none"></div>
       <div class="inv-modal" id="invForm" style="display:none" role="dialog" aria-hidden="true">
@@ -1919,7 +1920,7 @@
             <label class="ivf">Vendor<input id="ivVendor" autocomplete="off" placeholder="Supplier / brand"></label>
             <label class="ivf">SKU / Item #<input id="ivSku" autocomplete="off" placeholder="Optional"></label>
             <label class="ivf">Unit cost<input id="ivCost" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></label>
-            <div class="ivf ivf-full iv-needle"><span>Needles &amp; syringes per treatment <a href="#" id="ivNtTypes" class="ivf-note">types &amp; cost</a></span><div id="ivKit"></div></div>
+            <div class="ivf ivf-full iv-needle"><span>Supplies per treatment (needles, syringes, containers) <a href="#" id="ivNtTypes" class="ivf-note">types &amp; cost</a></span><div id="ivKit"></div></div>
             <label class="ivf">Retail price <span class="ivf-note">= Register price</span><input id="ivRetail" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></label>
             <label class="ivf ivf-full iv-nodisc iv-disc"><input id="ivDisc" type="checkbox"> <span><b>Discontinued / obsolete</b><br><span class="ivf-note">Hidden from Items (unless "Show discontinued" is ticked), the register and suggested ordering. Past sales are kept.</span></span></label>
             <label class="ivf ivf-full iv-nodisc"><input id="ivNoDisc" type="checkbox"> <span><b>No discounts on this item</b><br><span class="ivf-note">Promotions, member and order discounts skip it. A manager can override at the register with initials and a reason.</span></span></label>
@@ -6864,8 +6865,12 @@ window.startClinicApp = function(){
   var NEEDLE_DEFAULTS=[
     {id:"ins03", name:"Insulin syringe 0.3 mL, 31G 5/16\"", brand:"EasyTouch", box:100, boxCost:0},
     {id:"ins1",  name:"Insulin syringe 1 mL, 31G 5/16\"",   brand:"EasyTouch", box:100, boxCost:0},
-    {id:"luer1", name:"Luer lock syringe 1 mL (no needle)", brand:"BH Supplies", box:100, boxCost:0}];
-  function needleTypes(){ return Array.isArray(settings.needleTypes) && settings.needleTypes.length ? settings.needleTypes : NEEDLE_DEFAULTS; }
+    {id:"luer1", name:"Luer lock syringe 1 mL (no needle)", brand:"BH Supplies", box:100, boxCost:0},
+    {id:"tin",   name:"Metal tin", brand:"", box:1, boxCost:0, kind:"container"},
+    {id:"plastic", name:"Plastic container", brand:"", box:1, boxCost:0, kind:"container"}];
+  function needleTypes(){ if(!(Array.isArray(settings.needleTypes) && settings.needleTypes.length)) return NEEDLE_DEFAULTS;
+    var have={}, gone=settings.needleTypesRemoved||[]; settings.needleTypes.forEach(function(t){ have[t.id]=1; });
+    return settings.needleTypes.concat(NEEDLE_DEFAULTS.filter(function(d){ return !have[d.id] && gone.indexOf(d.id)<0; })); }
   function needleType(id){ return needleTypes().filter(function(t){ return t.id===id; })[0]||null; }
   function needleEach(t){ return t && +t.box>0 ? (+t.boxCost||0)/(+t.box) : 0; }
   function needleShort(t){ return t ? t.name.replace(/^Insulin syringe /,"Insulin ").replace(/, 31G 5\/16"/,"").replace(/^Luer lock syringe /,"Luer lock ") : "?"; }
@@ -6885,13 +6890,15 @@ window.startClinicApp = function(){
     el.innerHTML='<div class="bp-wrap nd-wrap">'+needleTypes().map(function(t){ var r=invRec(needleKey(t)), here=L==="all"?r.qty:(r.loc[L]||0), each=needleEach(t), used=needleUsed30(t), counted=!!inventory[needleKey(t)];
         var st=!counted?'<span class="inv-badge b-svc">Not counted</span>':here<=0?'<span class="inv-badge b-out">Out</span>':here<=(+t.reorderAt||+t.box||100)?'<span class="inv-badge b-low">Low</span>':'<span class="inv-badge b-ok">In stock</span>';
         var last=(t.buys||[])[0];
-        return '<div class="bp-row"><div class="bp-main"><div class="bp-name"><span class="inv-co inv-co-mjs">MJS</span>'+esc(t.name)+' <span class="inv-tag">supply</span> '+st+'</div>'+
-          '<div class="bp-big">'+here.toLocaleString("en-US")+' <span>'+(+t.box?'≈ '+(Math.round(here/t.box*10)/10)+' boxes of '+t.box:'')+(L==="all"?' · all locations':' · at '+esc(siteName(L)))+'</span></div>'+
+        return '<div class="bp-row"><div class="bp-main"><div class="bp-name"><span class="inv-co inv-co-mjs">MJS</span>'+esc(t.name)+' <span class="inv-tag">'+(t.kind==="container"?"container":"supply")+'</span> '+st+'</div>'+
+          '<div class="bp-big">'+here.toLocaleString("en-US")+' <span>'+(+t.box>1?'≈ '+(Math.round(here/t.box*10)/10)+' boxes of '+t.box:'')+(L==="all"?' · all locations':' · at '+esc(siteName(L)))+'</span></div>'+
           '<div class="inv-locs">'+act.map(function(s){ return '<button type="button" class="inv-lc'+(L===s.id?' on':'')+((r.loc[s.id]||0)<=0?' zero':'')+'" data-invloc2="'+esc(s.id)+'">'+esc(s.name)+' <b>'+(r.loc[s.id]||0)+'</b></button>'; }).join("")+'<span class="inv-lc-tot">Total <b>'+r.qty+'</b></span></div>'+
           '<div class="inv-sub" style="margin-top:6px">Cost: '+(each?'<b>$'+each.toFixed(3)+' each</b> ($'+money(+t.boxCost)+' per box'+(last?', bought '+esc(fmtDate(parseISO(last.date))):'')+')':'<span style="color:var(--red)">no price yet</span> (enter it when you receive a box)')+' · used last 30 days: <b>'+used+'</b>'+(used>0&&counted?' · about '+Math.max(0,Math.round(here/(used/30)/7))+' weeks left':'')+'</div></div>'+
           '<div class="bp-acts"><button class="btn-primary sub-mini" type="button" data-ndact="'+esc(t.id)+'|recv">Boxes received</button><button class="btn-ghost sub-mini" type="button" data-ndact="'+esc(t.id)+'|count">Count on hand</button><button class="btn-ghost sub-mini" type="button" data-ndact="'+esc(t.id)+'|move">Move / waste</button></div></div>'; }).join("")+
-      '<div class="bp-foot"><button class="btn-ghost sub-mini" id="ndTypes" type="button">Needle &amp; syringe types</button></div></div>';
+      '<div class="bp-foot"><button class="btn-primary sub-mini" id="ndIncoming" type="button">+ Incoming supplies</button> <button class="btn-ghost sub-mini" id="ndTypes" type="button">Supply types &amp; cost</button></div></div>';
     $("ndTypes").onclick=openNeedleTypes;
+    $("ndIncoming").onclick=function(){ gcModalShow("Incoming supplies", '<div class="gc-hint" style="margin-bottom:10px">Which supply came in?</div>'+needleTypes().map(function(t){ return '<button type="button" class="nd-pick" data-ndpick="'+esc(t.id)+'">'+esc(t.name)+(t.brand?' <span class="pkg-sub">'+esc(t.brand)+'</span>':'')+'</button>'; }).join(""), '<button class="btn-ghost" id="ndPickX" type="button">Cancel</button>');
+      $("ndPickX").onclick=gcModalClose; Array.prototype.forEach.call(document.querySelectorAll("[data-ndpick]"),function(b){ b.onclick=function(){ var id=b.getAttribute("data-ndpick"); gcModalClose(); setTimeout(function(){ openNeedleAct(id, "recv"); },50); }; }); };
     Array.prototype.forEach.call(el.querySelectorAll("[data-ndact]"),function(x){ x.onclick=function(){ var v=x.getAttribute("data-ndact").split("|"); openNeedleAct(v[0], v[1]); }; });
     Array.prototype.forEach.call(el.querySelectorAll("[data-invloc2]"),function(x){ x.onclick=function(){ invLoc=x.getAttribute("data-invloc2"); paintInventory(); }; });
   }
@@ -6902,12 +6909,12 @@ window.startClinicApp = function(){
       '<div class="gc-chips" style="margin-bottom:10px" id="ndMode">'+[["recv","Boxes received"],["count","Count on hand"],["move","Move"],["waste","Wasted / lost"]].map(function(x){ return '<button type="button" data-ndm="'+x[0]+'" class="'+(x[0]===mode?'on':'')+'">'+x[1]+'</button>'; }).join("")+'</div>'+
       '<div class="gc-row2"><div class="pos-field"><label id="ndLocL">Location</label>'+so("ndLoc",l0)+'</div><div class="pos-field" id="ndToW" style="display:none"><label>To</label>'+so("ndTo",(act.filter(function(s){ return s.id!==l0; })[0]||{}).id)+'</div></div>'+
       '<div class="gc-row2"><div class="pos-field"><label id="ndQL">Boxes</label><input type="number" id="ndQ" min="0" step="1" inputmode="numeric"></div><div class="pos-field"><label>Your initials</label><input type="text" id="ndIni" maxlength="4" style="text-transform:uppercase"></div></div>'+
-      '<div class="gc-row2" id="ndBuyW"><div class="pos-field"><label>Per box</label><input type="number" id="ndBox" min="1" step="1" value="'+(+t.box||100)+'"></div><div class="pos-field"><label>Paid per box $ (this purchase)</label><input type="number" id="ndPaid" min="0" step="0.01" inputmode="decimal" placeholder="'+(+t.boxCost?money(+t.boxCost):'')+'"></div></div>'+
+      '<div class="gc-row2" id="ndBuyW"><div class="pos-field"><label>How many in a box / pack</label><input type="number" id="ndBox" min="1" step="1" value="'+(+t.box||100)+'"></div><div class="pos-field"><label>Paid per box $ (this purchase)</label><input type="number" id="ndPaid" min="0" step="0.01" inputmode="decimal" placeholder="'+(+t.boxCost?money(+t.boxCost):'')+'"></div></div>'+
       '<div class="gc-hint" id="ndHint"></div>'+((t.buys||[]).length?'<div class="gc-hist-h">Recent purchases</div>'+(t.buys||[]).slice(0,6).map(function(b){ return '<div class="gc-hist"><span>'+esc(fmtDate(parseISO(b.date)))+' · '+b.boxes+' box'+(b.boxes===1?'':'es')+' of '+b.per+' · '+esc(siteName(b.loc))+' · '+esc(b.ini||"")+'</span><b>$'+money(b.paid)+'/box</b></div>'; }).join(""):'')+'<div class="sub-err" id="ndErr"></div>',
       '<button class="btn-ghost" id="ndCancel" type="button">Cancel</button><button class="btn-primary" id="ndGo" type="button">Save</button>');
     function hint(){ var r=invRec(needleKey(t)), l=$("ndLoc").value, have=r.loc[l]||0, q=+$("ndQ").value||0, per=+$("ndBox").value||+t.box||100;
       $("ndToW").style.display=mode==="move"?"":"none"; $("ndBuyW").style.display=mode==="recv"?"":"none"; $("ndLocL").textContent=mode==="move"?"From":"Location";
-      $("ndQL").textContent=mode==="recv"?"Boxes":mode==="count"?"Count on hand now (each)":"How many (each)";
+      $("ndQL").textContent=mode==="recv"?(+$("ndBox").value===1?"How many":"Boxes"):mode==="count"?"Count on hand now (each)":"How many (each)";
       var paid=+$("ndPaid").value;
       $("ndHint").textContent=siteName(l)+" has "+have+(mode==="recv"&&q?" → "+(have+q*per)+" ("+q+" × "+per+")"+(paid>0?" · $"+(paid/per).toFixed(3)+" each from now on":""):mode==="count"&&$("ndQ").value!==""?" → "+q+" ("+(q-have>=0?"+":"")+(q-have)+")":(mode==="move"||mode==="waste")&&q?" → "+(have-q):""); }
     Array.prototype.forEach.call($("ndMode").querySelectorAll("[data-ndm]"),function(x){ x.onclick=function(){ mode=x.getAttribute("data-ndm"); Array.prototype.forEach.call($("ndMode").querySelectorAll("button"),function(y){ y.classList.toggle("on", y===x); }); hint(); }; });
@@ -6929,10 +6936,10 @@ window.startClinicApp = function(){
   }
   function openNeedleTypes(){
     var list=needleTypes().map(function(t){ return Object.assign({},t); });
-    function rowsHtml(){ return list.map(function(t,i){ return '<div class="nt-row"><input type="text" data-nt="name" data-i="'+i+'" value="'+esc(t.name)+'" placeholder="e.g. Insulin syringe 0.5 mL, 31G"><input type="text" data-nt="brand" data-i="'+i+'" value="'+esc(t.brand||"")+'" placeholder="Brand">'+
+    function rowsHtml(){ return list.map(function(t,i){ return '<div class="nt-row"><input type="text" data-nt="name" data-i="'+i+'" value="'+esc(t.name)+'" placeholder="e.g. Insulin syringe 0.5 mL, 31G, or Metal tin"><input type="text" data-nt="brand" data-i="'+i+'" value="'+esc(t.brand||"")+'" placeholder="Brand">'+
       '<label>per box <input type="number" min="1" step="1" data-nt="box" data-i="'+i+'" value="'+(+t.box||100)+'"></label><label>box $ <input type="number" min="0" step="0.01" data-nt="boxCost" data-i="'+i+'" value="'+(+t.boxCost||"")+'" placeholder="0.00"></label><span class="nt-each" data-ntea="'+i+'">'+(needleEach(t)?'$'+needleEach(t).toFixed(3)+' each':'')+'</span></div>'; }).join(""); }
-    gcModalShow("Needles & syringes",
-      '<div class="gc-hint" style="margin-bottom:8px">The types you use, with what a box costs. Each medication says how many of each it uses per treatment.</div><div id="ntRows">'+rowsHtml()+'</div>'+
+    gcModalShow("Supplies: needles, syringes & containers",
+      '<div class="gc-hint" style="margin-bottom:8px">The supplies you use, with what a box (or pack) costs. Each medication says how many of each it uses per treatment.</div><div id="ntRows">'+rowsHtml()+'</div>'+
       '<button class="btn-ghost sub-mini" id="ntAdd" type="button">+ Add a type</button><div class="sub-err" id="ntErr"></div>',
       '<button class="btn-ghost" id="ntCancel" type="button">Cancel</button><button class="btn-primary" id="ntGo" type="button">Save</button>');
     function wire(){ Array.prototype.forEach.call($("ntRows").querySelectorAll("[data-nt]"),function(inp){ inp.oninput=function(){ var i=+inp.getAttribute("data-i"), f=inp.getAttribute("data-nt"); list[i][f]=(f==="box"||f==="boxCost")?(+inp.value||0):inp.value; var e=$("ntRows").querySelector('[data-ntea="'+i+'"]'); if(e) e.textContent=needleEach(list[i])?'$'+needleEach(list[i]).toFixed(3)+' each':''; }; }); }
@@ -6941,7 +6948,8 @@ window.startClinicApp = function(){
     $("ntCancel").onclick=gcModalClose;
     $("ntGo").onclick=function(){ var keep=list.filter(function(t){ return (t.name||"").trim(); }); if(!keep.length){ $("ntErr").textContent="Keep at least one type."; return; }
       keep.forEach(function(t){ var old=needleType(t.id); if(old && old.buys && !t.buys) t.buys=old.buys; t.name=t.name.trim(); t.brand=(t.brand||"").trim(); t.box=Math.max(1,Math.round(+t.box||100)); t.boxCost=Math.max(0,Math.round((+t.boxCost||0)*100)/100); });
-      settings.needleTypes=keep; saveSettings(); gcModalClose(); if(activeView==="inventory") paintInventory(); toast("Needle types saved"); };
+      var kept={}; keep.forEach(function(t){ kept[t.id]=1; }); settings.needleTypesRemoved=NEEDLE_DEFAULTS.filter(function(d){ return !kept[d.id]; }).map(function(d){ return d.id; });
+      settings.needleTypes=keep; saveSettings(); gcModalClose(); if(activeView==="inventory") paintInventory(); toast("Supply types saved"); };
   }
   function invLocBar(){ var el=$("invLocBar"); if(!el) return; var act=sites.filter(function(x){ return x.active!==false; });
     if(invLoc!=="all" && !siteById(invLoc)) invLoc="all";
@@ -6994,8 +7002,8 @@ window.startClinicApp = function(){
       var coTag = showCo ? '<span class="inv-co inv-co-'+x.entity+'">'+(x.entity==="alpha"?"Alpha":"MJS")+'</span>' : '';
       var meta=[]; if(p.vendor) meta.push(esc(p.vendor)); if(p.sku) meta.push("#"+esc(p.sku));
       var _kt=isMed?kitOf(p):{}, _kids=Object.keys(_kt), _kc=isMed?kitCost(p):null;
-      var needleLine = !isMed ? '' : '<div class="inv-needle">'+(_kids.length>1 ? '<span>Needles: <b>'+esc(kitText(p))+'</b></span>' :
-        '<label>Needles per treatment <input type="number" min="0" step="1" inputmode="numeric" class="inv-ro" data-invneedle="'+esc(x.entity+"|"+p.id)+'" value="'+(_kids.length?_kt[_kids[0]]:(p.needles!=null?p.needles:""))+'" placeholder="?"></label>'+
+      var needleLine = !isMed ? '' : '<div class="inv-needle">'+(_kids.length>1 ? '<span>Supplies: <b>'+esc(kitText(p))+'</b></span>' :
+        '<label>Supplies per treatment <input type="number" min="0" step="1" inputmode="numeric" class="inv-ro" data-invneedle="'+esc(x.entity+"|"+p.id)+'" value="'+(_kids.length?_kt[_kids[0]]:(p.needles!=null?p.needles:""))+'" placeholder="?"></label>'+
         '<select class="inv-ntsel" data-invntype="'+esc(x.entity+"|"+p.id)+'"><option value="">type…</option>'+needleTypes().map(function(t){ return '<option value="'+esc(t.id)+'"'+(_kids[0]===t.id?' selected':'')+'>'+esc(needleShort(t))+'</option>'; }).join("")+'</select>')+
         (_kc!=null?' <span>supplies $'+money(_kc)+' per treatment</span>':'')+(!_kids.length?' <span class="inv-needle-miss">'+(p.needles!=null?'type not set':'not set')+'</span>':'')+'</div>';
       var metaLine = meta.length ? '<span class="inv-vendor">'+meta.join(" \u00b7 ")+'</span>' : '';
