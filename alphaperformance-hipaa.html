@@ -512,6 +512,7 @@
   .email-skip{color:var(--muted)}
   .email-note{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5}
   .contacted-meta{color:#7C3AED!important;font-weight:600}
+  .pr-bmatch{flex-basis:100%;margin-top:6px}.pr-brow{flex-wrap:wrap}
   .pending-badge{background:#F5F3FF;color:#6D28D9;border:1px solid #DDD6FE}.pch{margin-top:8px}.pch-h{font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px}.pch-row{display:flex;gap:10px;font-size:13px;padding:3px 0;border-bottom:1px dashed var(--line)}.pch-row span:first-child{min-width:92px;color:var(--muted)}
   .cold-badge{background:#EEF1F4;color:#475467}
   .ref-edit{border:1px solid var(--line);border-radius:11px;padding:9px;margin-bottom:8px;background:var(--card)}
@@ -5476,7 +5477,8 @@ window.startClinicApp = function(){
     }
     (pr.benefits||[]).forEach(function(b){
       var v=+b.value||0; if(v<=0) return;
-      if(b.kind==="consult"){ var c=posCart.filter(function(l){return promoIsConsultLine(l)&&usedLines.indexOf(l)<0;})[0]; if(c) take(c,b.type,v,false); }
+      if(b.kind==="consult"){ var c=posCart.filter(function(l){return promoIsConsultLine(l)&&promoNameMatches(l,b)&&usedLines.indexOf(l)<0;})[0]; if(c) take(c,b.type,v,false); }
+      else if(b.kind==="match"){ if(!promoMatchWords(b).length) return; posCart.forEach(function(l){ if(!l.gcSell && usedLines.indexOf(l)<0 && promoNameMatches(l,b)) take(l,b.type,v,false); }); }
       else if(b.kind==="item"){ var it=posCart.filter(function(l){return promoIsItemLine(l)&&usedLines.indexOf(l)<0;})[0]; if(it) take(it,b.type,v,false); }
       else if(b.kind==="all"){ posCart.forEach(function(l){ if(promoIsItemLine(l)||promoIsConsultLine(l)) take(l,"pct",v,true); }); }
     });
@@ -5544,7 +5546,7 @@ window.startClinicApp = function(){
     if(pr.start||pr.end) r.push((pr.start||"any time")+" to "+(pr.end||"no end"));
     return r;
   }
-  function promoBenefitText(b){ return (PROMO_KINDS[b.kind]||b.kind)+": "+(b.type==="pct"?(+b.value||0)+"% off":"$"+money(+b.value||0)+" off"); }
+  function promoBenefitText(b){ var w=promoMatchWords(b); return (b.kind==="match"?"Items containing \u201c"+w.join("\u201d or \u201c")+"\u201d":(PROMO_KINDS[b.kind]||b.kind)+(b.kind==="consult"&&w.length?" ("+w.join(" or ")+")":""))+": "+(b.type==="pct"?(+b.value||0)+"% off":"$"+money(+b.value||0)+" off"); }
   function renderPromos(){
     var all=promos.slice(), tot={n:promoUses.length, disc:promoUses.reduce(function(s,u){return s+(+u.discount||0);},0), blocked:promoAttempts.filter(function(a){return !a.overridden;}).length};
     $("prStats").innerHTML=
@@ -5573,11 +5575,12 @@ window.startClinicApp = function(){
   function benefitRowHtml(b,i){
     return '<div class="pr-brow" data-bi="'+i+'"><select data-bk>'+Object.keys(PROMO_KINDS).map(function(k){return '<option value="'+k+'"'+(b.kind===k?' selected':'')+'>'+PROMO_KINDS[k]+'</option>';}).join("")+'</select>'+
       '<select data-bt><option value="pct"'+(b.type==="pct"?' selected':'')+'>% off</option><option value="amt"'+(b.type==="amt"?' selected':'')+'>$ off</option></select>'+
-      '<input type="number" data-bv min="0" step="0.01" value="'+(+b.value||0)+'" inputmode="decimal"><button type="button" class="cart-del" data-brm="'+i+'" aria-label="Remove">&times;</button></div>';
+      '<input type="number" data-bv min="0" step="0.01" value="'+(+b.value||0)+'" inputmode="decimal"><button type="button" class="cart-del" data-brm="'+i+'" aria-label="Remove">&times;</button>'+
+      ((b.kind==="match"||b.kind==="consult")?'<input type="text" data-bm class="pr-bmatch" value="'+esc(b.match||"")+'" placeholder="'+(b.kind==="match"?'Words in the item name, e.g. Thorne':'Only consults containing (optional), e.g. weight loss, general health')+'">':'')+'</div>';
   }
   function openPromoEditor(id){
     var pr=id?promoById(id):null;
-    promoEditing={ id:id||"", benefits:(pr?pr.benefits:[{kind:"consult",type:"pct",value:50}]).map(function(b){return {kind:b.kind,type:b.type,value:b.value};}) };
+    promoEditing={ id:id||"", benefits:(pr?pr.benefits:[{kind:"consult",type:"pct",value:50}]).map(function(b){return {kind:b.kind,type:b.type,value:b.value,match:b.match||""};}) };
     var d=pr||{name:"",desc:"",active:true,start:"",end:"",perPatient:1,newOnly:true,cardRequired:true};
     var st=pr?promoStats(pr):null;
     var body=
@@ -5600,6 +5603,7 @@ window.startClinicApp = function(){
         row.querySelector("[data-bk]").onchange=function(){ b.kind=this.value; if(b.kind==="all"){ b.type="pct"; } paintBen(); };
         row.querySelector("[data-bt]").onchange=function(){ b.type=this.value; if(b.kind==="all" && b.type==="amt"){ b.type="pct"; toast("Whole-order discounts are a percentage"); } paintBen(); };
         row.querySelector("[data-bv]").oninput=function(){ b.value=parseFloat(this.value)||0; };
+        if(row.querySelector("[data-bm]")) row.querySelector("[data-bm]").oninput=function(){ b.match=this.value; };
         row.querySelector("[data-brm]").onclick=function(){ promoEditing.benefits.splice(i,1); paintBen(); };
       });
     }
@@ -5609,7 +5613,8 @@ window.startClinicApp = function(){
     if($("prDel")) $("prDel").onclick=function(){ promos=promos.filter(function(x){return x.id!==pr.id;}); savePromos(); gcModalClose(); renderPromos(); toast("Promotion deleted"); };
     $("prSave").onclick=function(){
       var name=($("prName").value||"").trim(); if(!name){ toast("Enter a name"); return; }
-      var bens=promoEditing.benefits.filter(function(b){return (+b.value||0)>0;}); if(!bens.length){ toast("Add at least one discount"); return; }
+      var bens=promoEditing.benefits.filter(function(b){return (+b.value||0)>0;}).map(function(b){ var o={kind:b.kind,type:b.type,value:b.value}; if((b.kind==="match"||b.kind==="consult") && String(b.match||"").trim()) o.match=String(b.match).trim(); return o; }); if(!bens.length){ toast("Add at least one discount"); return; }
+      if(bens.some(function(b){ return b.kind==="match" && !b.match; })){ toast("Enter the words to match for \u201cEvery item whose name contains\u201d"); return; }
       var s=$("prStart").value, e=$("prEnd").value; if(s&&e&&e<s){ toast("The end date is before the start date"); return; }
       var rec={ id:promoEditing.id||("pr"+Date.now().toString(36)+Math.random().toString(36).slice(2,4)), name:name, desc:($("prDesc").value||"").trim(), active:$("prActive").checked, start:s, end:e,
         perPatient:Math.max(1,parseInt($("prCap").value,10)||1), newOnly:$("prNew").checked, cardRequired:$("prCard").checked, benefits:bens, created:pr?pr.created:todayISO() };
@@ -6397,7 +6402,10 @@ window.startClinicApp = function(){
       benefits:[{kind:"consult",type:"pct",value:50},{kind:"item",type:"pct",value:10}], created:"" }];
     try{ promos[0].created=todayISO(); savePromos(); }catch(e){}
   }
-  var PROMO_KINDS={consult:"Initial consult", item:"One treatment or supplement", all:"Every item in the order"};
+  var PROMO_KINDS={consult:"Initial consult", item:"One treatment or supplement", match:"Every item whose name contains\u2026", all:"Every item in the order"};
+  // b.match: words separated by commas, any one matching the item name (not case sensitive). Optional on a consult benefit.
+  function promoMatchWords(b){ return String((b&&b.match)||"").split(/[,|]/).map(function(w){ return w.trim().toLowerCase(); }).filter(Boolean); }
+  function promoNameMatches(l, b){ var w=promoMatchWords(b); if(!w.length) return true; var n=String(l.name||"").toLowerCase(); return w.some(function(x){ return n.indexOf(x)>=0; }); }
   function promoById(id){ return promos.filter(function(x){return x.id===id;})[0]||null; }
   function promoWindow(pr){
     var t=todayISO();
