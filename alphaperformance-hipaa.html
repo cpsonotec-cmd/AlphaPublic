@@ -10565,6 +10565,7 @@ window.startClinicApp = function(){
         message:"This replaces all current data on this device with the backup ("+n+" client"+(n===1?"":"s")+"). This can't be undone.",
         okLabel:"Restore",
         onConfirm:function(){
+          if(window.__recRestoreMode) window.__recRestoreMode(180000);
           if(Array.isArray(data.members)) members=data.members;
           if(Array.isArray(data.tiers)) tiers=data.tiers;
           if(Array.isArray(data.patients)) patients=data.patients;
@@ -11517,6 +11518,7 @@ window.startClinicApp = function(){
         if(mr.same){ mergeRetry=0; return; }
         unsentAtStart=unsentCount(); revAtStart=lsGet("vault_rev",null); chk={ok:true, stamp:mr.stamp};
       }
+      try{ if(await tombStamp()) setTimeout(function(){ try{ window.__vaultSave(); }catch(e){} }, 0); }catch(e){}
       cv=await cloudVaultPayload(); hash=await sha256hex(JSON.stringify(accounts)+"|"+cv.plain); cv.blob.h=hash;
       if(chk.h && chk.h===hash){
         // the cloud already holds exactly this content: nothing to upload
@@ -11602,6 +11604,30 @@ window.startClinicApp = function(){
   var recSt={pushing:false, pulling:false, migrating:false, timer:null, lastErr:"", progress:""};
   var blobOkThisSession=false, recMigrateTried=false;
   function recQueue(){ return lsGet("rec_queue",{})||{}; }
+  // tombstones (23 Nov 2026): every record id the cloud holds as deleted. A deleted record must never come back
+  // because a device still had a copy: it is dropped locally instead of re-uploaded, and a delete beats a stale edit.
+  function recTomb(){ return lsGet("rec_tomb",{})||{}; }
+  function recTombSet(t){ lsSet("rec_tomb", t); }
+  var recRestoreUntil=0;   // a deliberate restore (backup file) may bring deleted records back
+  // drop local copies of records the cloud holds as deleted (a device that was closed while they were deleted)
+  function recTombPurge(){
+    var tomb=recTomb(), q=recQueue(), keys=[], n=0;
+    Object.keys(REC_COLS).forEach(function(key){ var c=REC_COLS[key], val=memVal(key); if(val==null) return; var sh=recShadow[key]||{}, hit=false;
+      function dead(id){ var rid=c.k+":"+id; return tomb[rid] && !q[rid]; }
+      if(c.t==="arr"){ var nv=val.filter(function(r){ if(r && r.id!=null && dead(String(r.id))){ delete sh[String(r.id)]; n++; hit=true; return false; } return true; }); if(hit) window.__vaultMem[key]=JSON.stringify(nv); }
+      else { Object.keys(val).forEach(function(id){ if(dead(id)){ delete val[id]; delete sh[id]; n++; hit=true; } }); if(hit) window.__vaultMem[key]=JSON.stringify(val); }
+      if(hit) keys.push(key); });
+    if(keys.length){ try{ if(window.__reloadFromStore) window.__reloadFromStore(keys); }catch(e){} try{ audit("records_tombstone_purged", String(n), true); }catch(e){} window.__vaultSave(); }
+    return n; }
+  window.__recTombPurge=recTombPurge;
+  window.__recRestoreMode=function(ms){ recRestoreUntil=Date.now()+(ms||120000); };
+  async function recTombFetch(token){
+    var t={}, from=0;
+    for(;;){ var r=await rawFetch(REC_URL+"?select=id,deleted&deleted=is.true&kind=neq.meta&order=id.asc&offset="+from+"&limit=1000", {headers:syncHeaders(null, token)});
+      if(!r.ok && token){ token=null; r=await rawFetch(REC_URL+"?select=id,deleted&deleted=is.true&kind=neq.meta&order=id.asc&offset="+from+"&limit=1000", {headers:syncHeaders(null, null)}); }
+      if(!r.ok) return false; var rows=await r.json(); if(!Array.isArray(rows)) return false;
+      rows.forEach(function(x){ if(x && x.deleted===true) t[x.id]=1; }); if(rows.length<1000) break; from+=1000; }
+    var old=recTomb(); recTombSet(t); return Object.keys(t).length-Object.keys(old).length; }
   function recQueueSet(q){ lsSet("rec_queue", q); }
   function recPending(){ return recLive ? Object.keys(recQueue()).length : 0; }
   function memVal(key){ var raw=(window.__vaultMem||{})[key]; if(raw==null) return null; try{ return JSON.parse(raw); }catch(e){ return null; } }
@@ -11621,6 +11647,18 @@ window.startClinicApp = function(){
   function recDiff(key){
     var val=memVal(key); if(val==null && (window.__vaultMem||{})[key]!=null) return; // unparseable: never treat as "everything deleted"
     var c=REC_COLS[key], sh=recShadow[key]||(recShadow[key]={}), ents=recEntries(key,val), q=recQueue(), changed=0, gone=[];
+    // a record the cloud holds as deleted that reappears here (stale copy, merge, old restore point) is dropped, not re-uploaded
+    var tomb=recTomb(), restoring=Date.now()<recRestoreUntil, dead=[];
+    Object.keys(ents).forEach(function(id){ var rid=c.k+":"+id; if(!(id in sh) && tomb[rid]){ if(restoring){ delete tomb[rid]; } else dead.push(id); } });
+    if(restoring) recTombSet(tomb);
+    if(dead.length){
+      var dm={}; dead.forEach(function(id){ dm[id]=1; delete ents[id]; });
+      if(c.t==="arr") val=(val||[]).filter(function(r){ return !(r && dm[String(r.id)]); }); else dead.forEach(function(id){ delete val[id]; });
+      window.__vaultMem[key]=JSON.stringify(val);
+      try{ if(window.__reloadFromStore) window.__reloadFromStore([key]); }catch(e){}
+      try{ audit("records_tombstone_dropped", c.k+" "+dead.length, true); }catch(e){}
+      setTimeout(function(){ try{ window.__vaultSave(); }catch(e){} }, 0);
+    }
     Object.keys(ents).forEach(function(id){ var s=JSON.stringify(ents[id]); if(sh[id]!==s){ sh[id]=s; q[c.k+":"+id]=qstamp(); changed++; } });
     Object.keys(sh).forEach(function(id){ if(!(id in ents)) gone.push(id); });
     var _ok=recAllowed[key]; if(_ok){ var _sure=gone.filter(function(id){ return _ok[id]; }); gone=gone.filter(function(id){ return !_ok[id]; }); _sure.forEach(function(id){ delete sh[id]; delete _ok[id]; q[c.k+":"+id]=qstamp(); changed++; }); }
@@ -11630,6 +11668,7 @@ window.startClinicApp = function(){
       var sig=key+":"+gone.length;
       if(!recMassAsked[sig]){ recMassAsked[sig]=1; recConfirmMassDelete(key, gone); }
     } else gone.forEach(function(id){ delete sh[id]; q[c.k+":"+id]=qstamp(); changed++; });
+    if(changed){ var _t=recTomb(), _tc=false; Object.keys(q).forEach(function(rid){ if(rid.indexOf(c.k+":")===0){ var id=rid.slice(c.k.length+1); if(!(id in sh) && !(id in ents) && !_t[rid]){ _t[rid]=1; _tc=true; } } }); if(_tc) recTombSet(_t); }
     if(changed){ recQueueSet(q); recPushSoon(); refreshSyncUI(); }
   }
   var recMassPending=[], recMassOpen=false, recAllowed={};
@@ -11649,7 +11688,7 @@ window.startClinicApp = function(){
       try{ if(window.__reloadFromStore) window.__reloadFromStore([key]); }catch(e){}
       window.__vaultSave(); toast(gone.length+" "+c.label+" kept"); recMassNext();
     };
-    $("wsMdDel").onclick=function(){ var sh=recShadow[key]||{}, q=recQueue(); gone.forEach(function(id){ delete sh[id]; q[c.k+":"+id]=qstamp(); }); recQueueSet(q); audit("records_mass_delete", c.k+" "+gone.length); closeModal(); recPushSoon(); recMassNext(); refreshSyncUI(); };
+    $("wsMdDel").onclick=function(){ var sh=recShadow[key]||{}, q=recQueue(), tb=recTomb(); gone.forEach(function(id){ delete sh[id]; q[c.k+":"+id]=qstamp(); tb[c.k+":"+id]=1; }); recQueueSet(q); recTombSet(tb); audit("records_mass_delete", c.k+" "+gone.length); closeModal(); recPushSoon(); recMassNext(); refreshSyncUI(); };
   }
   function recPushSoon(ms){ if(!syncEnabled) return; clearTimeout(recSt.timer); recSt.timer=setTimeout(function(){ recFlush(); }, ms==null?800:ms); }
   async function recPost(rows, token){
@@ -11670,7 +11709,7 @@ window.startClinicApp = function(){
           var rid=ids[i++], p=rid.indexOf(":"), kind=rid.slice(0,p), id=rid.slice(p+1), key=REC_BY_KIND[kind];
           if(!key){ sent.push(rid); continue; }
           var e=ents(key), row;
-          if(Object.prototype.hasOwnProperty.call(e,id)) row={id:rid, kind:kind, payload:await gcmEnc(DKKey, JSON.stringify(e[id])), deleted:false};
+          if(Object.prototype.hasOwnProperty.call(e,id)){ row={id:rid, kind:kind, payload:await gcmEnc(DKKey, JSON.stringify(e[id])), deleted:false}; var _tb=recTomb(); if(_tb[rid]){ delete _tb[rid]; recTombSet(_tb); } }
           else row={id:rid, kind:kind, payload:null, deleted:true};
           batch.push(row); sent.push(rid); bytes+=JSON.stringify(row).length;
         }
@@ -11701,7 +11740,7 @@ window.startClinicApp = function(){
     opts=opts||{};
     if(!recLive || recSt.pulling || !DKKey) return {ok:false};
     recSt.pulling=true;
-    var seen={}, changes={};
+    var seen={}, changes={}, tomb=recTomb(), tombCh=false, beatQ=[];
     try{
       var sess=await ensureSession(), token=sess.ok?sess.token:null;
       var stored=+lsGet("rec_cursor",0)||0, cursor=opts.full?0:Math.max(0, stored-500), maxSeen=stored, q=recQueue();
@@ -11713,16 +11752,23 @@ window.startClinicApp = function(){
         var rows=await r.json(); if(!Array.isArray(rows) || !rows.length) break;
         for(var j=0;j<rows.length;j++){
           var row=rows[j]; cursor=Math.max(cursor,+row.seq||0); maxSeen=Math.max(maxSeen,+row.seq||0); seen[row.id]=1;
-          if(q[row.id]) continue;                         // a local change waiting to upload wins
           var p=row.id.indexOf(":"), kind=row.id.slice(0,p), id=row.id.slice(p+1), key=REC_BY_KIND[kind]; if(!key) continue;
           var sh=recShadow[key]||(recShadow[key]={});
-          if(row.deleted){ if(id in sh) (changes[key]=changes[key]||[]).push({id:id, del:true}); continue; }
+          if(row.deleted){
+            // tombstone: deleted everywhere, including over an edit this device has not uploaded yet
+            if(!tomb[row.id]){ tomb[row.id]=1; tombCh=true; }
+            if(q[row.id]) beatQ.push(row.id);
+            (changes[key]=changes[key]||[]).push({id:id, del:true}); continue; }
+          if(tomb[row.id]){ delete tomb[row.id]; tombCh=true; }   // brought back on purpose elsewhere
+          if(q[row.id]) continue;                         // a local change waiting to upload wins over an older edit
           var txt; try{ txt=await gcmDec(DKKey, row.payload); }catch(e){ continue; }
           if(sh[id]===txt) continue;
           (changes[key]=changes[key]||[]).push({id:id, rec:JSON.parse(txt), txt:txt});
         }
         if(rows.length<500) break;
       }
+      if(tombCh) recTombSet(tomb);
+      if(beatQ.length){ var _q=recQueue(); beatQ.forEach(function(rid){ delete _q[rid]; }); recQueueSet(_q); try{ audit("records_delete_beat_edit", String(beatQ.length), true); }catch(e){} }
       // apply onto the CURRENT in-memory collection (a sale may have been rung while this ran)
       var keys=Object.keys(changes), q2=recQueue();
       keys.forEach(function(key){
@@ -11730,12 +11776,12 @@ window.startClinicApp = function(){
         if(val==null) val=c.t==="arr"?[]:{};
         if(c.t==="arr"){
           var idx={}; val.forEach(function(r,i){ if(r && r.id!=null) idx[String(r.id)]=i; });
-          changes[key].forEach(function(ch){ if(q2[kind+":"+ch.id]) return;
+          changes[key].forEach(function(ch){ if(q2[kind+":"+ch.id] && !ch.del) return;
             if(ch.del){ if(ch.id in idx){ val[idx[ch.id]]=null; } delete sh[ch.id]; }
             else { if(ch.id in idx) val[idx[ch.id]]=ch.rec; else { idx[ch.id]=val.length; val.push(ch.rec); } sh[ch.id]=JSON.stringify(ch.rec); } });
           val=val.filter(function(r){ return r!=null; });
         } else {
-          changes[key].forEach(function(ch){ if(q2[kind+":"+ch.id]) return; if(ch.del){ delete val[ch.id]; delete sh[ch.id]; } else { val[ch.id]=ch.rec; sh[ch.id]=JSON.stringify(ch.rec); } });
+          changes[key].forEach(function(ch){ if(q2[kind+":"+ch.id] && !ch.del) return; if(ch.del){ delete val[ch.id]; delete sh[ch.id]; } else { val[ch.id]=ch.rec; sh[ch.id]=JSON.stringify(ch.rec); } });
         }
         window.__vaultMem[key]=JSON.stringify(val);
       });
@@ -11791,7 +11837,7 @@ window.startClinicApp = function(){
     var res=await recPull({full:true}); if(!res.ok) return;
     lsSet("rec_joined", true);
     var only=[];
-    Object.keys(REC_COLS).forEach(function(key){ var c=REC_COLS[key], e=recEntries(key, memVal(key)); Object.keys(e).forEach(function(id){ if(!res.seen[c.k+":"+id]) only.push({key:key, kind:c.k, id:id, rec:e[id]}); }); });
+    Object.keys(REC_COLS).forEach(function(key){ var c=REC_COLS[key], e=recEntries(key, memVal(key)); var tb=recTomb(); Object.keys(e).forEach(function(id){ if(!res.seen[c.k+":"+id] && !tb[c.k+":"+id]) only.push({key:key, kind:c.k, id:id, rec:e[id]}); }); });
     if(!only.length || window.__alphaReadOnly) return;
     var byLabel={}; only.forEach(function(o){ var l=REC_COLS[o.key].label; byLabel[l]=(byLabel[l]||0)+1; });
     var sales=only.filter(function(o){ return o.kind==="txn"; }).slice(0,8).map(function(o){ var t=o.rec; return '<li>'+escp((t.date||"")+" · "+(t.clientName||t.type||"")+" · $"+(+t.total||0).toFixed(2))+'</li>'; }).join("");
@@ -11807,6 +11853,7 @@ window.startClinicApp = function(){
     if(m.table===false){ refreshSyncUI(); return; }          // table not created yet: stay on vault-only sync
     if(m.meta){
       var first=!recLive; recLive=true; lsSet("rec_live", true);
+      try{ var _ss=await ensureSession(); await recTombFetch(_ss.ok?_ss.token:null); recTombPurge(); }catch(e){}
       if(first || !lsGet("rec_joined",false)) await recJoin(); else await recPull();
       recPushSoon(200); refreshSyncUI(); return;
     }
@@ -11989,6 +12036,39 @@ window.startClinicApp = function(){
     l.forEach(function(x){ take(mIdOf(x)); }); c.forEach(function(x){ take(mIdOf(x)); });
     return out;
   }
+  // tombstones for the shared settings part (23 Nov 2026). Kept in the vault key alphaperf_tombs and synced:
+  // {path:{itemId:{at, del}}}, path = vault key, or key.field for a list inside an object (e.g. alphaperf_settings.needleTypes).
+  // A removal is recorded as del:true; adding the same id back later records del:false with a newer time. Newest wins.
+  var TOMB_KEY="alphaperf_tombs", TOMB_KEEP_DAYS=365;
+  function tombColl(v){ if(Array.isArray(v)){ var m={}; v.forEach(function(x){ var id=mIdOf(x); if(id!=null) m[id]=1; }); return m; } if(mIsObj(v)){ var o={}; Object.keys(v).forEach(function(k){ o["k:"+k]=1; }); return o; } return null; }
+  function tombPaths(slim){ var out={}; Object.keys(slim||{}).forEach(function(k){ if(k===TOMB_KEY) return; var v=mParse(slim[k]); if(Array.isArray(v)) out[k]=v; else if(mIsObj(v)){ var topIsMap=Object.keys(v).every(function(f){ return mIsObj(v[f]); }) && Object.keys(v).length>0; if(topIsMap) out[k]=v; Object.keys(v).forEach(function(f){ if(Array.isArray(v[f])) out[k+"."+f]=v[f]; }); } }); return out; }
+  function tombsOf(mem){ var t=mParse((mem||{})[TOMB_KEY]); return mIsObj(t)?t:{}; }
+  // compare the last agreed copy with this device's copy: removals become tombstones, re-adds clear them
+  function tombDiff(baseSlim, localSlim, tombs, now){
+    var B=tombPaths(baseSlim), L=tombPaths(localSlim), n=0;
+    Object.keys(B).forEach(function(p){ if(!(p in L)) return; var b=tombColl(B[p]), l=tombColl(L[p]); if(!b || !l) return; var t=tombs[p]||(tombs[p]={});
+      Object.keys(b).forEach(function(id){ if(!l[id] && !(t[id] && t[id].del)){ t[id]={at:now, del:true}; n++; } });
+      Object.keys(l).forEach(function(id){ if(!b[id] && t[id] && t[id].del){ t[id]={at:now, del:false}; n++; } }); });
+    var cut=new Date(Date.now()-TOMB_KEEP_DAYS*864e5).toISOString();
+    Object.keys(tombs).forEach(function(p){ Object.keys(tombs[p]).forEach(function(id){ if((tombs[p][id].at||"")<cut){ delete tombs[p][id]; n++; } }); if(!Object.keys(tombs[p]).length) delete tombs[p]; });
+    return n; }
+  function tombMerge(a, b){ var out=JSON.parse(JSON.stringify(a||{})); Object.keys(b||{}).forEach(function(p){ var o=out[p]||(out[p]={}); Object.keys(b[p]).forEach(function(id){ var x=b[p][id]; if(!o[id] || (x.at||"")>(o[id].at||"")) o[id]=x; }); }); return out; }
+  // drop every item a tombstone says is deleted, at its path
+  function tombApply(slim, tombs){
+    var out=Object.assign({}, slim), dropped=0;
+    Object.keys(tombs).forEach(function(p){ var dot=p.indexOf("."), k=dot<0?p:p.slice(0,dot), f=dot<0?null:p.slice(dot+1); if(!(k in out)) return;
+      var v=mParse(out[k]), t=tombs[p], isDead=function(id){ return t[id] && t[id].del; };
+      function clean(x){ if(Array.isArray(x)) return x.filter(function(it){ var id=mIdOf(it); if(id!=null && isDead(id)){ dropped++; return false; } return true; }); if(mIsObj(x)){ var o={}; Object.keys(x).forEach(function(kk){ if(isDead("k:"+kk)) dropped++; else o[kk]=x[kk]; }); return o; } return x; }
+      if(f==null){ if(Array.isArray(v) || mIsObj(v)){ var nv=clean(v); out[k]=JSON.stringify(nv); } }
+      else if(mIsObj(v) && Array.isArray(v[f])){ v[f]=clean(v[f]); out[k]=JSON.stringify(v); } });
+    return {slim:out, dropped:dropped}; }
+  // record this device's removals since the last agreed copy into the vault (called before every upload and merge)
+  async function tombStamp(){
+    var mem=window.__vaultMem||{}, base=await baseLoad(); if(!base || !base.v) return 0;
+    var t=tombsOf(mem), n=tombDiff(base.v, slimOf(mem), t, new Date().toISOString());
+    if(n){ mem[TOMB_KEY]=JSON.stringify(t); }
+    return n; }
+  window.__tombTest={diff:tombDiff, merge:tombMerge, apply:tombApply};
   function mergeSlim(base, local, cloud, ctx){
     var out={}, keys={}; [base,local,cloud].forEach(function(o){ Object.keys(o).forEach(function(k){ keys[k]=1; }); });
     Object.keys(keys).sort().forEach(function(k){
@@ -12019,11 +12099,16 @@ window.startClinicApp = function(){
     var row=res.row, cloud;
     try{ cloud=await cloudSlimOf(row); }catch(e){ return {ok:false, msg:"could not read the cloud copy ("+(e&&e.message||e)+")"}; }
     if(!cloud) return {ok:false, msg:"the cloud copy is not in the shared-records format"};
+    try{ await tombStamp(); }catch(e){}
     var mem=window.__vaultMem||{}, local=slimOf(mem), base=await baseLoad(), dirty=unsentCount()>0 || localDirty() || vaultPending;
-    // no agreed copy yet: keep everything from both sides (nothing is lost; a deletion elsewhere may come back once)
+    // no agreed copy yet: keep everything from both sides, except what a tombstone from either side says was deleted
     var B = base ? base.v : {};
     var ctx={conflicts:0, keys:[], path:""};
-    var merged=mergeSlim(B, local, cloud, ctx);
+    var tombs=tombMerge(tombsOf(local), tombsOf(cloud));
+    var lt=Object.assign({}, local), ct=Object.assign({}, cloud), bt=Object.assign({}, B); delete lt[TOMB_KEY]; delete ct[TOMB_KEY]; delete bt[TOMB_KEY];
+    var merged=mergeSlim(bt, lt, ct, ctx), ta=tombApply(merged, tombs); merged=ta.slim;
+    if(Object.keys(tombs).length) merged[TOMB_KEY]=JSON.stringify(tombs);
+    if(ta.dropped) try{ audit("sync_tombstones_applied", String(ta.dropped), true); }catch(e){}
     var mAcc=mergeAccounts(base?base.a:[], accounts, row.accounts||[], ctx);
     if(ctx.conflicts && Date.now()-mergeSt.lastRp>30*60000){ mergeSt.lastRp=Date.now(); try{ await window.__restorePoint("beforeAutoMerge"); }catch(e){} }
     var changed=[];
