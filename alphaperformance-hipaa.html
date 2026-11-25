@@ -11655,6 +11655,35 @@ window.startClinicApp = function(){
     if(keys.length){ try{ if(window.__reloadFromStore) window.__reloadFromStore(keys); }catch(e){} try{ audit("records_tombstone_purged", String(n), true); }catch(e){} window.__vaultSave(); }
     return n; }
   window.__recTombPurge=recTombPurge;
+  window.__recTombs=function(){ return Object.keys(recTomb()); };
+  // Bring deleted records back on purpose (admin). Clears their tombstones and re-uploads them; the upload replaces the
+  // cloud tombstone with a live row (newer seq), and every other device takes the live row and drops its tombstone.
+  // opts.records: the records (array or {id:rec}); or opts.fromPoint: a restore point name to take them from.
+  window.__recRestore=async function(key, ids, opts){
+    opts=opts||{}; if(!(window.__isAdmin && window.__isAdmin())) return {ok:false, reason:"admins only"};
+    var c=REC_COLS[key]; if(!c) return {ok:false, reason:"not a per-record collection"};
+    ids=(ids||[]).map(String); if(!ids.length) return {ok:false, reason:"no ids"};
+    var src=opts.records;
+    if(!src && opts.fromPoint){ var pk=await window.__restorePointPeek(opts.fromPoint, [key]); src=pk && pk[key]; if(typeof src==="string") src=JSON.parse(src); }
+    if(!src) return {ok:false, reason:"no source records"};
+    var found={}, missing=[];
+    if(Array.isArray(src)) src.forEach(function(r){ if(r && r.id!=null && ids.indexOf(String(r.id))>=0) found[String(r.id)]=r; });
+    else ids.forEach(function(id){ if(Object.prototype.hasOwnProperty.call(src,id)) found[id]=src[id]; });
+    ids.forEach(function(id){ if(!found[id]) missing.push(id); });
+    var got=Object.keys(found); if(!got.length) return {ok:false, reason:"none of the ids are in the source", missing:missing};
+    var tomb=recTomb(); got.forEach(function(id){ delete tomb[c.k+":"+id]; }); recTombSet(tomb);
+    var val=memVal(key); if(val==null) val=c.t==="arr"?[]:{};
+    if(c.t==="arr"){ var idx={}; val.forEach(function(r,i){ if(r && r.id!=null) idx[String(r.id)]=i; }); got.forEach(function(id){ if(id in idx) val[idx[id]]=found[id]; else val.push(found[id]); }); }
+    else got.forEach(function(id){ val[id]=found[id]; });
+    var sh=recShadow[key]||(recShadow[key]={}); got.forEach(function(id){ delete sh[id]; });
+    recRestoreUntil=Date.now()+180000;
+    window.__vaultMem[key]=JSON.stringify(val);
+    try{ if(window.__reloadFromStore) window.__reloadFromStore([key]); }catch(e){}
+    try{ window.__recordWrite(key); }catch(e){}
+    window.__vaultSave();
+    try{ audit("records_restored", c.k+" "+got.length+(opts.fromPoint?" from "+opts.fromPoint:""), true); }catch(e){}
+    return {ok:true, restored:got, missing:missing};
+  };
   window.__recRestoreMode=function(ms){ recRestoreUntil=Date.now()+(ms||120000); };
   async function recTombFetch(token){
     var t={}, from=0;
@@ -11790,6 +11819,8 @@ window.startClinicApp = function(){
           var p=row.id.indexOf(":"), kind=row.id.slice(0,p), id=row.id.slice(p+1), key=REC_BY_KIND[kind]; if(!key) continue;
           var sh=recShadow[key]||(recShadow[key]={});
           if(row.deleted){
+            // a deletion this device had already seen, with a local change queued after it, is a deliberate restore: the restore wins
+            if(q[row.id] && (+row.seq||0)<=stored) continue;
             // tombstone: deleted everywhere, including over an edit this device has not uploaded yet
             if(!tomb[row.id]){ tomb[row.id]=1; tombCh=true; }
             if(q[row.id]) beatQ.push(row.id);
