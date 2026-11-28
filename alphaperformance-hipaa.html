@@ -512,6 +512,7 @@
   .email-skip{color:var(--muted)}
   .email-note{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5}
   .contacted-meta{color:#7C3AED!important;font-weight:600}
+  .rc-last{align-items:center;gap:10px;flex-wrap:wrap;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:8px 10px;margin-bottom:10px;font-size:14px}.rc-last span{flex:1}.rc-x{border:0;background:transparent;font-size:18px;cursor:pointer;color:var(--muted)}
   .pr-bmatch{flex-basis:100%;margin-top:6px}.pr-brow{flex-wrap:wrap}
   .pending-badge{background:#F5F3FF;color:#6D28D9;border:1px solid #DDD6FE}.pch{margin-top:8px}.pch-h{font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px}.pch-row{display:flex;gap:10px;font-size:13px;padding:3px 0;border-bottom:1px dashed var(--line)}.pch-row span:first-child{min-width:92px;color:var(--muted)}
   .cold-badge{background:#EEF1F4;color:#475467}
@@ -1527,7 +1528,7 @@
       <a class="nav-link" data-view="inventory"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7l-8-4-8 4 8 4 8-4z"/><path d="M4 7v10l8 4 8-4V7"/><path d="M12 11v10"/></svg><span>Items</span></a>
       <a class="nav-link" data-view="ordering"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h2l2.4 12.2a2 2 0 002 1.6h8.8a2 2 0 002-1.6L22 7H6"/><circle cx="10" cy="20.5" r="1"/><circle cx="18" cy="20.5" r="1"/></svg><span>Suggested ordering</span></a>
       <a class="nav-link" data-view="giftcerts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M12 8v13M3 12h18M12 8c-2-4-6-3-5 0 .5 1.5 3 1.5 5 0zM12 8c2-4 6-3 5 0-.5 1.5-3 1.5-5 0z"/></svg><span>Gift Certificates</span></a>
-      <a class="nav-link" data-view="credits"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12v8H4v-8"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/><path d="M8.5 4.5L12 7l3.5-2.5"/></svg><span>Customer credits</span></a>
+      <a class="nav-link" data-view="credits"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12v8H4v-8"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/><path d="M8.5 4.5L12 7l3.5-2.5"/></svg><span>Client accounts</span></a>
       <a class="nav-link" data-view="promos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4l-7.2 7.2a2 2 0 01-2.8 0L3 13V3h10l7.6 7.6a2 2 0 010 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg><span>Promotions</span></a>
       <a class="nav-link" data-view="packages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><path d="M3.3 7L12 12l8.7-5M12 22V12"/></svg><span>Packages</span></a>
       <a class="nav-link" data-view="subs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-3-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M12 7v5l3 2"/></svg><span>Subscriptions</span></a>
@@ -1822,6 +1823,7 @@
         <div class="pos-catalog-note">Each item posts to its own company (tagged in the list). Manage products &amp; prices in the <b>Items</b> tab.</div>
       </div>
 
+      <div id="posLastSale" class="rc-last" style="display:none"></div>
       <div id="posConsultAlert" class="pos-consult-alert" style="display:none"></div>
       <div id="posCart" class="pos-cart"></div>
 
@@ -2477,6 +2479,9 @@
     <div class="settings-label">Clinic locations (where sales happen)</div>
     <p style="font-size:13px;color:var(--muted);margin:0 0 10px;line-height:1.45">Each sale records the location its register is set to. One location carries shared costs (payroll, software, insurance). For another location, labour per clinic day and its own rent move from shared costs to it in profit per patient.</p>
     <div id="siteList"></div>
+    <div class="settings-label" style="margin-top:14px">Receipts</div>
+    <div class="gc-row2"><div class="pos-field"><label>Phone</label><input type="text" id="setRcPhone"></div><div class="pos-field"><label>Email</label><input type="text" id="setRcEmail"></div></div>
+    <div class="gc-row2"><div class="pos-field"><label>Website</label><input type="text" id="setRcWeb"></div><div class="pos-field"><label>Footer line</label><input type="text" id="setRcFoot" placeholder="Thank you."></div></div>
     <button class="add-tier" id="addSiteBtn" type="button">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
       Add clinic location
@@ -4521,9 +4526,10 @@ window.startClinicApp = function(){
   function clientCreditTotal(clientId){ return Math.round(creditsFor(clientId).reduce(function(a,c){ return a+creditBalance(c); },0)*100)/100; }
   function renderCredits(){
     var el=$("creditsPage"); if(!el) return;
-    var tabs='<div class="gc-chips ba-tabs">'+[["credits","Customer credits"],["bill","Bill later accounts"]].map(function(x){ return '<button type="button" data-crtab="'+x[0]+'" class="'+(crTab===x[0]?'on':'')+'">'+x[1]+'</button>'; }).join("")+'</div>';
+    var tabs='<div class="gc-chips ba-tabs">'+[["credits","Credits"],["bill","Bill later accounts"],["receipts","Receipts & statements"]].map(function(x){ return '<button type="button" data-crtab="'+x[0]+'" class="'+(crTab===x[0]?'on':'')+'">'+x[1]+'</button>'; }).join("")+'</div>';
     function wireTabs(){ Array.prototype.forEach.call(el.querySelectorAll("[data-crtab]"),function(b){ b.onclick=function(){ crTab=b.getAttribute("data-crtab"); renderCredits(); }; }); }
     if(crTab==="bill"){ renderBillAccts(el, tabs); wireTabs(); return; }
+    if(crTab==="receipts"){ renderReceiptsTab(el, tabs); wireTabs(); return; }
     var q=crQ.trim().toLowerCase();
     var list=credits.slice().sort(function(a,b){ return (b.issued||"").localeCompare(a.issued||"") || (b.at||"").localeCompare(a.at||""); }).filter(function(c){
       var bal=creditBalance(c), st=c.voided?"void":(bal>0.004?"open":"used");
@@ -4810,6 +4816,97 @@ window.startClinicApp = function(){
     saveBillAccts();
     if(window.__hipAudit) window.__hipAudit("billacct_settled", a.name+" $"+money(total)+" · "+o.method+" · "+o.ini);
     return {amount:total, count:open.length, byEnt:byEnt};
+  }
+  // ---------- Receipts (28 Nov 2026) ----------
+  // One receipt per checkout (all lines of a sale group, both companies). Number: YYYYMMDD-LASTNAME (-2, -3 for later sales that day).
+  var RC_ENT_NAMES={mjs:"MJS Medical Wellness", alpha:"Alpha Male Health Restoration"};
+  var RC_SEED_ADDR={setauket:"220 Main Street, East Setauket, NY 11733", huntington:"1772 East Jericho Turnpike, Suite 2, Huntington, NY 11743", bohemia:"190 McCormick Dr (MFLH Collective), Bohemia, NY 11716"};
+  function rcSeed(){ if(settings.receiptSeedV) return; var ch=false;
+    sites.forEach(function(s){ if(!s.address && RC_SEED_ADDR[s.id]){ s.address=RC_SEED_ADDR[s.id]; ch=true; } }); if(ch) saveSites();
+    if(!settings.receiptPhone) settings.receiptPhone="(631) 617-9798"; settings.receiptSeedV="2026-11-28"; saveSettings(); }
+  function rcEntName(e){ return ((settings.entityNames||{})[e]) || RC_ENT_NAMES[e] || ENT_FULL[e] || e; }
+  function rcGroup(t){ if(!t) return []; if(!t.saleGroup) return [t]; return txns.filter(function(x){ return x.type==="sale" && x.saleGroup===t.saleGroup; }).sort(function(a,b){ return (a.entity||"").localeCompare(b.entity||""); }); }
+  function rcKey(t){ return t.saleGroup||t.id; }
+  function rcLast(t){ var p=t.clientId?findPatient(t.clientId):null, nm=(p&&p.name)||t.clientName||"";
+    if(!nm.trim()) return "WALKIN"; var parts=nm.trim().split(/\s+/); if(/,/.test(nm)) return parts[0].replace(/[^A-Za-z]/g,"").toUpperCase()||"CLIENT";
+    for(var i=parts.length-1;i>=0;i--){ var w=parts[i].replace(/[^A-Za-z]/g,""); if(w && !/^(jr|sr|ii|iii|iv|md|do)$/i.test(w)) return w.toUpperCase(); } return "CLIENT"; }
+  function rcNumber(t){ var d=(t.date||"").replace(/-/g,""), last=rcLast(t);
+    var same={}; txns.forEach(function(x){ if(x.type==="sale" && x.date===t.date && rcLast(x)===last) same[rcKey(x)]=x.id; });
+    var keys=Object.keys(same).sort(function(a,b){ return String(same[a]).localeCompare(String(same[b])); }), i=keys.indexOf(rcKey(t));
+    return d+"-"+last+(i>0?"-"+(i+1):""); }
+  function rcLineAmt(l){ var r=(l.retail!=null?+l.retail:+l.price||0), q=+l.qty||1; return {unit:r, qty:q, gross:Math.round(r*q*100)/100, disc:(typeof lineDisc==="function")?lineDisc(l):0}; }
+  var RC_CSS='body{font:14px/1.45 -apple-system,Segoe UI,Arial,sans-serif;color:#111;margin:28px;max-width:720px}h1{font-size:20px;margin:0}h2{font-size:14px;margin:18px 0 6px;color:#333}.sub{color:#555;font-size:13px}.meta{display:flex;justify-content:space-between;gap:20px;margin:14px 0;flex-wrap:wrap}.meta div{font-size:13px}table{width:100%;border-collapse:collapse}td,th{padding:5px 6px;border-bottom:1px solid #e3e3e3;text-align:left;vertical-align:top}th{font-size:11px;color:#666;text-transform:uppercase}.n{text-align:right;white-space:nowrap}.tot td{font-weight:700;border-top:2px solid #111;border-bottom:0}.sm td{border-bottom:0;padding:2px 6px}.foot{margin-top:22px;font-size:12px;color:#555}.rc{page-break-after:always}.rc:last-child{page-break-after:auto}@media print{body{margin:12mm}}';
+  function rcHeader(site){ try{ rcSeed(); }catch(e){} var s=siteById(site)||sharedSite()||{};
+    return '<h1>'+esc(settings.name||"Alpha Performance")+'</h1><div class="sub">'+esc(s.name||"")+(s.address?' · '+esc(s.address):'')+'</div>'+
+      '<div class="sub">'+[settings.receiptPhone, settings.receiptEmail, settings.receiptWeb].filter(Boolean).map(esc).join(' · ')+'</div>'; }
+  function rcBody(t){
+    var g=rcGroup(t), first=g[0]||t, p=first.clientId?findPatient(first.clientId):null, who=(p&&p.name)||first.clientName||"Walk-in";
+    var sub=0, disc=0, tot=0, rows="";
+    g.forEach(function(x){
+      rows+='<tr><td colspan="4" style="font-size:12px;color:#555;padding-top:10px">'+esc(rcEntName(x.entity||"mjs"))+'</td></tr>';
+      (x.items||[]).forEach(function(l){ var a=rcLineAmt(l); rows+='<tr><td>'+esc(l.name||"Item")+'</td><td class="n">'+a.qty+'</td><td class="n">$'+money(a.unit)+'</td><td class="n">$'+money(a.gross)+'</td></tr>'; });
+      sub+=(x.subtotal!=null?+x.subtotal:(x.items||[]).reduce(function(s,l){ return s+rcLineAmt(l).gross; },0)); disc+=(+x.discountAmt||0); tot+=(+x.total||0); });
+    sub=Math.round(sub*100)/100; tot=Math.round(tot*100)/100; disc=Math.max(0, Math.round((sub-tot)*100)/100) || Math.round(disc*100)/100;
+    var pays={}; g.forEach(function(x){ var ps=(x.payments&&x.payments.length)?x.payments:[{method:x.payment||"Payment", amount:x.total}]; ps.forEach(function(pm){ var m=pm.method||"Payment"; if(/account|invoice|unpaid/i.test(m) && x.billAcctName) m="Billed to "+x.billAcctName+" account"; pays[m]=(pays[m]||0)+(+pm.amount||0); }); });
+    var dname=g.map(function(x){ return x.promoName||x.discountName||""; }).filter(Boolean)[0]||"";
+    return '<div class="rc">'+rcHeader(first.location)+
+      '<div class="meta"><div><b>Receipt</b> '+esc(rcNumber(first))+'<br>'+esc(fmtDate(parseISO(first.date)))+'</div><div><b>Client</b><br>'+esc(who)+'</div></div>'+
+      '<table><thead><tr><th>Item</th><th class="n">Qty</th><th class="n">Price</th><th class="n">Amount</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+      '<table style="margin-top:8px"><tbody><tr class="sm"><td>Subtotal</td><td class="n">$'+money(sub)+'</td></tr>'+
+      (disc>0.004?'<tr class="sm"><td>Discount'+(dname?' ('+esc(dname)+')':'')+'</td><td class="n">−$'+money(disc)+'</td></tr>':'')+
+      '<tr class="tot"><td>Total</td><td class="n">$'+money(tot)+'</td></tr>'+
+      Object.keys(pays).map(function(m){ return '<tr class="sm"><td>'+esc(m)+'</td><td class="n">$'+money(pays[m])+'</td></tr>'; }).join("")+'</tbody></table>'+
+      '<div class="foot">'+esc(settings.receiptFooter||"Thank you.")+'</div></div>'; }
+  function rcOpen(title, html){
+    var w=window.open("","_blank"); if(!w){ toast("Allow pop-ups to print the receipt"); return false; }
+    w.document.open(); w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+esc(title)+'</title><style>'+RC_CSS+'</style></head><body>'+html+'</body></html>'); w.document.close();
+    setTimeout(function(){ try{ w.focus(); w.print(); }catch(e){} },300); return true; }
+  function printReceipt(tid){ var t=txns.filter(function(x){ return x.id===tid; })[0]; if(!t || t.type!=="sale"){ toast("Sale not found"); return; }
+    rcOpen("Receipt "+rcNumber(t), rcBody(t)); if(window.__hipAudit) window.__hipAudit("receipt_print", rcNumber(t)); }
+  window.__receiptHtml=function(tid){ var t=txns.filter(function(x){ return x.id===tid; })[0]; return t?rcBody(t):""; };
+  window.__receiptNo=function(tid){ var t=txns.filter(function(x){ return x.id===tid; })[0]; return t?rcNumber(t):""; };
+  // one row per checkout for a client, newest first
+  function rcClientSales(cid, from, to){ var seen={}, out=[];
+    txns.filter(function(t){ return t.type==="sale" && t.clientId===cid && (!from || t.date>=from) && (!to || t.date<=to); }).sort(function(a,b){ return (b.date||"").localeCompare(a.date||"") || String(b.id).localeCompare(String(a.id)); })
+      .forEach(function(t){ var k=rcKey(t); if(seen[k]) return; seen[k]=1; out.push(t); }); return out; }
+  // statement: everything a client bought in a date range
+  function rcStatementHtml(cid, from, to){
+    var p=findPatient(cid), sales=rcClientSales(cid, from, to).slice().reverse(), all=[];
+    sales.forEach(function(t){ rcGroup(t).forEach(function(x){ all.push(x); }); });
+    var byItem={}, total=0, disc=0;
+    all.forEach(function(x){ total+=+x.total||0; (x.items||[]).forEach(function(l){ var a=rcLineAmt(l), k=l.name||"Item"; var o=byItem[k]||(byItem[k]={qty:0, gross:0}); o.qty+=a.qty; o.gross+=a.gross; }); });
+    var gross=Object.keys(byItem).reduce(function(s,k){ return s+byItem[k].gross; },0); disc=Math.max(0, Math.round((gross-total)*100)/100);
+    var rows=sales.map(function(t){ var g=rcGroup(t), its=[], amt=0; g.forEach(function(x){ amt+=+x.total||0; (x.items||[]).forEach(function(l){ its.push((l.name||"Item")+((+l.qty||1)>1?" ×"+l.qty:"")); }); });
+      return '<tr><td>'+esc(fmtDate(parseISO(t.date)))+'</td><td>'+esc(rcNumber(t))+'</td><td>'+esc(its.join(", "))+'</td><td class="n">$'+money(amt)+'</td></tr>'; }).join("");
+    var sum=Object.keys(byItem).sort(function(a,b){ return byItem[b].gross-byItem[a].gross; }).map(function(k){ return '<tr><td>'+esc(k)+'</td><td class="n">'+byItem[k].qty+'</td><td class="n">$'+money(byItem[k].gross)+'</td></tr>'; }).join("");
+    var period=(from?fmtDate(parseISO(from)):"First purchase")+" to "+(to?fmtDate(parseISO(to)):fmtDate(new Date()));
+    return '<div class="rc">'+rcHeader(sharedSite().id)+'<div class="meta"><div><b>Purchase statement</b><br>'+esc(period)+'</div><div><b>Client</b><br>'+esc(p?p.name:"")+'</div></div>'+
+      (sales.length?'<h2>Purchases</h2><table><thead><tr><th>Date</th><th>Receipt</th><th>Items</th><th class="n">Paid</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+      '<h2>Products and services</h2><table><thead><tr><th>Item</th><th class="n">Qty</th><th class="n">Amount</th></tr></thead><tbody>'+sum+'</tbody></table>'+
+      '<table style="margin-top:8px"><tbody><tr class="sm"><td>Subtotal</td><td class="n">$'+money(gross)+'</td></tr>'+(disc>0.004?'<tr class="sm"><td>Discounts</td><td class="n">−$'+money(disc)+'</td></tr>':'')+'<tr class="tot"><td>Total paid ('+sales.length+' visit'+(sales.length===1?'':'s')+')</td><td class="n">$'+money(total)+'</td></tr></tbody></table>'
+      :'<p>No purchases in this period.</p>')+'<div class="foot">'+esc(settings.receiptFooter||"Thank you.")+'</div></div>'; }
+  window.__statementHtml=rcStatementHtml;
+  var rcState={cid:"", range:"3m", from:"", to:""};
+  function rcRange(){ var t=todayISO(), d=new Date(), f="";
+    if(rcState.range==="3m"){ d.setMonth(d.getMonth()-3); f=isoFrom(d); } else if(rcState.range==="6m"){ d.setMonth(d.getMonth()-6); f=isoFrom(d); }
+    else if(rcState.range==="ytd"){ f=t.slice(0,4)+"-01-01"; } else if(rcState.range==="ly"){ var y=+t.slice(0,4)-1; return {from:y+"-01-01", to:y+"-12-31"}; }
+    else if(rcState.range==="all"){ f=""; } else return {from:rcState.from, to:rcState.to};
+    return {from:f, to:t}; }
+  function renderReceiptsTab(el, tabs){
+    var p=rcState.cid?findPatient(rcState.cid):null, rg=rcRange(), list=p?rcClientSales(p.id, rg.from, rg.to):[];
+    el.innerHTML=tabs+'<div class="rep-card"><div class="pos-field"><label>Client</label><div class="client-search" style="position:relative"><input type="text" id="rcQ" placeholder="Search a client" autocomplete="off" value="'+esc(p?p.name:"")+'"><div class="client-drop" id="rcDrop" style="display:none"></div></div></div>'+
+      '<div class="gc-chips">'+[["3m","Last 3 months"],["6m","Last 6 months"],["ytd","This year"],["ly","Last year"],["all","All time"],["custom","Dates…"]].map(function(x){ return '<button type="button" data-rcr="'+x[0]+'" class="'+(rcState.range===x[0]?'on':'')+'">'+x[1]+'</button>'; }).join("")+'</div>'+
+      (rcState.range==="custom"?'<div class="gc-row2"><div class="pos-field"><label>From</label><input type="date" id="rcFrom" value="'+esc(rcState.from)+'"></div><div class="pos-field"><label>To</label><input type="date" id="rcTo" value="'+esc(rcState.to||todayISO())+'"></div></div>':'')+
+      (p?'<div class="inv-tools"><div class="gc-hint" style="flex:1;margin:0">'+list.length+' visit'+(list.length===1?'':'s')+' · $'+money(list.reduce(function(s,t){ return s+rcGroup(t).reduce(function(a,x){ return a+(+x.total||0); },0); },0))+'</div><button class="btn-primary inv-add" id="rcStmt" type="button"'+(list.length?'':' disabled')+'>Print purchase statement</button></div>'+
+        (list.length?list.map(function(t){ var g=rcGroup(t), amt=g.reduce(function(a,x){ return a+(+x.total||0); },0), its=[]; g.forEach(function(x){ (x.items||[]).forEach(function(l){ its.push(l.name); }); });
+          return '<div class="gc-row"><div class="gc-r-main"><div class="gc-r-num">'+esc(rcNumber(t))+'</div><div class="gc-r-sub">'+esc(fmtDate(parseISO(t.date)))+' · '+esc(its.join(", "))+'</div></div><div class="gc-r-amt"><b>$'+money(amt)+'</b><button type="button" class="ba-chg-edit" data-rcp="'+esc(t.id)+'">Receipt</button></div></div>'; }).join(""):'<div class="pos-cart-empty">No purchases in this period.</div>')
+      :'<div class="gc-hint">Pick a client to see their receipts and print a statement of everything they bought.</div>')+'</div>';
+    baClientPicker("rcQ","rcDrop",function(x){ if(!x) return; rcState.cid=x.id; renderCredits(); });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-rcr]"),function(b){ b.onclick=function(){ rcState.range=b.getAttribute("data-rcr"); if(rcState.range==="custom" && !rcState.from){ var d=new Date(); d.setMonth(d.getMonth()-3); rcState.from=isoFrom(d); rcState.to=todayISO(); } renderCredits(); }; });
+    if($("rcFrom")) $("rcFrom").onchange=function(){ rcState.from=this.value; renderCredits(); };
+    if($("rcTo")) $("rcTo").onchange=function(){ rcState.to=this.value; renderCredits(); };
+    if($("rcStmt")) $("rcStmt").onclick=function(){ rcOpen("Purchase statement - "+p.name, rcStatementHtml(p.id, rg.from, rg.to)); if(window.__hipAudit) window.__hipAudit("statement_print", p.id+" "+(rg.from||"")+".."+(rg.to||"")); };
+    Array.prototype.forEach.call(el.querySelectorAll("[data-rcp]"),function(b){ b.onclick=function(){ printReceipt(b.getAttribute("data-rcp")); }; });
   }
   // ---------- Suggested ordering: average patients per month on each item ----------
   var ordState={months:3, ent:"all", site:"all", q:"", all:false};
@@ -5865,7 +5962,7 @@ window.startClinicApp = function(){
     subs:["Subscriptions","Monthly supplement shipments and pickups, 5% off"],
     ordering:["Suggested ordering","Average patients per month on each item, last 3 months"],
     cash:["Cash & deposits","Cash collected each day, cash in the safe and bank deposits"],
-    credits:["Customer credits","Credits owed to clients, applied automatically at their next sale"],
+    credits:["Client accounts","Credits, bill later accounts, receipts and purchase statements"],
     expenses:["Expenses","Record business costs"],
     gl:["General Ledger","Double-entry transactions"],
     coa:["Chart of Accounts","Your account structure"],
@@ -6196,12 +6293,14 @@ window.startClinicApp = function(){
       return '<div class="site-edit"><div class="site-row"><input type="text" value="'+esc(s.name)+'" data-sitename="'+i+'" placeholder="Location name">'+
         '<label class="site-ck"><input type="checkbox" data-siteon="'+i+'"'+(s.active!==false?' checked':'')+'> Open</label>'+
         '<label class="site-ck"><input type="radio" name="siteShared" data-siteshared="'+i+'"'+(s.shared?' checked':'')+'> Shared costs</label></div>'+
+        '<div class="site-row site-sub"><input type="text" value="'+esc(s.address||"")+'" data-siteaddr="'+i+'" placeholder="Address (printed on receipts)" style="flex:1"></div>'+
         (s.shared?'<div class="site-sub">Payroll, rent and other shared costs stay here unless moved below.</div>':
         '<div class="site-row site-sub"><label>Labour per clinic day $<input type="number" min="0" step="0.01" data-siteday="'+i+'" value="'+(+s.dayCost||0)+'"></label>'+
         '<label>Rent schedule <input type="text" data-siterent="'+i+'" value="'+esc((s.rent||[]).map(function(r){ return r.amount+" from "+r.from; }).join("; "))+'" placeholder="1500 from 2026-11-01; 2000 from 2027-05-01"></label></div>')+
       '</div>';
     }).join("");
     Array.prototype.forEach.call(el.querySelectorAll("[data-sitename]"),function(x){ x.oninput=function(){ draftSites[+x.getAttribute("data-sitename")].name=x.value; }; });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-siteaddr]"),function(x){ x.oninput=function(){ draftSites[+x.getAttribute("data-siteaddr")].address=x.value.trim(); }; });
     Array.prototype.forEach.call(el.querySelectorAll("[data-siteon]"),function(x){ x.onchange=function(){ draftSites[+x.getAttribute("data-siteon")].active=x.checked; }; });
     Array.prototype.forEach.call(el.querySelectorAll("[data-siteshared]"),function(x){ x.onchange=function(){ draftSites.forEach(function(s,i){ s.shared=(i===+x.getAttribute("data-siteshared")); }); paintSites(); }; });
     Array.prototype.forEach.call(el.querySelectorAll("[data-siteday]"),function(x){ x.oninput=function(){ draftSites[+x.getAttribute("data-siteday")].dayCost=Math.max(0,+x.value||0); }; });
@@ -7368,6 +7467,7 @@ window.startClinicApp = function(){
       '<div class="ledger-ic '+(sale?"sale":"expense")+'">'+(sale?"$":"−")+'</div>'+
       '<div class="ledger-main"><div class="ledger-t1">'+esc(title)+(t.medReview?' <span class="inv-tag t-disc" title="Posted to COGS - Medication because the vendor looks like a pharmacy. Open it to confirm or change.">check: new pharmacy?</span>':'')+'</div><div class="ledger-t2">'+fmtDate(parseISO(t.date))+' · '+esc(sub)+'</div></div>'+
       '<div class="ledger-amt '+(sale?"pos":"neg")+'">'+(sale?"+":"−")+'$'+money(amt)+'</div>'+
+      (sale?'<button class="ledger-edit" data-txrc="'+t.id+'" aria-label="Receipt" title="Receipt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg></button>':'')+
       '<button class="ledger-edit" data-txedit="'+t.id+'" aria-label="Edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg></button>'+
       '<button class="ledger-del" data-txdel="'+t.id+'" aria-label="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/></svg></button>'+
     '</div>';
@@ -7376,6 +7476,7 @@ window.startClinicApp = function(){
     if(!rows.length){ container.innerHTML='<div class="rep-empty">No transactions yet.</div>'; return; }
     container.innerHTML=rows.map(ledgerRowHTML).join("");
     Array.prototype.forEach.call(container.querySelectorAll("[data-txedit]"),function(b){ b.onclick=function(){ openTxnEditor(b.getAttribute("data-txedit")); }; });
+    Array.prototype.forEach.call(container.querySelectorAll("[data-txrc]"),function(b){ b.onclick=function(){ printReceipt(b.getAttribute("data-txrc")); }; });
     Array.prototype.forEach.call(container.querySelectorAll("[data-txdel]"),function(b){ b.onclick=function(){
       var id=b.getAttribute("data-txdel");
       askConfirm({ title:"Delete this entry?", message:"This removes the transaction from your books.", okLabel:"Delete",
@@ -8264,6 +8365,8 @@ window.startClinicApp = function(){
     if(p) renderAll();
     try{ if(window.__syncCommit) window.__syncCommit("sale"); }catch(e){}   // push on commit; the sale is already saved locally either way
     toast("Sale recorded \u00b7 $"+money(total)+gcMsg);
+    try{ var _ls=$("posLastSale"), _lt=plan[0]; if(_ls && _lt){ _ls.style.display="flex"; _ls.innerHTML='<span>Last sale: <b>'+esc(rcNumber(_lt))+'</b> \u00b7 $'+money(total)+'</span><button type="button" class="btn-ghost sub-mini" id="posRcBtn">Print receipt</button><button type="button" class="rc-x" id="posRcX" aria-label="Dismiss">\u00d7</button>';
+      $("posRcBtn").onclick=function(){ printReceipt(_lt.id); }; $("posRcX").onclick=function(){ _ls.style.display="none"; }; } }catch(e){ console.error(e); }
   }
 
   function posRange(){
@@ -10154,10 +10257,11 @@ window.startClinicApp = function(){
           var items=(t.items||[]).map(function(i){return i.name+(i.qty>1?" ×"+i.qty:"");}).join(", ");
           return '<div class="purch-row"><div class="purch-main"><div class="purch-t1">'+esc(items||"Sale")+'</div>'+
             '<div class="purch-t2">'+fmtDate(parseISO(t.date))+' \u00b7 '+esc(paymentLabel(t))+'</div></div>'+
-            '<div class="purch-amt">$'+money(t.total)+'</div></div>';
+            '<div class="purch-amt">$'+money(t.total)+' <button type="button" class="ba-chg-edit" data-prc="'+esc(t.id)+'">Receipt</button></div></div>';
         }).join("")
       : '<div class="purch-empty">No purchases yet.</div>';
     $("pNewSaleBtn").onclick=function(){ openRegisterForClient(id); };
+    Array.prototype.forEach.call($("pPurchList").querySelectorAll("[data-prc]"),function(b){ b.onclick=function(e){ e.stopPropagation(); printReceipt(b.getAttribute("data-prc")); }; });
   }
   function openPPanel(){ $("scrim").classList.add("show"); $("pPanel").classList.add("show"); $("pPanel").setAttribute("aria-hidden","false"); }
   function closePPanel(){ $("scrim").classList.remove("show"); $("pPanel").classList.remove("show"); $("pPanel").setAttribute("aria-hidden","true"); applyPendingRemote(); }
@@ -10341,6 +10445,7 @@ window.startClinicApp = function(){
     renderDiscountEditor();
     renderLocationEditor();
     renderSiteEditor();
+    try{ rcSeed(); [["setRcPhone","receiptPhone"],["setRcEmail","receiptEmail"],["setRcWeb","receiptWeb"],["setRcFoot","receiptFooter"]].forEach(function(x){ if($(x[0])) $(x[0]).value=settings[x[1]]||""; }); }catch(e){}
     renderRefSourceEditor();
     refreshBooksLockUI();
     closeSidebar();
@@ -10493,6 +10598,7 @@ window.startClinicApp = function(){
   function saveSettingsChanges(){
     var name=$("setName").value.trim()||"Alpha Performance";
     settings.name=name;
+    [["setRcPhone","receiptPhone"],["setRcEmail","receiptEmail"],["setRcWeb","receiptWeb"],["setRcFoot","receiptFooter"]].forEach(function(x){ if($(x[0])) settings[x[1]]=$(x[0]).value.trim(); });
     settings.accent=normHex(draftAccent)||"#DC2626";
     var url=$("setSbUrl").value.trim().replace(/\/+$/,""), key=$("setSbKey").value.trim();
     settings.supabaseUrl=url; settings.supabaseKey=key;
@@ -11203,6 +11309,7 @@ window.startClinicApp = function(){
   try{ dedupeRegProducts(); }catch(e){}
   try{ alphaChartToQB(); }catch(e){ console.error("[alpha chart]", e); }
   try{ needleHeadMigrate(); }catch(e){ console.error("[needle heads]", e); }
+  try{ if(load("alphaperf_txns",null)) rcSeed(); }catch(e){ console.error("[receipt seed]", e); }
   try{ backfillClientLinks(); }catch(e){}
   try{ runMembershipBilling(); }catch(e){}
   switchView("patients");
